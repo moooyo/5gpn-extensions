@@ -12,10 +12,9 @@ Install the manifest from the Console's **Install from URL** action:
 https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml
 ```
 
-This raw URL is usable only when the repository or an operator-controlled
-mirror is reachable without credentials. While the catalog is private, use
-the Console's local-add/upload flow; never embed a GitHub token in an extension
-URL.
+This public raw URL is installable directly. For a private fork, use the
+Console's local-add/upload flow or an operator-controlled public HTTPS mirror;
+never embed repository credentials in an extension URL.
 
 ## Supported scope
 

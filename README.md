@@ -22,10 +22,10 @@ operator egress requirement before enabling it.
 ## Installation
 
 Use the 5gpn Console **Install from URL** action with the raw
-`extension.yaml` URL for the desired directory. A private GitHub repository
-cannot be fetched by the gateway without credentials; while this repository
-is private, use the Console's local-add/upload flow or publish the reviewed
-files through an operator-controlled HTTPS origin.
+`extension.yaml` URL for the desired directory. This public catalog is
+gateway-reachable without credentials. For a private fork, use the Console's
+local-add/upload flow or publish reviewed files through an operator-controlled
+public HTTPS origin; never embed repository credentials in an extension URL.
 
 Every import starts disabled. Before enabling it, review the immutable
 snapshot digest, capture hosts, actions, settings, network origins, execution
