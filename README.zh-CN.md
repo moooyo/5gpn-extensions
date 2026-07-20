@@ -1,0 +1,220 @@
+# 5gpn 扩展
+
+[English](README.md) | 简体中文
+
+本仓库是独立维护的原生 5gpn 扩展的第一方目录。5gpn 核心仓库负责运行时和严格的
+`5gpn.io/v1` 契约；它不会将扩展源代码纳入仓库或镜像化。
+
+每个扩展导入后默认处于禁用状态。启用前，请审查其不可变清单、脚本、捕获主机、网络源、执行位置及运营者出口要求。
+
+| 扩展 | 用途 | 许可证 |
+| --- | --- | --- |
+| `ad-platform-blocker` | 阻止经审查的广告 SDK 端点 | CC BY-NC-SA 4.0 |
+| `apple-wloc` | 将 Apple WLOC 响应改写为运营者选择的位置 | MIT |
+| `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
+| `httpdns-interceptor` | 中止残余的基于主机名的 HTTPDNS 请求 | CC BY-NC-SA 4.0 |
+| `reddit-cleaner` | 移除推广的 Reddit GraphQL 对象 | GPL-3.0-only |
+| `spotify-cleaner` | 移除部分 Spotify 广告配置响应 | MIT |
+| `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
+| `youtube-cleaner` | 移除部分 YouTube 播放器广告字段 | Apache-2.0 |
+
+## 安装
+
+通过 5gpn Console 的 **Install from URL** 操作，使用所需目录中原始
+`extension.yaml` 的 URL。本公共目录可经网关访问，无需凭据。对于私有分支，请使用 Console 的本地添加/上传流程，或通过运营者控制的公共 HTTPS 源发布经审查的文件；绝不要在扩展 URL 中嵌入仓库凭据。
+
+| 扩展 | 清单 URL |
+| --- | --- |
+| `ad-platform-blocker` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/ad-platform-blocker/extension.yaml> |
+| `apple-wloc` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/apple-wloc/extension.yaml> |
+| `bilibili-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml> |
+| `httpdns-interceptor` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/httpdns-interceptor/extension.yaml> |
+| `reddit-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/reddit-cleaner/extension.yaml> |
+| `spotify-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/spotify-cleaner/extension.yaml> |
+| `testflight-region-unlock` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-unlock/extension.yaml> |
+| `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
+
+每次导入均从禁用状态开始。启用前，请审查不可变快照摘要、捕获主机、操作、设置、网络源、执行位置以及任何所需的运营者出口绑定。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
+
+## 开发扩展
+
+规范性运行时契约见核心项目的
+[`5gpn.io/v1` author guide](https://github.com/moooyo/5gpn/blob/beta/docs/native-extensions.md)。本节是本目录中扩展维护者可独立使用的检查清单。5gpn 仅接受此处说明的原生格式；请勿发布 Loon、Surge、Quantumult X、Stash 或其他兼容性全局对象或清单。
+
+### 目录结构
+
+每个顶层目录只保留一个可独立安装的扩展：
+
+```text
+example-cleaner/
+  extension.yaml
+  clean-response.js
+  README.md
+```
+
+`extension.yaml` 和运行时需要的每个脚本都必须是目录中的不可变本地文件。README 必须记录适用许可证、创作者署名、固定到提交的每个上游源、原始 URL、SHA-256 摘要、获取日期、移植决策、排除项、限制、更新流程和验证步骤。
+
+### 可用能力
+
+| 能力 | 清单声明 | 运行时效果与边界 |
+| --- | --- | --- |
+| 获取流量 | `traffic.captureHosts` | 精确 DNS 名称或受限的 `*.example.com` 通配符。这是唯一的流量获取权限，启用时会为端口 80 和 443 发布 DNS、证书和 mihomo 规则。 |
+| 转换请求或响应 | `actions[]` | 有序的结构化匹配器会在声明的阶段调用一个 `transform(context)` 脚本。每个操作主机都必须属于同一扩展的 `captureHosts`。 |
+| 读取正文 | `script.bodyMode` | `none`、UTF-8 `text`，或以 `Uint8Array` 表示的 `binary`，并受 `maxBodyBytes` 限制。 |
+| 类型化运营者配置 | `settings[]` | `text`、`select`、`boolean`、`number` 和 `location`；启用前必须完整填写必填值。 |
+| 持久状态 | `permissions.persistentStorage: true` | 添加受扩展作用域和配额限制的 `context.storage`；脚本绝不能选择路径或访问文件系统。 |
+| 按源（origin）限定的出站 HTTP | `permissions.network.origins` | 仅为精确的 HTTP(S) 源（origin）添加同步 `context.network.request`。不存在环境级 `fetch`、重定向跟随、Cookie jar 或套接字访问。运营者必须确认可见的已解密数据可能被发送到这些源。 |
+| 覆盖一个已捕获的上游 | `traffic.upstreamMappings` | 在保留原始 Host 和 TLS SNI 的情况下更改 sidecar 拨号目标。目标经过 SSRF 检查，且仍经 mihomo 返回。 |
+| 要求区域/运营者出口 | `requirements.egressGroup.required: true` | 启用前强制运营者绑定现有 mihomo 组或 `DIRECT`。扩展不能命名、检查、选择或更改组。 |
+| 组合多个扩展 | Console 执行顺序 | 请求和响应操作自上而下运行。对于重叠目的地，处于同一顺序中第一个已绑定的扩展赢得出口选择。 |
+
+脚本永远不会获得文件系统、进程、计时器、模块加载器、原始套接字、环境级 DNS、环境级 Go 对象或不受限制的网络访问。所有上游 TCP 和 UDP 均通过已认证的 mihomo `intercept-egress` 返回；扩展不能选择直接 sidecar 出口。
+
+### 最小清单
+
+该文档为严格 YAML：未知字段、重复键、别名、锚点、合并键和多文档均会被拒绝。
+
+```yaml
+apiVersion: 5gpn.io/v1
+kind: Extension
+
+metadata:
+  id: io.example.response-cleaner
+  name: Example Response Cleaner
+  version: 1.0.0
+  description: Removes one reviewed response field.
+
+permissions:
+  persistentStorage: false
+
+traffic:
+  captureHosts:
+    - api.example.com
+
+settings:
+  - key: removePromotion
+    type: boolean
+    label: Remove promotion
+    description: Removes the reviewed promotion field when enabled.
+    required: true
+    default: true
+
+actions:
+  - id: clean-items-response
+    phase: response
+    match:
+      hosts:
+        - api.example.com
+      schemes:
+        - https
+      methods:
+        - GET
+      pathRegex: '^/v1/items(?:\?.*)?$'
+      statusCodes:
+        - 200
+    script:
+      source: ./clean-response.js
+      bodyMode: text
+      timeoutMs: 1000
+      maxBodyBytes: 1048576
+```
+
+元数据 ID 是长度为 3 到 40 字节的稳定小写点分标识符，版本使用语义化版本语法。通配符捕获主机仅匹配子名称；`*.example.com` 不包含顶点域 `example.com`。
+
+每个操作声明请求或响应阶段、非空主机子集、一个或两个协议方案（scheme）、针对路径加查询进行匹配的锚定 RE2 `pathRegex`、可选的大写方法以及可选的响应状态码。脚本恰好声明 `source` 或 `inline` 之一，超时范围为 50 至 30000 毫秒，正文上限范围为 1024 至 67108864 字节。
+
+通过 URL 安装的清单可以使用相对 HTTPS 脚本源。本地粘贴或上传的清单必须使用内联脚本或绝对 HTTPS 脚本 URL。
+
+### 脚本契约
+
+每个脚本恰好定义一个全局入口点：
+
+```javascript
+function transform(context) {
+  const document = JSON.parse(context.response.body)
+  if (context.settings.removePromotion) delete document.promotion
+  return { response: { body: JSON.stringify(document) } }
+}
+```
+
+受限 context 可暴露：
+
+```text
+context.phase
+context.request.url
+context.request.method
+context.request.headers
+context.request.body
+context.response.status
+context.response.headers
+context.response.body
+context.settings
+context.storage
+context.network.request
+```
+
+请求操作可以返回请求补丁、合成响应、`{abort:
+true}`、`null` 或 `undefined`。响应操作只能返回响应补丁、中止或不作更改。改写后的 URL 必须保持在所属扩展的捕获主机边界内。未知结果字段和未捕获的脚本错误会使匹配流以拒绝方式失败（fail closed）。
+
+仅在声明了持久存储时，`context.storage` 才存在。仅在声明并确认精确源时，`context.network.request` 才存在。网络响应包含 `url`、`status`、`headers`、二进制 `body`，以及当正文是有效 UTF-8 时的 `text`。重定向和非 2xx 响应会返回给脚本，而不会被静默跟随。
+
+### 声明可选权限
+
+仅声明运行时实现实际使用的能力：
+
+```yaml
+permissions:
+  persistentStorage: true
+  network:
+    origins:
+      - https://api.example.net
+
+requirements:
+  egressGroup:
+    required: true
+
+traffic:
+  captureHosts:
+    - api.example.com
+  upstreamMappings:
+    - host: api.example.com
+      target: origin.example.net
+```
+
+网络源仅包含规范 scheme、主机名和有效端口；通配符、路径、查询、片段、userinfo、IP 字面量、localhost 和私有名称均会被拒绝。上游映射仅适用于已由同一扩展拥有的主机，且不得以私有、回环、链路本地或其他不安全地址为目标。
+
+### 开发和审查流程
+
+1. 选择权威上游仓库和不可变提交。不得将扩展商店或镜像的根许可证视为比更具体的原始文件许可证更有权威性。
+2. 移植行为前，记录并验证每个源文件和许可证文件的原始 URL、大小、SHA-256、获取日期、创作者署名和许可证。
+3. 仅将经审查的行为转换为严格的原生清单和 `transform(context)` 边界。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
+4. 仅在使用时声明存储、网络源、上游映射和所需出口。记录获准的网络调用可能泄露哪些已解密数据。
+5. 添加正向、无操作、格式错误输入和边界测试样例。保留无关字段，并在部分转换不安全时以拒绝方式失败（fail closed）。
+6. 运行目录验证器和当前核心解析器门禁：
+
+   ```sh
+   npm ci
+   npm test
+   npm run verify:upstreams
+   ```
+
+7. 在禁用状态下安装候选项，检查其快照摘要和权限摘要，配置必需设置和出口，然后仅在已授权的测试设备上启用它，且该设备已信任共享拦截根证书。
+
+更新必须保持 `metadata.id`，当不可变运行时字节变更时提升 `metadata.version`，刷新溯源信息和测试样例，并在替换后保持禁用。请勿引入自动更新、可变的运行时脚本获取或兼容性垫片。
+
+## 许可证
+
+这是一个多许可证仓库。MIT、GPL-3.0-only、Apache-2.0 和 CC-BY-NC-SA-4.0 适用于明确的文件和目录边界。由于 NonCommercial 限制，CC-BY-NC-SA 材料可获取源代码，但不符合 OSI 定义的 Open Source。请参阅根目录的
+[`LICENSE`](LICENSE)、[`LICENSES/`](LICENSES/) 下的完整文本、
+[`REUSE.toml`](REUSE.toml) 中的机器可读映射、
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) 以及各扩展 README。
+
+## 验证
+
+```sh
+npm ci
+npm test
+npm run verify:upstreams
+```
+
+验证门禁检查清单结构、本地脚本引用、捕获主机所有权、JavaScript 语法、禁止的兼容性全局对象、上游溯源文档及每个扩展的行为测试样例。独立的上游命令会下载 README 中记录的每个不可变源 URL，并验证其实际 SHA-256 是否出现在同一文档中；它有意要求网络访问。

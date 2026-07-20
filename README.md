@@ -1,5 +1,7 @@
 # 5gpn extensions
 
+English | [简体中文](README.zh-CN.md)
+
 This repository is the first-party catalog for independently maintained native
 5gpn extensions. The 5gpn core repository owns the runtime and strict
 `5gpn.io/v1` contract; it does not vendor or mirror extension source code.
@@ -26,6 +28,17 @@ Use the 5gpn Console **Install from URL** action with the raw
 gateway-reachable without credentials. For a private fork, use the Console's
 local-add/upload flow or publish reviewed files through an operator-controlled
 public HTTPS origin; never embed repository credentials in an extension URL.
+
+| Extension | Manifest URL |
+| --- | --- |
+| `ad-platform-blocker` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/ad-platform-blocker/extension.yaml> |
+| `apple-wloc` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/apple-wloc/extension.yaml> |
+| `bilibili-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml> |
+| `httpdns-interceptor` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/httpdns-interceptor/extension.yaml> |
+| `reddit-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/reddit-cleaner/extension.yaml> |
+| `spotify-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/spotify-cleaner/extension.yaml> |
+| `testflight-region-unlock` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-unlock/extension.yaml> |
+| `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
 
 Every import starts disabled. Before enabling it, review the immutable
 snapshot digest, capture hosts, actions, settings, network origins, execution

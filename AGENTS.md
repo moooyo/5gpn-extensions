@@ -1,6 +1,8 @@
 # Repository guidance
 
-- Write all code, comments, manifests, and documentation in English.
+- Write all code, comments, manifests, and documentation in English, except
+  `README.zh-CN.md`, which is the Simplified Chinese translation of the root
+  README and must remain synchronized with `README.md`.
 - Keep one independently installable `5gpn.io/v1` extension per top-level
   directory. Do not add proxy-client compatibility runtimes or globals.
 - Every extension must include `extension.yaml`, all immutable local scripts,
