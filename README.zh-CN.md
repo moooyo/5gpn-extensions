@@ -36,6 +36,22 @@
 
 每次导入均从禁用状态开始。启用前，请审查不可变快照摘要、捕获主机、操作、设置、网络源、执行位置以及任何所需的运营者出口绑定。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
 
+## Marketplace
+
+第一方 marketplace 以严格 JSON 发布于：
+
+```text
+https://moooyo.github.io/5gpn-extensions/marketplace/v1/index.json
+```
+
+在 5gpn Console 中将此 URL 添加为 marketplace 源，即可浏览已审查的扩展。浏览不会安装或启用扩展。选择条目后会进入标准的原生 manifest 解析与快照流程；生成的不可变快照仍保持禁用，直到运营者审查其捕获主机、权限、设置、执行位置和出口绑定。
+
+Marketplace 是发现元数据，不是可执行信任边界。每个条目指向常规的 `main` manifest 与本地脚本 URL，使现有显式更新检查仍能重新抓取已安装源。同时，列表记录其 40 位构建提交对应内容的精确 SHA-256 和字节数。网关必须核对下载到的 manifest 与脚本字节及其声明摘要，然后执行完整、严格的 `5gpn.io/v1` 解析；不能将列表中的描述或能力摘要当作运行时权威。脚本仍由常规不可变快照流程抓取、校验和保存。摘要不匹配时必须拒绝。
+
+GitHub Pages 在上述稳定 URL 提供当前列表。公开 JSON Schema 位于
+<https://moooyo.github.io/5gpn-extensions/marketplace/v1/schema.json>。
+当仓库存在具备 Pages 写权限的 `PAGES_ENABLEMENT_TOKEN` secret 时，固定版本的 Pages action 会尝试首次启用站点。如果组织策略禁止该 token 或自动启用，唯一的手工前置是在 **Settings → Pages** 中进行一次设置，将 Source 选择为 **GitHub Actions**；无需手工维护发布分支或生成站点。
+
 ## 开发扩展
 
 规范性运行时契约见核心项目的
@@ -215,6 +231,10 @@ traffic:
 npm ci
 npm test
 npm run verify:upstreams
+npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --output marketplace.json
+npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --check marketplace.json
 ```
 
 验证门禁检查清单结构、本地脚本引用、捕获主机所有权、JavaScript 语法、禁止的兼容性全局对象、上游溯源文档及每个扩展的行为测试样例。独立的上游命令会下载 README 中记录的每个不可变源 URL，并验证其实际 SHA-256 是否出现在同一文档中；它有意要求网络访问。
+
+Marketplace 生成器只读取 `marketplace/metadata.json` 中经审查的市场元数据；名称、版本、描述、资源、摘要、大小和能力摘要均从严格扩展 manifest 与本地文件派生。对于同一个 revision，输出是确定的。生成器会创建不存在的 `--output` 父目录，`--check` 则要求逐字节完全一致。fixture 测试会编译公开的 Draft 2020-12 schema，并使用它校验真实生成的目录。Pages 工作流会重新运行所有校验和上游检查，从已检出的 `GITHUB_SHA` 生成列表、复核生成字节，并且只部署静态 marketplace 与 schema。验证工作流还会把生成的索引和所有维护中的扩展目录交给当前 5gpn `beta` 的 Go 测试，因此 marketplace 或原生 manifest 契约漂移会在交付前失败。

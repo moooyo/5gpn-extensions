@@ -22,6 +22,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run verify:upstreams
+      - name: Generate core integration marketplace
+        run: npm run marketplace:build -- --revision "$GITHUB_SHA" --output "$RUNNER_TEMP/marketplace.json"
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           repository: moooyo/5gpn
@@ -35,6 +37,8 @@ jobs:
         working-directory: 5gpn-core/cmd/5gpn-dns
         env:
           FIVEGPN_EXTENSIONS_ROOT: ${{ github.workspace }}
+          FIVEGPN_MARKETPLACE_INDEX: ${{ runner.temp }}/marketplace.json
         run: |
           grep -Fq 'func TestExternalMaintainedExtensionsAreInstallableFromURL' intercept_module_parser_test.go
-          go test ./... -count=1 -run '^TestExternalMaintainedExtensionsAreInstallableFromURL$'
+          grep -Fq 'func TestExternalMaintainedMarketplaceMatchesCoreContract' extension_marketplace_test.go
+          go test ./... -count=1 -run '^(TestExternalMaintainedExtensionsAreInstallableFromURL|TestExternalMaintainedMarketplaceMatchesCoreContract)$'

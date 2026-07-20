@@ -11,6 +11,7 @@ path = [
   "README.md",
   "README.zh-CN.md",
   "THIRD_PARTY_NOTICES.md",
+  "marketplace/*",
   "package.json",
   "package-lock.json",
   "scripts/*",

@@ -1,0 +1,51 @@
+{
+  "metadata": {
+    "id": "io.5gpn.official",
+    "name": "5gpn Official Extensions",
+    "description": "First-party reviewed native extensions for 5gpn.",
+    "homepage": "https://github.com/moooyo/5gpn-extensions",
+    "repository": "https://github.com/moooyo/5gpn-extensions"
+  },
+  "entries": [
+    {
+      "directory": "ad-platform-blocker",
+      "licenseSpdx": "CC-BY-NC-SA-4.0",
+      "tags": ["ads", "blocking", "privacy"]
+    },
+    {
+      "directory": "apple-wloc",
+      "licenseSpdx": "MIT",
+      "tags": ["apple", "location", "testing"]
+    },
+    {
+      "directory": "bilibili-cleaner",
+      "licenseSpdx": "GPL-3.0-only",
+      "tags": ["ads", "bilibili", "media"]
+    },
+    {
+      "directory": "httpdns-interceptor",
+      "licenseSpdx": "CC-BY-NC-SA-4.0",
+      "tags": ["blocking", "dns", "privacy"]
+    },
+    {
+      "directory": "reddit-cleaner",
+      "licenseSpdx": "GPL-3.0-only",
+      "tags": ["ads", "privacy", "reddit"]
+    },
+    {
+      "directory": "spotify-cleaner",
+      "licenseSpdx": "MIT",
+      "tags": ["ads", "media", "spotify"]
+    },
+    {
+      "directory": "testflight-region-unlock",
+      "licenseSpdx": "CC-BY-NC-SA-4.0",
+      "tags": ["apple", "region", "testflight"]
+    },
+    {
+      "directory": "youtube-cleaner",
+      "licenseSpdx": "Apache-2.0",
+      "tags": ["ads", "media", "youtube"]
+    }
+  ]
+}
