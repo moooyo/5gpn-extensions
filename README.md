@@ -1,0 +1,267 @@
+# 5gpn extensions
+
+This repository is the first-party catalog for independently maintained native
+5gpn extensions. The 5gpn core repository owns the runtime and strict
+`5gpn.io/v1` contract; it does not vendor or mirror extension source code.
+
+Every extension is disabled by default after import. Review its immutable
+manifest, scripts, capture hosts, network origins, execution position, and
+operator egress requirement before enabling it.
+
+| Extension | Purpose | License |
+| --- | --- | --- |
+| `ad-platform-blocker` | Block reviewed advertising SDK endpoints | CC BY-NC-SA 4.0 |
+| `apple-wloc` | Rewrite Apple WLOC responses to an operator-selected point | MIT |
+| `bilibili-cleaner` | Remove selected Bilibili ads and promotions | GPL-3.0-only |
+| `httpdns-interceptor` | Abort residual hostname-based HTTPDNS requests | CC BY-NC-SA 4.0 |
+| `reddit-cleaner` | Remove promoted Reddit GraphQL objects | GPL-3.0-only |
+| `spotify-cleaner` | Remove selected Spotify ad configuration responses | MIT |
+| `testflight-region-unlock` | Rewrite TestFlight storefront with operator-selected egress | CC BY-NC-SA 4.0 |
+| `youtube-cleaner` | Remove selected YouTube player advertising fields | Apache-2.0 |
+
+## Installation
+
+Use the 5gpn Console **Install from URL** action with the raw
+`extension.yaml` URL for the desired directory. A private GitHub repository
+cannot be fetched by the gateway without credentials; while this repository
+is private, use the Console's local-add/upload flow or publish the reviewed
+files through an operator-controlled HTTPS origin.
+
+Every import starts disabled. Before enabling it, review the immutable
+snapshot digest, capture hosts, actions, settings, network origins, execution
+position, and any required operator egress binding. Installing an extension
+does not enable the global interception master or trust its interception CA on
+a device.
+
+## Developing an extension
+
+The normative runtime contract is the core project's
+[`5gpn.io/v1` author guide](https://github.com/moooyo/5gpn/blob/beta/docs/native-extensions.md).
+This section is a self-contained maintainer checklist for extensions in this
+catalog. 5gpn accepts only the native format described here; do not ship Loon,
+Surge, Quantumult X, Stash, or other compatibility globals or manifests.
+
+### Directory layout
+
+Keep one independently installable extension in each top-level directory:
+
+```text
+example-cleaner/
+  extension.yaml
+  clean-response.js
+  README.md
+```
+
+`extension.yaml` and every script needed at runtime must be immutable local
+files in the directory. The README must document the governing license,
+creator attribution, every upstream source pinned to a commit, raw URLs,
+SHA-256 digests, fetch dates, porting decisions, exclusions, limitations,
+update procedure, and verification steps.
+
+### Available capabilities
+
+| Capability | Manifest declaration | Runtime effect and boundary |
+| --- | --- | --- |
+| Acquire traffic | `traffic.captureHosts` | Exact DNS names or constrained `*.example.com` wildcards. This is the only traffic-acquisition permission and publishes DNS, certificate, and mihomo rules for ports 80 and 443 when enabled. |
+| Transform requests or responses | `actions[]` | Ordered structured matchers invoke one `transform(context)` script in the declared phase. Each action host must belong to the same extension's `captureHosts`. |
+| Read a body | `script.bodyMode` | `none`, UTF-8 `text`, or `binary` as `Uint8Array`, bounded by `maxBodyBytes`. |
+| Typed operator configuration | `settings[]` | `text`, `select`, `boolean`, `number`, and `location`; required values must be complete before enable. |
+| Persistent state | `permissions.persistentStorage: true` | Adds extension-scoped, quota-bound `context.storage`; scripts never choose a path or access the filesystem. |
+| Origin-scoped outbound HTTP | `permissions.network.origins` | Adds synchronous `context.network.request` for exact HTTP(S) origins only. There is no ambient `fetch`, redirect following, cookie jar, or socket access. The operator must confirm that visible decrypted data could be sent to those origins. |
+| Override one captured upstream | `traffic.upstreamMappings` | Changes the sidecar dial target while preserving the original Host and TLS SNI. Targets are SSRF-checked and still return through mihomo. |
+| Require a regional/operator exit | `requirements.egressGroup.required: true` | Forces the operator to bind an existing mihomo group or `DIRECT` before enable. The extension cannot name, inspect, select, or change a group. |
+| Compose several extensions | Console execution order | Request and response actions run top-to-bottom. For overlapping destinations, the first bound extension in that same order wins egress selection. |
+
+Scripts never receive filesystem, process, timer, module-loader, raw socket,
+ambient DNS, ambient Go object, or unrestricted network access. All upstream
+TCP and UDP return through authenticated mihomo `intercept-egress`; an
+extension cannot opt into direct sidecar egress.
+
+### Minimal manifest
+
+The document is strict YAML: unknown fields, duplicate keys, aliases, anchors,
+merge keys, and multiple documents are rejected.
+
+```yaml
+apiVersion: 5gpn.io/v1
+kind: Extension
+
+metadata:
+  id: io.example.response-cleaner
+  name: Example Response Cleaner
+  version: 1.0.0
+  description: Removes one reviewed response field.
+
+permissions:
+  persistentStorage: false
+
+traffic:
+  captureHosts:
+    - api.example.com
+
+settings:
+  - key: removePromotion
+    type: boolean
+    label: Remove promotion
+    description: Removes the reviewed promotion field when enabled.
+    required: true
+    default: true
+
+actions:
+  - id: clean-items-response
+    phase: response
+    match:
+      hosts:
+        - api.example.com
+      schemes:
+        - https
+      methods:
+        - GET
+      pathRegex: '^/v1/items(?:\?.*)?$'
+      statusCodes:
+        - 200
+    script:
+      source: ./clean-response.js
+      bodyMode: text
+      timeoutMs: 1000
+      maxBodyBytes: 1048576
+```
+
+Metadata IDs are stable lowercase dotted identifiers from 3 to 40 bytes, and
+versions use semantic version syntax. A wildcard capture host matches child
+names only; `*.example.com` does not include the apex `example.com`.
+
+Every action declares a request or response phase, a non-empty host subset,
+one or both schemes, an anchored RE2 `pathRegex` matched against path plus
+query, optional uppercase methods, and optional response status codes. A
+script declares exactly one of `source` or `inline`, plus a timeout from 50 to
+30000 milliseconds and a body limit from 1024 to 67108864 bytes.
+
+URL-installed manifests may use relative HTTPS script sources. Locally pasted
+or uploaded manifests must use inline scripts or absolute HTTPS script URLs.
+
+### Script contract
+
+Each script defines exactly one global entry point:
+
+```javascript
+function transform(context) {
+  const document = JSON.parse(context.response.body)
+  if (context.settings.removePromotion) delete document.promotion
+  return { response: { body: JSON.stringify(document) } }
+}
+```
+
+The bounded context can expose:
+
+```text
+context.phase
+context.request.url
+context.request.method
+context.request.headers
+context.request.body
+context.response.status
+context.response.headers
+context.response.body
+context.settings
+context.storage
+context.network.request
+```
+
+Request actions may return a request patch, a synthetic response, `{abort:
+true}`, `null`, or `undefined`. Response actions may return only a response
+patch, an abort, or no change. A rewritten URL must remain inside the owning
+extension's capture-host boundary. Unknown result fields and uncaught script
+errors fail the matched flow closed.
+
+`context.storage` exists only when persistent storage was declared.
+`context.network.request` exists only when exact origins were declared and
+confirmed. Network responses contain `url`, `status`, `headers`, binary
+`body`, and `text` when the body is valid UTF-8. Redirects and non-2xx
+responses are returned to the script rather than silently followed.
+
+### Declaring optional permissions
+
+Declare only capabilities the runtime implementation actually uses:
+
+```yaml
+permissions:
+  persistentStorage: true
+  network:
+    origins:
+      - https://api.example.net
+
+requirements:
+  egressGroup:
+    required: true
+
+traffic:
+  captureHosts:
+    - api.example.com
+  upstreamMappings:
+    - host: api.example.com
+      target: origin.example.net
+```
+
+Network origins contain only a canonical scheme, hostname, and effective port;
+wildcards, paths, queries, fragments, userinfo, IP literals, localhost, and
+private names are rejected. Upstream mappings apply only to a host already
+owned by the same extension and cannot target private, loopback, link-local,
+or otherwise unsafe addresses.
+
+### Development and review workflow
+
+1. Choose the authoritative upstream repository and immutable commit. Do not
+   treat an extension store or mirror's root license as authority over a more
+   specific original file license.
+2. Record and verify every source and license file's raw URL, size, SHA-256,
+   fetch date, creator attribution, and license before porting behavior.
+3. Translate only reviewed behavior into the strict native manifest and
+   `transform(context)` boundary. Narrow capture hosts and matchers instead of
+   preserving broad client-specific patterns.
+4. Declare storage, network origins, upstream mappings, and required egress
+   only when used. Document what decrypted data a permitted network call could
+   disclose.
+5. Add positive, no-op, malformed-input, and boundary fixtures. Preserve
+   unrelated fields and fail closed where a partial transformation is unsafe.
+6. Run the catalog validators and the current core parser gate:
+
+   ```sh
+   npm ci
+   npm test
+   npm run verify:upstreams
+   ```
+
+7. Install the candidate disabled, inspect its snapshot digest and permission
+   summary, configure required settings and egress, then enable it only on an
+   authorized test device with the shared interception root trusted.
+
+An update must keep `metadata.id`, bump `metadata.version` when immutable
+runtime bytes change, refresh provenance and fixtures, and remain disabled
+after replacement. Do not introduce automatic updates, mutable runtime script
+fetches, or compatibility shims.
+
+## Licenses
+
+This is a multi-licensed repository. MIT, GPL-3.0-only, Apache-2.0, and
+CC-BY-NC-SA-4.0 are applied at explicit file and directory boundaries. The
+CC-BY-NC-SA material is source-available but is not Open Source under the OSI
+definition because of its NonCommercial restriction. See the root
+[`LICENSE`](LICENSE), the complete texts under [`LICENSES/`](LICENSES/), the
+machine-readable mapping in [`REUSE.toml`](REUSE.toml),
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), and each extension README.
+
+## Validation
+
+```sh
+npm ci
+npm test
+npm run verify:upstreams
+```
+
+The validation gate checks manifest structure, local script references,
+capture-host ownership, JavaScript syntax, forbidden compatibility globals,
+upstream provenance documentation, and per-extension behavior fixtures.
+The separate upstream command downloads every immutable source URL recorded in
+the READMEs and verifies that its actual SHA-256 is present in the same
+document; it intentionally requires network access.

@@ -1,0 +1,17 @@
+{
+  "name": "5gpn-extensions",
+  "private": true,
+  "version": "0.1.0",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node scripts/validate.mjs && node tests/runtime-fixtures.mjs",
+    "verify:upstreams": "node scripts/verify-upstreams.mjs"
+  },
+  "devDependencies": {
+    "yaml": "2.9.0"
+  }
+}

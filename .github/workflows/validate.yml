@@ -1,0 +1,39 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  extensions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+      - name: Validate REUSE licensing metadata
+        uses: fsfe/reuse-action@676e2d560c9a403aa252096d99fcab3e1132b0f5
+      - uses: actions/setup-node@49933ea5288ca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run verify:upstreams
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          repository: moooyo/5gpn
+          ref: beta
+          path: 5gpn-core
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: 5gpn-core/cmd/5gpn-dns/go.mod
+          cache-dependency-path: 5gpn-core/cmd/*/go.sum
+      - name: Validate with the core parser
+        working-directory: 5gpn-core/cmd/5gpn-dns
+        env:
+          FIVEGPN_EXTENSIONS_ROOT: ${{ github.workspace }}
+        run: |
+          grep -Fq 'func TestExternalMaintainedExtensionsAreInstallableFromURL' intercept_module_parser_test.go
+          go test ./... -count=1 -run '^TestExternalMaintainedExtensionsAreInstallableFromURL$'

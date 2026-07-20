@@ -1,0 +1,25 @@
+# Licensing
+
+This is a multi-licensed repository. There is no single repository-wide
+software license. A file's license is determined by the explicit mapping in
+[`REUSE.toml`](REUSE.toml), with attribution and provenance recorded in the
+owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+- Repository scaffolding, validation tooling, `apple-wloc`, and
+  `spotify-cleaner` use the MIT License. The complete project MIT text is in
+  [`LICENSES/MIT.txt`](LICENSES/MIT.txt); retained upstream MIT notices are in
+  [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+- `bilibili-cleaner` and `reddit-cleaner` use `GPL-3.0-only`. The complete
+  text is in [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt).
+- `youtube-cleaner` uses `Apache-2.0`. The complete text is in
+  [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
+- `ad-platform-blocker`, `httpdns-interceptor`, and
+  `testflight-region-unlock` are KeleeOne-derived adapted material under
+  `CC-BY-NC-SA-4.0`. The complete text is in
+  [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt).
+
+One extension's license never overrides another extension's license. A
+repository-level license found in a mirror also does not override a more
+specific license supplied by the original author of a mirrored file. See
+[`KELEEONE-LICENSE.md`](KELEEONE-LICENSE.md) for the deliberately narrow scope
+of the KeleeOne license boundary.

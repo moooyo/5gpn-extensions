@@ -1,0 +1,50 @@
+apiVersion: 5gpn.io/v1
+kind: Extension
+
+metadata:
+  id: io.5gpn.youtube-cleaner
+  name: YouTube Player Ad Cleaner
+  version: 1.0.0
+  description: Blocks a narrow ad playback request and removes known ad fields from YouTube player protobuf responses.
+
+permissions:
+  persistentStorage: false
+
+traffic:
+  captureHosts:
+    - "*.googlevideo.com"
+    - youtubei.googleapis.com
+
+actions:
+  - id: block-ad-initplayback
+    phase: request
+    match:
+      hosts:
+        - "*.googlevideo.com"
+      schemes:
+        - http
+        - https
+      pathRegex: '^/initplayback.*&oad.*$'
+    script:
+      source: ./block-initplayback.js
+      bodyMode: none
+      timeoutMs: 250
+      maxBodyBytes: 1024
+
+  - id: clean-player-response
+    phase: response
+    match:
+      hosts:
+        - youtubei.googleapis.com
+      schemes:
+        - https
+      methods:
+        - POST
+      pathRegex: '^/youtubei/v1/(player|get_watch)(\?.*)?$'
+      statusCodes:
+        - 200
+    script:
+      source: ./clean-player.js
+      bodyMode: binary
+      timeoutMs: 1000
+      maxBodyBytes: 8388608

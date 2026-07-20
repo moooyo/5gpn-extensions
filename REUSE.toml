@@ -1,0 +1,138 @@
+version = 1
+
+[[annotations]]
+path = [
+  ".github/workflows/*",
+  ".gitattributes",
+  ".gitignore",
+  "AGENTS.md",
+  "KELEEONE-LICENSE.md",
+  "LICENSE",
+  "README.md",
+  "THIRD_PARTY_NOTICES.md",
+  "package.json",
+  "package-lock.json",
+  "scripts/*",
+  "tests/*",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [
+  "apple-wloc/README.md",
+  "apple-wloc/extension.yaml",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "apple-wloc/wloc.js"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2026 WLOC ProxyPin Contributors",
+  "2026 moooyo",
+]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [
+  "spotify-cleaner/README.md",
+  "spotify-cleaner/extension.yaml",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "spotify-cleaner/clean-response.js"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2020 SVE1R",
+  "2026 moooyo",
+]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [
+  "bilibili-cleaner/README.md",
+  "bilibili-cleaner/extension.yaml",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = [
+  "bilibili-cleaner/clean-json.js",
+  "bilibili-cleaner/mock-grpc.js",
+  "bilibili-cleaner/mock-json.js",
+  "bilibili-cleaner/rewrite-channel.js",
+]
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "kokoryh and Sparkle contributors",
+  "2026 moooyo",
+]
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = [
+  "reddit-cleaner/README.md",
+  "reddit-cleaner/extension.yaml",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = "reddit-cleaner/clean-response.js"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "mist-whisper/JQLang contributors",
+  "2026 moooyo",
+]
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = [
+  "youtube-cleaner/README.md",
+  "youtube-cleaner/extension.yaml",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+  "youtube-cleaner/block-initplayback.js",
+  "youtube-cleaner/clean-player.js",
+]
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "Maasea and sgmodule contributors",
+  "2026 moooyo",
+]
+SPDX-License-Identifier = "Apache-2.0"
+
+# The source metadata credits are retained in each extension README and in
+# THIRD_PARTY_NOTICES.md. They are not promoted to unverified copyright claims.
+[[annotations]]
+path = "ad-platform-blocker/*"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "CC-BY-NC-SA-4.0"
+
+[[annotations]]
+path = "httpdns-interceptor/*"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "CC-BY-NC-SA-4.0"
+
+[[annotations]]
+path = "testflight-region-unlock/*"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "CC-BY-NC-SA-4.0"

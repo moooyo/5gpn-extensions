@@ -1,0 +1,54 @@
+apiVersion: 5gpn.io/v1
+kind: Extension
+
+metadata:
+  id: io.5gpn.testflight-region-unlock
+  name: TestFlight Region Unlock
+  version: 1.0.0
+  description: Rewrites the TestFlight install storefront and requires an operator-selected regional egress group.
+
+permissions:
+  persistentStorage: false
+
+requirements:
+  egressGroup:
+    required: true
+
+traffic:
+  captureHosts:
+    - testflight.apple.com
+
+settings:
+  - key: storefront
+    type: select
+    label: Target storefront
+    description: Selects the Apple storefront region written into TestFlight install requests.
+    required: true
+    options:
+      - US
+      - GB
+      - CA
+      - AU
+      - JP
+      - HK
+      - SG
+      - CN
+      - KR
+      - TW
+    default: US
+
+actions:
+  - id: rewrite-install-storefront
+    phase: request
+    match:
+      hosts:
+        - testflight.apple.com
+      schemes:
+        - http
+        - https
+      pathRegex: '^/v[0-9]+/accounts/[^/?]+/install(\?.*)?$'
+    script:
+      source: ./rewrite-storefront.js
+      bodyMode: text
+      timeoutMs: 500
+      maxBodyBytes: 1048576

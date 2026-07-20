@@ -1,0 +1,115 @@
+apiVersion: 5gpn.io/v1
+kind: Extension
+
+metadata:
+  id: io.5gpn.httpdns-interceptor
+  name: HTTPDNS Interceptor
+  version: 1.0.0
+  description: Blocks the remaining hostname-based HTTPDNS endpoints that are not already covered by the DNS bypass blocklist.
+
+permissions:
+  persistentStorage: false
+
+traffic:
+  captureHosts:
+    - api.weibo.cn
+    - appconf.mail.163.com
+    - cdn.wup.huya.com
+    - gslbali.ximalaya.com
+    - msglb.91160.com
+    - xmc.ximalaya.com
+
+actions:
+  - id: block-huya-httpdns-launch
+    phase: request
+    match:
+      hosts:
+        - cdn.wup.huya.com
+      schemes:
+        - http
+      pathRegex: '^/launch/queryHttpDns'
+    script:
+      source: ./block.js
+      bodyMode: none
+      timeoutMs: 200
+      maxBodyBytes: 1024
+  - id: block-huya-httpdns-monitor
+    phase: request
+    match:
+      hosts:
+        - cdn.wup.huya.com
+      schemes:
+        - http
+        - https
+      pathRegex: '^/monitor/monitor\.jsp'
+    script:
+      source: ./block.js
+      bodyMode: none
+      timeoutMs: 200
+      maxBodyBytes: 1024
+  - id: block-ximalaya-httpdns-login
+    phase: request
+    match:
+      hosts:
+        - xmc.ximalaya.com
+      schemes:
+        - http
+      pathRegex: '^/xmlymain-login-web/login/'
+    script:
+      source: ./block.js
+      bodyMode: none
+      timeoutMs: 200
+      maxBodyBytes: 1024
+  - id: block-weibo-httpdns-config
+    phase: request
+    match:
+      hosts:
+        - api.weibo.cn
+      schemes:
+        - http
+      pathRegex: '^/(?:2/)?httpdns/config(?:\?.*)?$'
+    script:
+      source: ./block.js
+      bodyMode: none
+      timeoutMs: 200
+      maxBodyBytes: 1024
+  - id: block-mail-httpdns-config
+    phase: request
+    match:
+      hosts:
+        - appconf.mail.163.com
+      schemes:
+        - http
+        - https
+      pathRegex: '^/mailmaster/api/http/urlConfig\.do$'
+    script:
+      source: ./block.js
+      bodyMode: none
+      timeoutMs: 200
+      maxBodyBytes: 1024
+  - id: block-91160-httpdns-broker
+    phase: request
+    match:
+      hosts:
+        - msglb.91160.com
+      schemes:
+        - https
+      pathRegex: '^/msg/outer/broker/get$'
+    script:
+      source: ./block.js
+      bodyMode: none
+      timeoutMs: 200
+      maxBodyBytes: 1024
+  - id: block-ximalaya-httpdns-linkeye
+    phase: request
+    match:
+      hosts:
+        - gslbali.ximalaya.com
+      schemes:
+        - https
+      pathRegex: '^/linkeye-cloud/httpdns/'
+    script:
+      source: ./block.js
+      bodyMode: none
+      timeoutMs: 200
+      maxBodyBytes: 1024
