@@ -14,7 +14,7 @@ const expectedLicenseFiles = new Map([
   ['MIT.txt', 'f41a1117f350375bbafc61e4292c379ed748bc110f46ec8262dd26fffb2fc459'],
   ['GPL-3.0-only.txt', '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'],
   ['Apache-2.0.txt', 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4'],
-  ['CC-BY-NC-SA-4.0.txt', '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98'],
+  ['CC-BY-NC-SA-4.0.txt', '1349a4b6148492b44f629e64eed676612e234fe9a839e4f3b277c1482c8849f1'],
 ])
 for (const [filename, expectedDigest] of expectedLicenseFiles) {
   const content = await readFile(path.join(root, 'LICENSES', filename))
