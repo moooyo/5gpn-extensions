@@ -22,8 +22,8 @@ digests, creator metadata, behavioral mapping, omitted features, and changes.
 
 This scope is intentionally narrow. KeleeOne also mirrors files whose original
 authors publish them under GPL-3.0-only, Apache-2.0, MIT, or without a public
-license. KeleeOne's root license cannot relicense those files. The Bilibili,
-Reddit, Spotify, and YouTube extensions therefore follow their independently
+license. KeleeOne's root license cannot relicense those files. The Bilibili
+and YouTube extensions therefore follow their independently
 verified original-source licenses and are not covered by this document.
 
 License links:

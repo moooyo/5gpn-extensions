@@ -28,11 +28,19 @@ storefront. The extension cannot name or change the selected group.
 | Original file | `Plugin/TestFlightRegionUnlock.lpx` |
 | Pinned source URL | `https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/TestFlightRegionUnlock.lpx` |
 | Upstream-declared reference URL | `https://kelee.one/Tool/Loon/Lpx/TestFlightRegionUnlock.lpx` |
+| Size | 778 bytes |
 | SHA-256 | `a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e` |
 | Fetched on | `2026-07-20` |
 
 The pinned source is 778 bytes. Its upstream metadata reports version date
 `2025-09-02 23:42:06` and Loon version `3.2.1(749)`.
+
+The reviewed native snapshot is:
+
+| Item | Canonical value |
+| --- | --- |
+| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `55050748eae31a8ec51897a5cb4313af0d0a050e20dbf97e7d106a3e5d58dd1f` |
+| Script | `testflight-region-unlock/rewrite-storefront.js` — SHA-256 `77a4c392500782431f080e6a11b3d6703bb15a0a74350cf494b4574c2abdf13e` |
 
 ## License and attribution
 
@@ -59,8 +67,8 @@ and was verified on `2026-07-20`.
 | Upstream item | Native 5gpn mapping |
 | --- | --- |
 | `DOMAIN, testflight.apple.com, PROXY` | `traffic.captureHosts` contains only `testflight.apple.com`; `requirements.egressGroup.required` forces an explicit operator binding instead of naming `PROXY`. |
-| Rewrite URL `^https?://testflight.apple.com/v\d/accounts/.+?/install$` | One request action matches only `testflight.apple.com`, HTTP or HTTPS, and versioned account install paths. Query strings are accepted because 5gpn matches path plus query. |
-| `request-body-replace-regex` for `storefrontId` | `rewrite-storefront.js` performs the same bounded textual replacement through `transform(context)` with `bodyMode: text`. |
+| Rewrite URL `^https?://testflight.apple.com/v\d/accounts/.+?/install$` | One request action matches only `testflight.apple.com`, HTTP or HTTPS, exactly one version digit, a non-empty account path, and no query string. Host and scheme are native matcher fields while the path expression preserves the pinned URL boundary. |
+| Exact `request-body-replace-regex` for `"storefrontId" : "dddddd-dd,dd",` | `rewrite-storefront.js` checks this exact upstream syntax first and reproduces its whitespace-normalizing replacement through `transform(context)` with `bodyMode: text`. A bounded native fallback accepts other JSON whitespace and a final property without a trailing comma. |
 | Hard-coded `143441-19,29` | The required typed `storefront` select defaults to `US`, preserving upstream behavior, and exposes a finite reviewed region map. |
 | `[MitM] hostname=testflight.apple.com` | The exact host is the sole capture permission and therefore the sole interception certificate and traffic-rule host. |
 | Loon metadata | Name and purpose become native metadata; attribution and update provenance remain in this README. |
@@ -84,6 +92,24 @@ Only the `US` value is present in the pinned upstream plugin. The other
 storefront values are an explicit native-port extension of that behavior and
 must be rechecked independently during future updates.
 
+## Upstream parity and native extensions
+
+The pinned single-digit URL matcher and exact body pattern are executable test
+fixtures, not only documentation examples. With the default `US` setting, an
+upstream-formatted body is rewritten byte-for-byte as the LPX directive would
+rewrite it. The following native extensions are deliberate:
+
+- The selected storefront replaces the pinned hard-coded US value. US remains
+  the default and the only value sourced from the pinned LPX.
+- When the exact upstream body syntax is absent, a second bounded pattern may
+  match arbitrary JSON whitespace and does not require a trailing comma. It
+  still changes only the first six-digit storefront value and never parses or
+  restructures the rest of the body.
+- An already-correct value in the native fallback is logged as an informational
+  no-op instead of being reported as an unrecognized field.
+- The upstream `PROXY` name becomes a required operator-owned egress binding;
+  neither the manifest nor the script can select the group.
+
 ## Deliberately not ported and limitations
 
 - Loon-only fields such as `openUrl`, `tag`, `homepage`, icon, minimum Loon
@@ -94,9 +120,10 @@ must be rechecked independently during future updates.
 - Only traffic for `testflight.apple.com` on the native interception ports 80
   and 443 is acquired. The extension does not alter DNS policy for other Apple
   hosts.
-- The transform replaces the first JSON-style `storefrontId` string whose
-  value has the upstream `dddddd-dd,dd` shape. An absent or changed field is
-  logged and left untouched. It does not synthesize a missing field.
+- The transform gives the exact upstream body syntax precedence, then applies
+  the documented native fallback. It changes only the first recognized
+  `storefrontId`; an absent or changed field is logged and left untouched, and
+  a missing field is never synthesized.
 - Storefront selection and network exit selection are independent operator
   choices. A mismatched, unavailable, or Apple-rejected egress can still make
   installation fail.
@@ -126,8 +153,9 @@ standard extension sandbox.
    omitted.
 5. Recheck the storefront table if the replacement value or format changed.
    Bump `metadata.version` for any immutable manifest or script change.
-6. Update this section's commit, URL, digest, date, mapping, limitations, and
-   validation evidence in the same change.
+6. Refresh the local manifest and script SHA-256 values, then update this
+   section's commit, URL, digest, date, mapping, limitations, and validation
+   evidence in the same change.
 
 To verify the upstream bytes on a POSIX host:
 
@@ -142,6 +170,13 @@ The expected digest is:
 a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e  -
 ```
 
+Refresh local artifact digests with PowerShell:
+
+```powershell
+Get-FileHash testflight-region-unlock/extension.yaml -Algorithm SHA256
+Get-FileHash testflight-region-unlock/rewrite-storefront.js -Algorithm SHA256
+```
+
 ## Validation
 
 For each update:
@@ -151,12 +186,21 @@ For each update:
 2. Confirm the normalized capture-host list contains exactly
    `testflight.apple.com`, the network-origin list is empty, and the extension
    is not ready until an egress group is bound.
-3. Exercise every storefront option with a representative request body such as
-   `{"storefrontId": "143441-19,29"}` and verify that only the value changes.
-4. Exercise missing, malformed, and non-text bodies and confirm the documented
-   no-op or fail-closed behavior.
+3. Exercise every storefront option with both the exact upstream body syntax
+   and the documented native fallback, verifying that only the first value and
+   the upstream-specified whitespace normalization change.
+4. Exercise missing, malformed, already-correct, and direct non-text fixture
+   bodies and confirm the documented no-op or fail-closed behavior.
 5. Enable the global MITM master only on an authorized test device with the
    interception root trusted, then verify both the transformed request and the
    selected mihomo egress.
 6. Run the repository Go and shell verification gates appropriate to native
    extension parsing and interception before publication.
+
+The repository-local independent gates are:
+
+```sh
+node tests/apple-testflight-fixtures.mjs
+npm test
+npm run verify:upstreams
+```

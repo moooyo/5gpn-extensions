@@ -13,22 +13,33 @@ var STOREFRONT_IDS = {
 
 function transform(context) {
   var region = context.settings.storefront
-  var storefrontID = STOREFRONT_IDS[region]
-  if (!storefrontID) {
+  if (!Object.prototype.hasOwnProperty.call(STOREFRONT_IDS, region)) {
     throw new Error('unsupported TestFlight storefront setting')
   }
+  var storefrontID = STOREFRONT_IDS[region]
 
   var body = context.request.body
   if (typeof body !== 'string') {
     throw new Error('TestFlight install request body is not text')
   }
 
-  var pattern = /(\"storefrontId\"\s*:\s*\")\d{6}-\d{2},\d{2}(\")/
-  var rewritten = body.replace(pattern, function (_, prefix, suffix) {
+  var upstreamPattern = /"storefrontId" : "\d{6}-\d{2},\d{2}",/
+  if (upstreamPattern.test(body)) {
+    var upstreamRewritten = body.replace(upstreamPattern, '"storefrontId":"' + storefrontID + '",')
+    console.info('rewrote TestFlight storefront to ' + region + ' with upstream syntax')
+    return { request: { body: upstreamRewritten } }
+  }
+
+  var nativePattern = /(\"storefrontId\"\s*:\s*\")\d{6}-\d{2},\d{2}(\")/
+  if (!nativePattern.test(body)) {
+    console.warn('TestFlight install request has no recognized storefrontId')
+    return null
+  }
+  var rewritten = body.replace(nativePattern, function (_, prefix, suffix) {
     return prefix + storefrontID + suffix
   })
   if (rewritten === body) {
-    console.warn('TestFlight install request has no recognized storefrontId')
+    console.info('TestFlight storefront is already set to ' + region)
     return null
   }
 

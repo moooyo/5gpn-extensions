@@ -1,7 +1,7 @@
 // Apache-2.0 port of Maasea/sgmodule's pinned initplayback map-local rule.
 
 function transform(context) {
-  console.info(`blocked YouTube ad playback request: ${context.request.url}`)
+  if (!/^https?:\/\/[\w-]+\.googlevideo\.com\/initplayback.+&oad/.test(context.request.url)) return null
   return {
     response: {
       status: 200,

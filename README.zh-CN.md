@@ -5,16 +5,14 @@
 本仓库是独立维护的原生 5gpn 扩展的第一方目录。5gpn 核心仓库负责运行时和严格的
 `5gpn.io/v1` 契约；它不会将扩展源代码纳入仓库或镜像化。
 
-每个扩展导入后默认处于禁用状态。启用前，请审查其不可变清单、脚本、捕获主机、网络源、执行位置及运营者出口要求。
+每个扩展导入后默认处于禁用状态。启用前，请审查其不可变清单、脚本、捕获主机、精确路由规则、网络源、执行位置及运营者出口要求。
 
 | 扩展 | 用途 | 许可证 |
 | --- | --- | --- |
 | `ad-platform-blocker` | 阻止经审查的广告 SDK 端点 | CC BY-NC-SA 4.0 |
 | `apple-wloc` | 将 Apple WLOC 响应改写为运营者选择的位置 | MIT |
 | `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
-| `httpdns-interceptor` | 中止残余的基于主机名的 HTTPDNS 请求 | CC BY-NC-SA 4.0 |
-| `reddit-cleaner` | 移除推广的 Reddit GraphQL 对象 | GPL-3.0-only |
-| `spotify-cleaner` | 移除部分 Spotify 广告配置响应 | MIT |
+| `httpdns-interceptor` | 阻止 117 条已审查 HTTPDNS 路由和 7 条请求路径 | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
 | `youtube-cleaner` | 移除部分 YouTube 播放器广告字段 | Apache-2.0 |
 
@@ -29,12 +27,10 @@
 | `apple-wloc` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/apple-wloc/extension.yaml> |
 | `bilibili-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml> |
 | `httpdns-interceptor` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/httpdns-interceptor/extension.yaml> |
-| `reddit-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/reddit-cleaner/extension.yaml> |
-| `spotify-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/spotify-cleaner/extension.yaml> |
 | `testflight-region-unlock` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-unlock/extension.yaml> |
 | `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
 
-每次导入均从禁用状态开始。启用前，请审查不可变快照摘要、捕获主机、操作、设置、网络源、执行位置以及任何所需的运营者出口绑定。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
+每次导入均从禁用状态开始。启用前，请审查不可变快照摘要、捕获主机、操作、设置、精确路由规则、网络源、执行位置以及任何所需的运营者出口绑定。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
 
 ## Marketplace
 
@@ -44,7 +40,9 @@
 https://moooyo.github.io/5gpn-extensions/marketplace/v1/index.json
 ```
 
-在 5gpn Console 中将此 URL 添加为 marketplace 源，即可浏览已审查的扩展。浏览不会安装或启用扩展。选择条目后会进入标准的原生 manifest 解析与快照流程；生成的不可变快照仍保持禁用，直到运营者审查其捕获主机、权限、设置、执行位置和出口绑定。
+5gpn 不会预置此市场或任何其他市场。请先审查本仓库；只有在你选择信任它时，才将上方 URL 复制到 **插件市场 → 添加市场**。运营者也可以选择添加其他兼容来源。
+
+显式添加后，Console 即可浏览已审查的扩展。浏览不会安装或启用扩展。选择条目后会进入标准的原生 manifest 解析与快照流程；生成的不可变快照仍保持禁用，直到运营者审查其捕获主机、权限、设置、路由规则、执行位置和出口绑定。
 
 Marketplace 是发现元数据，不是可执行信任边界。每个条目指向常规的 `main` manifest 与本地脚本 URL，使现有显式更新检查仍能重新抓取已安装源。同时，列表记录其 40 位构建提交对应内容的精确 SHA-256 和字节数。网关必须核对下载到的 manifest 与脚本字节及其声明摘要，然后执行完整、严格的 `5gpn.io/v1` 解析；不能将列表中的描述或能力摘要当作运行时权威。脚本仍由常规不可变快照流程抓取、校验和保存。摘要不匹配时必须拒绝。
 
@@ -75,14 +73,15 @@ example-cleaner/
 | 能力 | 清单声明 | 运行时效果与边界 |
 | --- | --- | --- |
 | 获取流量 | `traffic.captureHosts` | 精确 DNS 名称或受限的 `*.example.com` 通配符。这是唯一的流量获取权限，启用时会为端口 80 和 443 发布 DNS、证书和 mihomo 规则。 |
+| 应用已审查的全局路由 | `traffic.routingRules` | 有界类型化选择器只能对已经到达网关的命中流量执行 `REJECT` 或 `DIRECT`。精确规则与插件共用一次启用确认，不能命名代理组，且仅在插件和 MITM 总开关均启用时存在。 |
 | 转换请求或响应 | `actions[]` | 有序的结构化匹配器会在声明的阶段调用一个 `transform(context)` 脚本。每个操作主机都必须属于同一扩展的 `captureHosts`。 |
 | 读取正文 | `script.bodyMode` | `none`、UTF-8 `text`，或以 `Uint8Array` 表示的 `binary`，并受 `maxBodyBytes` 限制。 |
 | 类型化运营者配置 | `settings[]` | `text`、`select`、`boolean`、`number` 和 `location`；启用前必须完整填写必填值。 |
 | 持久状态 | `permissions.persistentStorage: true` | 添加受扩展作用域和配额限制的 `context.storage`；脚本绝不能选择路径或访问文件系统。 |
 | 按源（origin）限定的出站 HTTP | `permissions.network.origins` | 仅为精确的 HTTP(S) 源（origin）添加同步 `context.network.request`。不存在环境级 `fetch`、重定向跟随、Cookie jar 或套接字访问。运营者必须确认可见的已解密数据可能被发送到这些源。 |
 | 覆盖一个已捕获的上游 | `traffic.upstreamMappings` | 在保留原始 Host 和 TLS SNI 的情况下更改 sidecar 拨号目标。目标经过 SSRF 检查，且仍经 mihomo 返回。 |
-| 要求区域/运营者出口 | `requirements.egressGroup.required: true` | 启用前强制运营者绑定现有 mihomo 组或 `DIRECT`。扩展不能命名、检查、选择或更改组。 |
-| 组合多个扩展 | Console 执行顺序 | 请求和响应操作自上而下运行。对于重叠目的地，处于同一顺序中第一个已绑定的扩展赢得出口选择。 |
+| 要求区域/运营者出口 | `requirements.egressGroup.required: true` | 启用前强制运营者绑定现有 mihomo 组或 `DIRECT`。扩展不能命名、检查、选择或更改任意组；另行审查的路由规则只能选择 `DIRECT`。 |
+| 组合多个扩展 | Console 执行顺序 | 请求和响应操作自上而下运行。对于重叠目的地，同一顺序中的第一个已绑定扩展和第一条全局路由规则生效。重排需要审查调整前后顺序并确认。 |
 
 脚本永远不会获得文件系统、进程、计时器、模块加载器、原始套接字、环境级 DNS、环境级 Go 对象或不受限制的网络访问。所有上游 TCP 和 UDP 均通过已认证的 mihomo `intercept-egress` 返回；扩展不能选择直接 sidecar 出口。
 
@@ -163,6 +162,7 @@ context.request.headers
 context.request.body
 context.response.status
 context.response.headers
+context.response.trailers
 context.response.body
 context.settings
 context.storage
@@ -172,7 +172,9 @@ context.network.request
 请求操作可以返回请求补丁、合成响应、`{abort:
 true}`、`null` 或 `undefined`。响应操作只能返回响应补丁、中止或不作更改。改写后的 URL 必须保持在所属扩展的捕获主机边界内。未知结果字段和未捕获的脚本错误会使匹配流以拒绝方式失败（fail closed）。
 
-仅在声明了持久存储时，`context.storage` 才存在。仅在声明并确认精确源时，`context.network.request` 才存在。网络响应包含 `url`、`status`、`headers`、二进制 `body`，以及当正文是有效 UTF-8 时的 `text`。重定向和非 2xx 响应会返回给脚本，而不会被静默跟随。
+响应操作和合成响应可以包含有界 `trailers` 补丁；请求补丁不能创建 trailer。运行时会校验名称、值、字段数、单值大小和总字节数，并拒绝 framing 等禁止字段。有效的 HTTP/gRPC trailer 会在 HTTP/1.1、HTTP/2 和 HTTP/3 间保留。
+
+仅在声明了持久存储时，`context.storage` 才存在。仅在声明并确认精确源时，`context.network.request` 才存在。网络响应包含 `url`、`status`、`headers`、`trailers`、二进制 `body`，以及当正文是有效 UTF-8 时的 `text`。重定向和非 2xx 响应会返回给脚本，而不会被静默跟随。
 
 ### 声明可选权限
 

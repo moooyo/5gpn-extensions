@@ -71,28 +71,6 @@ function lengthField(field, bytes) {
 }
 
 {
-  const { transform } = await loadTransform('reddit-cleaner/clean-response.js')
-  const body = JSON.stringify({ data: [{ node: { cells: [{ __typename: 'AdMetadataCell' }] } }, { id: 'keep' }], commentsPageAds: [1], isNsfw: true })
-  const result = transform({ response: { body } })
-  assert.deepEqual(JSON.parse(result.response.body), { data: [{ id: 'keep' }], commentsPageAds: [], isNsfw: false })
-}
-
-{
-  const { transform } = await loadTransform('spotify-cleaner/clean-response.js')
-  const configuration = []
-  const resolve = lengthField(1, configuration)
-  const attributes = []
-  const success = [...lengthField(1, resolve), ...lengthField(3, attributes)]
-  const customization = new Uint8Array(lengthField(1, success))
-  const result = transform({
-    request: { url: 'https://spclient.wg.spotify.com/user-customization-service/v1/customize' },
-    response: { body: customization },
-  })
-  assert(result.response.body instanceof Uint8Array)
-  assert(result.response.body.length > customization.length)
-}
-
-{
   const { transform } = await loadTransform('youtube-cleaner/block-initplayback.js')
   const result = transform({ request: { url: 'https://r1.googlevideo.com/initplayback?a=1&oad=1' } })
   assert.equal(result.response.status, 200)

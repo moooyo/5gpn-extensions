@@ -20,7 +20,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const validate = ajv.compile(schema)
   const catalog = JSON.parse(await generateMarketplace({ revision }))
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
-  assert.equal(catalog.entries.length, 8)
+  assert.equal(catalog.entries.length, 6)
   assert.equal(validate(catalog), true, ajv.errorsText(validate.errors))
   const invalid = structuredClone(catalog)
   invalid.entries[0].manifest.sha256 = 'invalid'
@@ -34,7 +34,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   try {
     await execFileAsync(process.execPath, [script, '--revision', revision, '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 8)
+    assert.equal(JSON.parse(generated).entries.length, 6)
     await execFileAsync(process.execPath, [script, '--revision', revision, '--check', output], { cwd: repositoryRoot })
     await writeFile(output, generated.replace(/"sha256": "[0-9a-f]{64}"/, `"sha256": "${'0'.repeat(64)}"`))
     try {
@@ -153,6 +153,7 @@ async function expectFailure(options, pattern) {
       networkOrigins: ['https://api.example.com'],
       persistentStorage: false,
       upstreamMappingCount: 1,
+      routingRuleCount: 0,
       egressGroupRequired: true,
     })
   } finally {

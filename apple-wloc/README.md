@@ -40,12 +40,10 @@ At the time this document was written, the canonical 5gpn source record was:
 | Item | Canonical value |
 | --- | --- |
 | Core migration baseline | `moooyo/5gpn@7ca3eb93b7cd552ff3f32adfd9eca4b177d772db` |
-| Manifest | `apple-wloc/extension.yaml` — SHA-256 `92b2ac5bfd594ec947eb06dc88df37b8227ecdf2e67f7f5e7ecd20085eeb3572` |
-| Script | `apple-wloc/wloc.js` — SHA-256 `5d7c096228960be2b77b8e1d28173d16c6b8e285855a63fc035a6a0cbd16d36f` |
-| Upstream script URL | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/proxypin_wloc_compat_v2.js` |
-| Upstream script | `proxypin_wloc_compat_v2.js` at the pinned commit — SHA-256 `d8ae57eb8696af05413e3fbbf0bd57513a4f649407a1d0a7bb891916482fca70` |
-| Upstream license URL | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/LICENSE` |
-| Upstream license | MIT, 1,083 bytes, SHA-256 `e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa` |
+| Manifest | `apple-wloc/extension.yaml` — SHA-256 `b89a64873f38c7e5bd65e8c3de443ee07fd29486797f94a07dd0f35d640f4952` |
+| Script | `apple-wloc/wloc.js` — SHA-256 `f258239a9d36b66d105c32bc0952ff620310a9489d519eaeb143d91f5d37297b` |
+| Upstream script | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/proxypin_wloc_compat_v2.js` — 45,072 bytes — SHA-256 `d8ae57eb8696af05413e3fbbf0bd57513a4f649407a1d0a7bb891916482fca70` |
+| Upstream license | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/LICENSE` — MIT — 1,083 bytes — SHA-256 `e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa` |
 | Upstream copyright | `Copyright (c) 2026 WLOC ProxyPin Contributors` |
 | Upstream fetch date | `2026-07-20` |
 
@@ -75,20 +73,25 @@ this response.
 
 The port performs the following bounded transformation:
 
-1. It searches a small, bounded prefix for the observed frame layout: an
-   eight-byte prefix, a two-byte big-endian payload length, and the protobuf
-   payload. If no framed payload is found, it tries a bounded prefix offset as
-   a protobuf root.
+1. Like the pinned upstream transformer, it requires the observed frame at
+   offset zero: an eight-byte prefix, a two-byte big-endian payload length,
+   and the protobuf payload. It does not scan arbitrary offsets or accept a
+   bare protobuf root.
 2. It parses only protobuf wire types 0, 1, 2, and 5, preserving every raw
    field it does not change.
 3. In a candidate location message, varint fields 1 and 2 are latitude and
    longitude scaled by `1e8`; optional field 3 is accuracy. It replaces those
-   values with the configured `location` setting.
+   values with the configured `location` setting. Accuracy follows the
+   upstream 1–10000 metre bound and defaults to 25 when omitted.
 4. It reaches candidate locations through the observed root-field mapping:
-   Wi-Fi entries at field 2 (identified by a MAC-address field) and cellular
-   entries at fields 22 and 24, with nested location field 2 or 5 respectively.
-5. It rewrites the framing length when needed, rejects malformed or unpatchable
-   data, and never invents a success response.
+   Wi-Fi entries at field 2 (identified by the upstream one-or-two-hex-digit
+   MAC-octet syntax) and cellular entries at fields 22 and 24, with nested
+   location field 2 or 5 respectively.
+5. A malformed nested location is preserved while other valid entries continue
+   to be patched, matching the upstream partial-skip behavior. Malformed root
+   framing and payloads still fail the whole action.
+6. It rewrites the framing length when needed, requires at least one actual
+   location patch, and never invents a success response.
 
 This mapping is an implementation observation inherited from the cited
 upstream transformer, not an Apple protocol specification. Treat a changed
@@ -109,6 +112,31 @@ tests below validate a deliberate update.
 The manifest declares no network origins, no persistent storage, no upstream
 mapping, and no required egress-group binding. Captured upstream traffic still
 returns through the authenticated mihomo interception egress path.
+
+## Upstream parity and native safety differences
+
+The pinned transformer's offset-zero frame, Wi-Fi MAC recognition, root field
+mapping, per-entry malformed-location skip, suffix preservation, and framing
+length rewrite are covered by independent fixtures. The following differences
+are intentional:
+
+- The required typed `location` replaces the upstream picker, session state,
+  and Shenzhen fallback. Native setting validation bounds longitude and
+  latitude before enable, and the script checks them again defensively.
+- Negative coordinates are encoded as signed `int64` two's-complement varints.
+  The pinned script's Number-based writer rejects them, but a global typed
+  location setting must support the full valid coordinate range.
+- Field numbers, varints, and fixed-width fields receive strict protobuf,
+  uint64, and message-boundary validation. The pinned Number parser is less
+  strict and cannot represent the entire uint64 range safely.
+- A syntactically valid response that contains no patchable location is an
+  error. The pinned script reports success even when it changes no location.
+- Transformation errors fail closed by default. Setting `failClosed` to false
+  reproduces the upstream permissive pass-through behavior without diagnostic
+  response headers.
+- The action runs only on successful HTTPS responses. It preserves the original
+  status and ordinary headers; bounded content decoding and framing headers are
+  owned by the interception runtime.
 
 ## Maintenance and updates
 
@@ -159,16 +187,19 @@ Run the focused native-extension checks after a documentation or implementation
 update:
 
 ```sh
-(cd cmd/5gpn-dns && go test ./... -run 'TestRepositoryWLOCManifestIsInstallableFromURL')
-(cd cmd/5gpn-intercept && go test ./... -run 'TestRepositoryWLOCExtensionScriptPatchesBinaryResponse')
-bash tests/test_intercept_policy.sh
+node tests/apple-testflight-fixtures.mjs
+npm test
+npm run verify:upstreams
 ```
 
-For a runtime change, also run the complete repository gates required by
-`AGENTS.md` and perform authorised end-to-end validation following the Apple
-WLOC checklist in [`tests/integration-smoke.md`](../../tests/integration-smoke.md).
-Confirm both the transformed result and failure behaviour with `failClosed`
-enabled and disabled.
+The focused fixture runs the script only through `transform(context)` and
+checks the manifest boundary, Wi-Fi and both cellular mappings, signed
+coordinates, accuracy clamping, unknown-field and suffix preservation,
+one-digit MAC octets, partial malformed-entry skips, exact offset-zero framing,
+and both `failClosed` modes. For a runtime change, also run the complete core
+repository gates required by its `AGENTS.md` and perform authorised end-to-end
+validation following the Apple WLOC checklist in
+[`tests/integration-smoke.md`](../../tests/integration-smoke.md).
 
 ## Limitations
 

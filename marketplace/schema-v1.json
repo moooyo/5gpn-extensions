@@ -118,7 +118,7 @@
     "capabilities": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["captureHostCount", "actionCount", "settingCount", "networkOrigins", "persistentStorage", "upstreamMappingCount", "egressGroupRequired"],
+      "required": ["captureHostCount", "actionCount", "settingCount", "networkOrigins", "persistentStorage", "upstreamMappingCount", "routingRuleCount", "egressGroupRequired"],
       "properties": {
         "captureHostCount": { "type": "integer", "minimum": 1, "maximum": 256 },
         "actionCount": { "type": "integer", "minimum": 0, "maximum": 256 },
@@ -131,6 +131,7 @@
         },
         "persistentStorage": { "type": "boolean" },
         "upstreamMappingCount": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "routingRuleCount": { "type": "integer", "minimum": 0, "maximum": 256 },
         "egressGroupRequired": { "type": "boolean" }
       }
     }

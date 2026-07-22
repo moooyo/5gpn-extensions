@@ -4,8 +4,9 @@ kind: Extension
 metadata:
   id: io.5gpn.ad-platform-blocker
   name: Ad Platform Blocker
-  version: 1.0.0
-  description: Blocks selected advertising-platform endpoints and narrow Pinduoduo marketing paths.
+  version: 2.0.0
+  description: Blocks selected advertising-platform endpoints and narrow Pinduoduo
+    marketing paths.
 
 permissions:
   persistentStorage: false
@@ -195,6 +196,442 @@ traffic:
     - wup.imtt.qq.com
     - xlog.jd.com
     - images.pinduoduo.com
+  routingRules:
+    - action: direct
+      domainSuffix: capcutapi.com
+      allDomainKeywords:
+        - tnc
+    - action: direct
+      domainSuffix: zijieapi.com
+      allDomainKeywords:
+        - tnc
+    - action: direct
+      domainSuffix: isnssdk.com
+      allDomainKeywords:
+        - tnc
+    - action: direct
+      domainSuffix: toutiaoapi.com
+      allDomainKeywords:
+        - tnc
+    - action: direct
+      domainSuffix: bytedance.com
+      allDomainKeywords:
+        - tnc
+    - action: direct
+      domainSuffix: snssdk.com
+      allDomainKeywords:
+        - tnc
+    - action: direct
+      domainSuffix: sgsnssdk.com
+      allDomainKeywords:
+        - tnc
+    - action: reject
+      allDomainKeywords:
+        - api-access
+        - pangolin-sdk-toutiao
+    - action: reject
+      allDomainKeywords:
+        - log-api
+        - pangolin-sdk-toutiao
+    - action: reject
+      domainSuffix: byteimg.com
+      allDomainKeywords:
+        - -ad-
+    - action: reject
+      domainSuffix: zijieapi.com
+      allDomainKeywords:
+        - ads
+        - normal
+    - action: reject
+      domain: lf-ad-ies.bytecdn.cn
+    - action: reject
+      domain: dig.bdurl.net
+    - action: reject
+      domain: extlog.snssdk.com
+    - action: reject
+      domain: i.snssdk.com
+    - action: reject
+      domain: mcs.snssdk.com
+    - action: reject
+      domainSuffix: bds.snssdk.com
+    - action: reject
+      domainSuffix: byteadverts.com
+    - action: reject
+      domainSuffix: ctobsnssdk.com
+    - action: reject
+      domainSuffix: pangolin-dsp-toutiao-b.com
+    - action: reject
+      domainSuffix: pangolin-dsp-toutiao.com
+    - action: reject
+      domainSuffix: pangolin-sdk-toutiao-b.com
+    - action: reject
+      domainSuffix: pangolin-sdk-toutiao.com
+    - action: reject
+      domainSuffix: pangolin-sdk-toutiao1.com
+    - action: reject
+      domainSuffix: pangolin.snssdk.com
+    - action: reject
+      domainSuffix: panplayable-toutiao-b.com
+    - action: reject
+      domainSuffix: panplayable-toutiao.com
+    - action: reject
+      domainSuffix: pglstatp-sdk-toutiao.com
+    - action: reject
+      domainSuffix: pglstatp-snssdk-toutiao.com
+    - action: reject
+      domainSuffix: pglstatp-toutiao-b.com
+    - action: reject
+      domainSuffix: pglstatp-toutiao.com
+    - action: reject
+      domainSuffix: sf3-ttcdn-tos.pstatp.com
+    - action: reject
+      domain: sf3-fe-tos.pglstatp-toutiao.com
+    - action: reject
+      allDomainKeywords:
+        - -ad-sign.byteimg.com
+    - action: reject
+      allDomainKeywords:
+        - -ad.byteoversea.com
+    - action: reject
+      allDomainKeywords:
+        - asiad.byteactivity
+    - action: reject
+      allDomainKeywords:
+        - iflyad.bj.openstorage.cn
+    - action: reject
+      allDomainKeywords:
+        - bjimp.voiceads.cn
+    - action: reject
+      domainSuffix: 1rtb.net
+    - action: reject
+      domainSuffix: 1rtb.com
+    - action: reject
+      domainSuffix: halomobi.com
+    - action: reject
+      domainSuffix: hubcloud.com.cn
+    - action: reject
+      domainSuffix: inmobi.cn
+    - action: reject
+      domainSuffix: uyunad.com
+    - action: reject
+      domainSuffix: puata.info
+    - action: reject
+      domain: gdfp.gifshow.com
+    - action: reject
+      domain: open.e.kuaishou.com
+    - action: reject
+      domain: open.e.kuaishou.cn
+    - action: reject
+      domain: adtrack.e.kuaishou.com
+    - action: reject
+      domainSuffix: partner.gifshow.com
+    - action: reject
+      domainSuffix: adukwai.com
+    - action: reject
+      domainSuffix: adkwai.com
+    - action: reject
+      domainSuffix: supersonicads.com
+    - action: reject
+      domainSuffix: appsad.cn
+    - action: reject
+      domainSuffix: beizi.biz
+    - action: reject
+      domainSuffix: miaozhen.com
+    - action: reject
+      domainSuffix: admobile.top
+    - action: reject
+      domainSuffix: yksdks.com
+    - action: reject
+      domainSuffix: dutils.com
+    - action: reject
+      domainSuffix: mob.com
+    - action: reject
+      domainSuffix: jiguang.cn
+    - action: reject
+      domainSuffix: jpush.cn
+    - action: reject
+      domainSuffix: jpush.io
+    - action: reject
+      domain: afd.baidu.com
+    - action: reject
+      domain: als.baidu.com
+    - action: reject
+      domain: bgg.baidu.com
+    - action: reject
+      domain: cpro.baidustatic.com
+    - action: reject
+      domain: feed-image.baidu.com
+    - action: reject
+      domain: click-bes.baidu.com
+    - action: reject
+      domain: eclick.baidu.com
+    - action: reject
+      domain: mobads-logs.baidu.com
+    - action: reject
+      domain: mobads-pre-config.cdn.bcebos.com
+    - action: reject
+      domain: mobads.baidu.com
+    - action: reject
+      domain: nadvideo2.baidu.com
+    - action: reject
+      domain: wn.pos.baidu.com
+    - action: reject
+      domain: miniapp-ad.cdn.bcebos.com
+    - action: reject
+      domainSuffix: union.baidu.cn
+    - action: reject
+      domainSuffix: union.baidu.com
+    - action: reject
+      domain: ad.tencentmusic.com
+    - action: reject
+      domain: adsmind.gdtimg.com
+    - action: reject
+      domain: adsmind.ugdtimg.com
+    - action: reject
+      domain: mc.tencentmusic.com
+    - action: reject
+      domain: c2.gdt.qq.com
+    - action: reject
+      domain: 2fwin.gdt.qq.com
+    - action: reject
+      domain: huatuocode.huatuo.qq.com
+    - action: reject
+      domain: info4.video.qq.com
+    - action: reject
+      domain: info6.video.qq.com
+    - action: reject
+      domain: ios.bugly.qq.com
+    - action: reject
+      domain: pro.bugly.qq.com
+    - action: reject
+      domain: ios.video.mpush.qq.com
+    - action: reject
+      domain: us.l.qq.com
+    - action: reject
+      domain: mi.gdt.qq.com
+    - action: reject
+      domain: otheve.beacon.qq.com
+    - action: reject
+      domain: pgdt.gtimg.cn
+    - action: reject
+      domain: pgdt.ugdtimg.com
+    - action: reject
+      domain: qzs.gdtimg.com
+    - action: reject
+      domain: qzs.qq.com
+    - action: reject
+      domain: rmonitor.qq.com
+    - action: reject
+      domain: sdk.e.qq.com
+    - action: reject
+      domain: sdkconfig.video.qq.com
+    - action: reject
+      domain: t.gdt.qq.com
+    - action: reject
+      domain: tmead.y.qq.com
+    - action: reject
+      domain: tmeadbak.y.qq.com
+    - action: reject
+      domain: tmeadcomm.y.qq.com
+    - action: reject
+      domain: tpns.qq.com
+    - action: reject
+      domain: v.gdt.qq.com
+    - action: reject
+      domain: v2.gdt.qq.com
+    - action: reject
+      domain: win.gdt.qq.com
+    - action: reject
+      domain: wup.imtt.qq.com
+    - action: reject
+      domain: tpstelemetry.tencent.com
+    - action: reject
+      domain: ii.gdt.qq.com
+    - action: reject
+      allDomainKeywords:
+        - trace.qq.com
+    - action: reject
+      allDomainKeywords:
+        - trace.video.qq.com
+    - action: reject
+      allDomainKeywords:
+        - ad.hunyuan.tencent.com
+    - action: reject
+      domainSuffix: gdt.qq.com
+    - action: reject
+      domainSuffix: l.qq.com
+    - action: reject
+      domainSuffix: ugdtimg.com
+    - action: reject
+      ipCIDR: 47.110.187.87/32
+    - action: reject
+      domainSuffix: openinstall.io
+    - action: reject
+      domainSuffix: getui.com
+    - action: reject
+      domainSuffix: getui.net
+    - action: reject
+      domainSuffix: igexin.com
+    - action: reject
+      domainSuffix: umtrack.com
+    - action: reject
+      domainSuffix: umeng.com
+    - action: reject
+      domainSuffix: umsns.com
+    - action: reject
+      domainSuffix: umengcloud.com
+    - action: reject
+      domainSuffix: adfunlink.com
+    - action: reject
+      domainSuffix: tianmu.mobi
+    - action: reject
+      domainSuffix: ubixioe.com
+    - action: reject
+      domain: ossgw.alicdn.com
+    - action: reject
+      domain: ems.youku.com
+    - action: reject
+      domain: hudong.alicdn.com
+    - action: reject
+      domain: et.tanx.com
+    - action: reject
+      domain: df.tanx.com
+    - action: reject
+      domain: opehs.tanx.com
+    - action: reject
+      domain: beacon-api.aliyuncs.com
+    - action: reject
+      domain: adash.man.aliyuncs.com
+    - action: reject
+      domain: applog.uc.cn
+    - action: reject
+      domainSuffix: ut.taobao.com
+      allDomainKeywords:
+        - adash
+    - action: reject
+      domain: huichuan.sm.cn
+    - action: reject
+      domain: nex.163.com
+    - action: reject
+      domain: iad.g.163.com
+    - action: reject
+      domain: gorgon.youdao.com
+    - action: reject
+      domainSuffix: ad.xiaomi.com
+    - action: reject
+      domain: al-log.d.meituan.net
+    - action: reject
+      domain: babel-statistics-android.d.meituan.net
+    - action: reject
+      domain: maplocatesdksnapshot.d.meituan.net
+    - action: reject
+      domain: metrics-picture.d.meituan.net
+    - action: reject
+      domain: route-stats.d.meituan.net
+    - action: reject
+      domain: dsp-x.jd.com
+    - action: reject
+      domain: im-x.jd.com
+    - action: reject
+      domain: xlog.jd.com
+    - action: reject
+      domain: janapi.jd.com
+    - action: reject
+      domainSuffix: toponadss.com
+    - action: reject
+      domainSuffix: motowoo.com
+    - action: reject
+      domain: guide2.bianxianmao.com
+    - action: reject
+      domain: sdk.zhangyuyidong.cn
+    - action: reject
+      domain: sdklog.zhangyuyidong.cn
+    - action: reject
+      domainSuffix: adintl.cn
+    - action: reject
+      domainSuffix: adtaipo.com
+    - action: reject
+      domainSuffix: adx.yixin.im
+    - action: reject
+      domainSuffix: kuaiyiad.com
+    - action: reject
+      domainSuffix: adtianmai.com
+    - action: reject
+      domainSuffix: readgps.com
+    - action: reject
+      domainSuffix: fanglinad.com
+    - action: reject
+      domainSuffix: 17admob.com
+    - action: reject
+      domainSuffix: slyxmobi.com
+    - action: reject
+      domainSuffix: mobrtb.com
+    - action: reject
+      domainSuffix: maplehaze.cn
+    - action: reject
+      domainSuffix: lnk0.com
+    - action: reject
+      domainSuffix: bridgeoos.com
+    - action: reject
+      domainSuffix: anythinktech.com
+    - action: reject
+      domain: ad-evods.tianya.tv
+    - action: reject
+      domainSuffix: tuia.cn
+    - action: reject
+      domainSuffix: 66mobi.com
+    - action: reject
+      domainSuffix: xdplt.com
+    - action: reject
+      domainSuffix: adjust.com
+    - action: reject
+      domainSuffix: adjust.net.in
+    - action: reject
+      domainSuffix: doubleclick-cn.net
+    - action: reject
+      domainSuffix: googlesyndication-cn.com
+    - action: reject
+      domainSuffix: xinduoad.com
+    - action: reject
+      domain: statis.miwuad.com
+    - action: reject
+      domainSuffix: sigmob.cn
+    - action: reject
+      domainSuffix: richmob.cn
+    - action: reject
+      domain: ad.shunchangzhixing.com
+    - action: reject
+      domain: redirect.shunchangzhixing.com
+    - action: reject
+      domain: api.touch-moblie.com
+    - action: reject
+      domainSuffix: api.touch-moblie.com
+    - action: reject
+      domain: mercury-gateway.ixiaochuan.cn
+    - action: reject
+      domain: adapi.izuiyou.com
+    - action: reject
+      domainSuffix: domob.cn
+    - action: reject
+      domainSuffix: bxsnews.com
+    - action: reject
+      domainSuffix: tradplusad.com
+    - action: reject
+      domainSuffix: fancyapi.com
+    - action: reject
+      domainSuffix: medproad.com
+    - action: reject
+      domainSuffix: applovin.com
+    - action: reject
+      domainSuffix: iads.unity3d.com
+    - action: reject
+      domainSuffix: unityads.unitychina.cn
+    - action: reject
+      domainSuffix: tapjoy.com
+    - action: reject
+      domainSuffix: ads.vungle.com
+    - action: reject
+      domainSuffix: adsmoloco.com
 
 actions:
   - id: block-ad-platform-hosts

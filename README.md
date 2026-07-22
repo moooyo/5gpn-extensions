@@ -7,7 +7,7 @@ This repository is the first-party catalog for independently maintained native
 `5gpn.io/v1` contract; it does not vendor or mirror extension source code.
 
 Every extension is disabled by default after import. Review its immutable
-manifest, scripts, capture hosts, network origins, execution position, and
+manifest, scripts, capture hosts, exact routing rules, network origins, execution position, and
 operator egress requirement before enabling it.
 
 | Extension | Purpose | License |
@@ -15,9 +15,7 @@ operator egress requirement before enabling it.
 | `ad-platform-blocker` | Block reviewed advertising SDK endpoints | CC BY-NC-SA 4.0 |
 | `apple-wloc` | Rewrite Apple WLOC responses to an operator-selected point | MIT |
 | `bilibili-cleaner` | Remove selected Bilibili ads and promotions | GPL-3.0-only |
-| `httpdns-interceptor` | Abort residual hostname-based HTTPDNS requests | CC BY-NC-SA 4.0 |
-| `reddit-cleaner` | Remove promoted Reddit GraphQL objects | GPL-3.0-only |
-| `spotify-cleaner` | Remove selected Spotify ad configuration responses | MIT |
+| `httpdns-interceptor` | Block 117 reviewed HTTPDNS routes and seven request paths | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | Rewrite TestFlight storefront with operator-selected egress | CC BY-NC-SA 4.0 |
 | `youtube-cleaner` | Remove selected YouTube player advertising fields | Apache-2.0 |
 
@@ -35,13 +33,11 @@ public HTTPS origin; never embed repository credentials in an extension URL.
 | `apple-wloc` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/apple-wloc/extension.yaml> |
 | `bilibili-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml> |
 | `httpdns-interceptor` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/httpdns-interceptor/extension.yaml> |
-| `reddit-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/reddit-cleaner/extension.yaml> |
-| `spotify-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/spotify-cleaner/extension.yaml> |
 | `testflight-region-unlock` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-unlock/extension.yaml> |
 | `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
 
 Every import starts disabled. Before enabling it, review the immutable
-snapshot digest, capture hosts, actions, settings, network origins, execution
+snapshot digest, capture hosts, actions, settings, exact routing rules, network origins, execution
 position, and any required operator egress binding. Installing an extension
 does not enable the global interception master or trust its interception CA on
 a device.
@@ -54,10 +50,14 @@ The first-party marketplace is published as strict JSON at:
 https://moooyo.github.io/5gpn-extensions/marketplace/v1/index.json
 ```
 
-Add this URL as a marketplace source in the 5gpn Console to browse the reviewed
+5gpn does not preconfigure this or any other marketplace. Review this repository
+first, then copy the URL above into **Marketplace → Add marketplace** only if you
+choose to trust it; operators may add a different compatible source instead.
+
+After it is explicitly added, the Console can browse the reviewed
 extensions. Browsing never installs or enables an extension. Choosing an entry
 starts the normal native manifest parser and snapshot pipeline, and the
-resulting immutable snapshot remains disabled until its capture hosts, permissions, settings,
+resulting immutable snapshot remains disabled until its capture hosts, permissions, settings, routing rules,
 execution position, and egress binding are reviewed.
 
 The marketplace is discovery metadata, not an executable trust boundary. Each
@@ -111,14 +111,15 @@ update procedure, and verification steps.
 | Capability | Manifest declaration | Runtime effect and boundary |
 | --- | --- | --- |
 | Acquire traffic | `traffic.captureHosts` | Exact DNS names or constrained `*.example.com` wildcards. This is the only traffic-acquisition permission and publishes DNS, certificate, and mihomo rules for ports 80 and 443 when enabled. |
+| Apply reviewed global routing | `traffic.routingRules` | Bounded typed selectors can only `REJECT` or `DIRECT` matching traffic already reaching the gateway. Exact rules share the single enable confirmation, cannot name a proxy group, and exist only while the extension and MITM master are enabled. |
 | Transform requests or responses | `actions[]` | Ordered structured matchers invoke one `transform(context)` script in the declared phase. Each action host must belong to the same extension's `captureHosts`. |
 | Read a body | `script.bodyMode` | `none`, UTF-8 `text`, or `binary` as `Uint8Array`, bounded by `maxBodyBytes`. |
 | Typed operator configuration | `settings[]` | `text`, `select`, `boolean`, `number`, and `location`; required values must be complete before enable. |
 | Persistent state | `permissions.persistentStorage: true` | Adds extension-scoped, quota-bound `context.storage`; scripts never choose a path or access the filesystem. |
 | Origin-scoped outbound HTTP | `permissions.network.origins` | Adds synchronous `context.network.request` for exact HTTP(S) origins only. There is no ambient `fetch`, redirect following, cookie jar, or socket access. The operator must confirm that visible decrypted data could be sent to those origins. |
 | Override one captured upstream | `traffic.upstreamMappings` | Changes the sidecar dial target while preserving the original Host and TLS SNI. Targets are SSRF-checked and still return through mihomo. |
-| Require a regional/operator exit | `requirements.egressGroup.required: true` | Forces the operator to bind an existing mihomo group or `DIRECT` before enable. The extension cannot name, inspect, select, or change a group. |
-| Compose several extensions | Console execution order | Request and response actions run top-to-bottom. For overlapping destinations, the first bound extension in that same order wins egress selection. |
+| Require a regional/operator exit | `requirements.egressGroup.required: true` | Forces the operator to bind an existing mihomo group or `DIRECT` before enable. The extension cannot name, inspect, select, or change an arbitrary group; a separately reviewed routing rule may select only `DIRECT`. |
+| Compose several extensions | Console execution order | Request and response actions run top-to-bottom. For overlapping destinations, the first bound extension and first global routing rule in that same order win. Reordering requires a before/after confirmation. |
 
 Scripts never receive filesystem, process, timer, module-loader, raw socket,
 ambient DNS, ambient Go object, or unrestricted network access. All upstream
@@ -210,6 +211,7 @@ context.request.headers
 context.request.body
 context.response.status
 context.response.headers
+context.response.trailers
 context.response.body
 context.settings
 context.storage
@@ -222,9 +224,15 @@ patch, an abort, or no change. A rewritten URL must remain inside the owning
 extension's capture-host boundary. Unknown result fields and uncaught script
 errors fail the matched flow closed.
 
+Response actions and synthetic responses may include a bounded `trailers`
+patch. Request patches cannot create trailers. Names, values, field counts,
+single-value size, and total bytes are validated; framing and other forbidden
+trailer fields fail closed. Valid HTTP/gRPC trailers are preserved across
+HTTP/1.1, HTTP/2, and HTTP/3.
+
 `context.storage` exists only when persistent storage was declared.
 `context.network.request` exists only when exact origins were declared and
-confirmed. Network responses contain `url`, `status`, `headers`, binary
+confirmed. Network responses contain `url`, `status`, `headers`, `trailers`, binary
 `body`, and `text` when the body is valid UTF-8. Redirects and non-2xx
 responses are returned to the script rather than silently followed.
 

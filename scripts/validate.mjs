@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFile, readdir, stat } from 'node:fs/promises'
+import { isIP } from 'node:net'
 import path from 'node:path'
 import vm from 'node:vm'
 import { parseDocument } from 'yaml'
@@ -14,6 +15,7 @@ const expectedLicenseFiles = new Map([
   ['MIT.txt', 'f41a1117f350375bbafc61e4292c379ed748bc110f46ec8262dd26fffb2fc459'],
   ['GPL-3.0-only.txt', '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'],
   ['Apache-2.0.txt', 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4'],
+  ['BSD-3-Clause.txt', '331ff828cd69efbb82098684450a752a05f05cd4b8f181f4829ba14795d1b5ca'],
   ['CC-BY-NC-SA-4.0.txt', '1349a4b6148492b44f629e64eed676612e234fe9a839e4f3b277c1482c8849f1'],
 ])
 for (const [filename, expectedDigest] of expectedLicenseFiles) {
@@ -28,8 +30,6 @@ const expectedExtensions = new Map([
   ['apple-wloc', { license: 'MIT', pin: 'edee9b955f673cc8c4a52eb0a9c687a2e25dde4a', licenseDigest: 'e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa' }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '70a4914d7189e0a1da4b5839ba5f60d0206edf11', licenseDigest: '8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b' }],
   ['httpdns-interceptor', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
-  ['reddit-cleaner', { license: 'GPL-3.0-only', pin: '00944babf9ef1b5e55e87b48df71bd1fc2c855d6', licenseDigest: '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986' }],
-  ['spotify-cleaner', { license: 'MIT', pin: '692aec6a28c0d7c1d44d69febb581632a8175e9f', licenseDigest: '63814d59a40b61e1090074dac3bbda145d4c0f6a37486b2ef225075880ea2bac' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '26871a1f7b984fa1df39a05b5037898035987239', licenseDigest: 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4' }],
 ])
@@ -52,6 +52,42 @@ function assert(condition, message) {
 function assertKeys(object, allowed, label) {
   assert(object && typeof object === 'object' && !Array.isArray(object), `${label} must be an object`)
   for (const key of Object.keys(object)) assert(allowed.has(key), `${label} has unknown key ${key}`)
+}
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key)
+}
+
+function validCIDR(value) {
+  if (typeof value !== 'string' || value.trim() !== value || value === '') return false
+  const parts = value.split('/')
+  if (parts.length !== 2 || !/^\d+$/.test(parts[1])) return false
+  const family = isIP(parts[0])
+  const prefix = Number(parts[1])
+  return family !== 0 && prefix >= 0 && prefix <= (family === 4 ? 32 : 128)
+}
+
+function sortedUnique(values) {
+  return values.every((value, index) => index === 0 || values[index - 1] < value)
+}
+
+function reuseParagraphFor(pathPattern, license) {
+  return reusePolicy
+    .split(/\r?\n\s*\r?\n/)
+    .some((paragraph) => paragraph.includes(`"${pathPattern}"`) && paragraph.includes(`SPDX-License-Identifier = "${license}"`))
+}
+
+async function relativeFiles(directory, prefix = '') {
+  const files = []
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const relativePath = prefix === '' ? entry.name : `${prefix}/${entry.name}`
+    if (entry.isDirectory()) {
+      files.push(...await relativeFiles(path.join(directory, entry.name), relativePath))
+    } else if (entry.isFile()) {
+      files.push(relativePath)
+    }
+  }
+  return files
 }
 
 function validHost(value) {
@@ -102,7 +138,7 @@ for (const entry of entries) {
     assert(typeof manifest.requirements.egressGroup.required === 'boolean', `${entry.name}: egressGroup.required must be boolean`)
   }
 
-  assertKeys(manifest.traffic, new Set(['captureHosts', 'upstreamMappings']), `${entry.name}: traffic`)
+  assertKeys(manifest.traffic, new Set(['captureHosts', 'upstreamMappings', 'routingRules']), `${entry.name}: traffic`)
   const captureHosts = manifest.traffic.captureHosts
   assert(Array.isArray(captureHosts) && captureHosts.length > 0 && captureHosts.length <= 256, `${entry.name}: captureHosts must contain 1 to 256 entries`)
   assert(new Set(captureHosts).size === captureHosts.length, `${entry.name}: captureHosts must be unique`)
@@ -111,6 +147,56 @@ for (const entry of entries) {
 
   const actions = manifest.actions ?? []
   const mappings = manifest.traffic.upstreamMappings ?? []
+  const routingRules = manifest.traffic.routingRules ?? []
+  if (hasOwn(manifest.traffic, 'routingRules')) assert(Array.isArray(manifest.traffic.routingRules), `${entry.name}: routingRules must be an array when declared`)
+  assert(Array.isArray(routingRules) && routingRules.length <= 256, `${entry.name}: routing rule limit exceeded`)
+  const routingRuleSignatures = new Set()
+  for (const [index, rule] of routingRules.entries()) {
+    const label = `${entry.name}: routingRules[${index}]`
+    assertKeys(rule, new Set(['action', 'domain', 'domainSuffix', 'domainKeywords', 'allDomainKeywords', 'ipCIDR', 'network', 'destinationPort']), label)
+    assert(rule.action === 'reject' || rule.action === 'direct', `${label} action is invalid`)
+
+    const primaryKeys = ['domain', 'domainSuffix', 'ipCIDR'].filter((key) => hasOwn(rule, key))
+    const hasAnyKeywords = hasOwn(rule, 'domainKeywords')
+    const hasAllKeywords = hasOwn(rule, 'allDomainKeywords')
+    const anyKeywords = hasAnyKeywords ? rule.domainKeywords : []
+    const allKeywords = hasAllKeywords ? rule.allDomainKeywords : []
+    if (hasAnyKeywords) {
+      assert(Array.isArray(anyKeywords) && anyKeywords.length > 0 && anyKeywords.length <= 8, `${label} domainKeywords must contain 1 to 8 entries when declared`)
+      assert(anyKeywords.length !== 1, `${label} a single keyword must use allDomainKeywords`)
+    }
+    if (hasAllKeywords) assert(Array.isArray(allKeywords) && allKeywords.length > 0 && allKeywords.length <= 8, `${label} allDomainKeywords must contain 1 to 8 entries when declared`)
+    for (const keyword of [...anyKeywords, ...allKeywords]) {
+      assert(typeof keyword === 'string' && keyword.length <= 64 && /^[a-z0-9._-]+$/.test(keyword), `${label} keyword is invalid`)
+    }
+    assert(sortedUnique(anyKeywords), `${label} domainKeywords must be sorted and unique`)
+    assert(sortedUnique(allKeywords), `${label} allDomainKeywords must be sorted and unique`)
+    const keywordSet = new Set(anyKeywords)
+    assert(allKeywords.every((keyword) => !keywordSet.has(keyword)), `${label} repeats a keyword across any/all groups`)
+
+    assert(primaryKeys.length <= 1 && (primaryKeys.length === 1 || anyKeywords.length + allKeywords.length > 0), `${label} selector is invalid`)
+    if (hasOwn(rule, 'domain')) assert(typeof rule.domain === 'string' && rule.domain !== '' && validHost(rule.domain) && !rule.domain.startsWith('*.'), `${label} domain is invalid`)
+    if (hasOwn(rule, 'domainSuffix')) assert(typeof rule.domainSuffix === 'string' && rule.domainSuffix !== '' && validHost(rule.domainSuffix) && !rule.domainSuffix.startsWith('*.'), `${label} suffix is invalid`)
+    if (hasOwn(rule, 'ipCIDR')) {
+      assert(validCIDR(rule.ipCIDR), `${label} CIDR is invalid`)
+      assert(anyKeywords.length + allKeywords.length === 0, `${label} CIDR cannot be combined with domain keywords`)
+    }
+    if (hasOwn(rule, 'network')) assert(typeof rule.network === 'string' && (rule.network === 'tcp' || rule.network === 'udp'), `${label} network is invalid`)
+    if (hasOwn(rule, 'destinationPort')) assert(Number.isInteger(rule.destinationPort) && rule.destinationPort >= 1 && rule.destinationPort <= 65535, `${label} port is invalid`)
+
+    const signature = JSON.stringify({
+      action: rule.action,
+      domain: rule.domain ?? null,
+      domainSuffix: rule.domainSuffix ?? null,
+      domainKeywords: anyKeywords,
+      allDomainKeywords: allKeywords,
+      ipCIDR: rule.ipCIDR ?? null,
+      network: rule.network ?? null,
+      destinationPort: rule.destinationPort ?? null,
+    })
+    assert(!routingRuleSignatures.has(signature), `${label} duplicates an earlier routing rule`)
+    routingRuleSignatures.add(signature)
+  }
   assert(Array.isArray(actions) && Array.isArray(mappings) && actions.length + mappings.length > 0, `${entry.name}: at least one action or mapping is required`)
   assert(actions.length + mappings.length <= 256, `${entry.name}: action and mapping limit exceeded`)
   const actionIDs = new Set()
@@ -151,20 +237,53 @@ for (const entry of entries) {
     .split(/\r?\n\s*\r?\n/)
     .filter((paragraph) => paragraph.includes(`${entry.name}/`))
   assert(reuseAnnotations.length > 0, `${entry.name}: missing from REUSE.toml`)
-  assert(reuseAnnotations.every((annotation) => annotation.includes(`SPDX-License-Identifier = "${expected.license}"`)), `${entry.name}: REUSE.toml license mismatch`)
+  if (entry.name === 'bilibili-cleaner') {
+    assert(reuseAnnotations.some((annotation) => annotation.includes('SPDX-License-Identifier = "GPL-3.0-only"')), 'bilibili-cleaner: GPL aggregate mapping is missing')
+  } else {
+    assert(reuseAnnotations.every((annotation) => annotation.includes(`SPDX-License-Identifier = "${expected.license}"`)), `${entry.name}: REUSE.toml license mismatch`)
+  }
   if (expected.license === 'CC-BY-NC-SA-4.0') {
     assert(readme.includes('../KELEEONE-LICENSE.md'), `${entry.name}: README has no shared license link`)
     assert(/CC BY-NC-SA 4\.0/.test(readme), `${entry.name}: README has no adapted-material license`)
   }
-  if (entry.name === 'spotify-cleaner') {
-    const script = await readFile(path.join(directory, 'clean-response.js'), 'utf8')
-    assert(actions.length === 2 && manifest.settings === undefined, 'spotify-cleaner: unlicensed candidate features returned')
-    for (const excluded of ['publish-playlist', 'ios-system-your-plan-sidedrawer', 'ios-feature-navigation', 'ios-feature-share']) {
-      assert(!script.includes(excluded), `spotify-cleaner: unlicensed candidate behavior returned: ${excluded}`)
-    }
-  }
   if (entry.name === 'bilibili-cleaner') {
-    assert(actions.length === 7 && manifest.settings === undefined, 'bilibili-cleaner: generated GPL endpoint returned')
+    assert(actions.length === 12 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3, 'bilibili-cleaner: pinned LPX capability set is incomplete')
+    const sourceRoot = path.join(directory, 'source')
+    const componentDigests = new Map([
+      ['licenses/fflate-MIT.txt', '805f6cb28bb8b6d3a0badd83c93bccd9671fa01a3b4b92b7042b0743325ac243'],
+      ['licenses/protobuf-ts-Apache-2.0.txt', '5e3400b93bbb099e83e52bab885e7441750673c21f97988ca3f1240639b63283'],
+      ['licenses/protobufjs-BSD-3-Clause.txt', '331ff828cd69efbb82098684450a752a05f05cd4b8f181f4829ba14795d1b5ca'],
+    ])
+    for (const [relativePath, expectedDigest] of componentDigests) {
+      const content = await readFile(path.join(sourceRoot, ...relativePath.split('/')))
+      assert(createHash('sha256').update(content).digest('hex') === expectedDigest, `bilibili-cleaner: ${relativePath} digest changed`)
+    }
+    const bundleInputs = JSON.parse(await readFile(path.join(sourceRoot, 'bundle-inputs.json'), 'utf8'))
+    const bundlePaths = bundleInputs.map((input) => input.path)
+    assert(bundlePaths.some((inputPath) => inputPath.startsWith('node_modules/@protobuf-ts/runtime/')), 'bilibili-cleaner: protobuf-ts runtime is absent from the bundle projection')
+    assert(bundlePaths.some((inputPath) => inputPath.startsWith('node_modules/fflate/')), 'bilibili-cleaner: fflate is absent from the bundle projection')
+    assert(!bundlePaths.some((inputPath) => inputPath.endsWith('/protobufjs-utf8.js')), 'bilibili-cleaner: BSD protobufjs UTF-8 code unexpectedly reached the final bundle')
+    assert(reuseParagraphFor('bilibili-cleaner/protobuf.js', 'GPL-3.0-only'), 'bilibili-cleaner: final bundle GPL mapping is missing')
+    assert(reuseParagraphFor('bilibili-cleaner/source/generated/**', 'GPL-3.0-only'), 'bilibili-cleaner: generated source GPL mapping is missing')
+    assert(reuseParagraphFor('bilibili-cleaner/source/upstream-sparkle/**', 'GPL-3.0-only'), 'bilibili-cleaner: Sparkle source GPL mapping is missing')
+    assert(reuseParagraphFor('bilibili-cleaner/source/vendor-src/fflate/**', 'MIT'), 'bilibili-cleaner: fflate MIT mapping is missing')
+    assert(reuseParagraphFor('bilibili-cleaner/source/vendor/fflate-0.8.2.tgz', 'MIT'), 'bilibili-cleaner: fflate archive MIT mapping is missing')
+    const protobufSourceRoot = path.join(sourceRoot, 'vendor-src', 'protobuf-ts')
+    for (const relativePath of await relativeFiles(protobufSourceRoot)) {
+      const reusePath = `bilibili-cleaner/source/vendor-src/protobuf-ts/${relativePath}`
+      const expectedLicense = relativePath === 'packages/runtime/src/protobufjs-utf8.ts' ? 'BSD-3-Clause' : 'Apache-2.0'
+      assert(reuseParagraphFor(reusePath, expectedLicense), `bilibili-cleaner: ${relativePath} ${expectedLicense} mapping is missing`)
+    }
+    assert(reuseParagraphFor('bilibili-cleaner/source/vendor/protobuf-ts-runtime-2.11.1.tgz', 'Apache-2.0 AND BSD-3-Clause'), 'bilibili-cleaner: runtime archive compound mapping is missing')
+  }
+  if (entry.name === 'ad-platform-blocker') {
+    assert(routingRules.length === 201, 'ad-platform-blocker: reviewed upstream routing rules are incomplete')
+  }
+  if (entry.name === 'httpdns-interceptor') {
+    assert(routingRules.length === 117, 'httpdns-interceptor: reviewed hostname/CIDR routing rules are incomplete')
+  }
+  if (entry.name === 'youtube-cleaner') {
+    assert(actions.length === 2 && manifest.settings?.length === 6 && manifest.permissions.persistentStorage && manifest.permissions.network?.origins?.length === 1, 'youtube-cleaner: application parity capability set is incomplete')
   }
   assert(rootReadme.includes(`\`${entry.name}\``), `${entry.name}: missing from root catalog table`)
 }
@@ -172,11 +291,10 @@ for (const entry of entries) {
 extensionNames.sort()
 assert(extensionNames.length === expectedExtensions.size, 'extension catalog and license policy differ')
 assert(thirdPartyNotices.includes('Copyright (c) 2026 WLOC ProxyPin Contributors'), 'Apple upstream MIT notice is missing')
-assert(thirdPartyNotices.includes('Copyright (c) 2020 SVE1R'), 'Spotify upstream MIT notice is missing')
-try {
-  await stat(path.join(root, 'bilibili-cleaner', 'clean-protobuf.js'))
-  throw new Error('bilibili-cleaner: generated GPL output must not be distributed without complete corresponding source')
-} catch (error) {
-  if (error.code !== 'ENOENT') throw error
-}
+assert(thirdPartyNotices.includes('Copyright (c) 2023 Arjun Barrett'), 'fflate upstream MIT notice is missing')
+assert(thirdPartyNotices.includes('Copyright (c) 2016 Daniel Wirtz'), 'protobufjs BSD notice is missing')
+assert(thirdPartyNotices.includes('tree-shakes'), 'Bilibili BSD tree-shaking scope is not documented')
+assert(licenseSummary.includes('LICENSES/BSD-3-Clause.txt'), 'root LICENSE does not describe the BSD component boundary')
+assert((await stat(path.join(root, 'bilibili-cleaner', 'protobuf.js'))).isFile(), 'bilibili-cleaner: deterministic protobuf bundle is missing')
+assert((await stat(path.join(root, 'bilibili-cleaner', 'source', 'package-lock.json'))).isFile(), 'bilibili-cleaner: corresponding GPL build inputs are missing')
 console.log(`Validated ${extensionNames.length} extensions: ${extensionNames.join(', ')}`)

@@ -1,1 +1,2 @@
 * text=auto eol=lf
+bilibili-cleaner/source/vendor-src/** whitespace=-trailing-space,-blank-at-eof

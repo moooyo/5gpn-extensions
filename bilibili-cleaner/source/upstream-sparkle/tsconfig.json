@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "lib": ["ESNext", "DOM"],
+        "baseUrl": "./",
+        "rootDir": "./src",
+        "outDir": "./dist",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "typeRoots": ["./node_modules/@types", "src/types"],
+        "paths": {
+            "@entity/*": ["src/core/entity/*"],
+            "@service/*": ["src/core/service/*"],
+            "@core/*": ["src/core/*"],
+            "@proto/*": ["src/proto/*"],
+            "@utils/*": ["src/utils/*"],
+            "@/*": ["src/*"]
+        },
+        "strict": true,
+        "noImplicitAny": false,
+        "alwaysStrict": false
+    },
+    "include": ["src/**/*"]
+}

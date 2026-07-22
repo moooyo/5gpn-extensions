@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package bilibili.app.interface.v1;
+
+message ModeStatusReply {
+    repeated UserModel user_models = 1;
+}
+
+message UserModel {
+    string mode = 2;
+    Policy policy = 5;
+}
+
+message Policy {
+    int64 interval = 1;
+}

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/promises'
+import { isIP } from 'node:net'
 import path from 'node:path'
 import { isAlias, isMap, isSeq, parseDocument } from 'yaml'
 
@@ -30,6 +31,63 @@ function assertKeys(value, allowed, label) {
 
 function assertString(value, label) {
   assert(typeof value === 'string' && value.trim() !== '', `${label} must be a non-empty string`)
+}
+
+function validHost(value) {
+  if (typeof value !== 'string' || value !== value.toLowerCase() || value.endsWith('.')) return false
+  const host = value.startsWith('*.') ? value.slice(2) : value
+  if (!host || host.length > 253 || host === 'localhost' || host.endsWith('.local')) return false
+  return host.split('.').length >= 2 && host.split('.').every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
+}
+
+function validCIDR(value) {
+  if (typeof value !== 'string' || value !== value.trim()) return false
+  const slash = value.lastIndexOf('/')
+  if (slash <= 0) return false
+  const address = value.slice(0, slash)
+  const family = isIP(address)
+  const prefix = Number(value.slice(slash + 1))
+  return family !== 0 && Number.isInteger(prefix) && prefix >= 0 && prefix <= (family === 4 ? 32 : 128)
+}
+
+function validateRoutingRules(rules, directory) {
+  assert(Array.isArray(rules) && rules.length <= 256, `${directory}: routingRules must be a bounded array`)
+  const seenRules = new Set()
+  for (const [index, rule] of rules.entries()) {
+    const label = `${directory}: routingRules[${index}]`
+    assertKeys(rule, new Set(['action', 'domain', 'domainSuffix', 'domainKeywords', 'allDomainKeywords', 'ipCIDR', 'network', 'destinationPort']), label)
+    assert(rule.action === 'reject' || rule.action === 'direct', `${label} action is invalid`)
+    const primaries = ['domain', 'domainSuffix', 'ipCIDR'].filter((key) => Object.hasOwn(rule, key))
+    const anyKeywords = rule.domainKeywords
+    const allKeywords = rule.allDomainKeywords
+    if (anyKeywords !== undefined) assert(Array.isArray(anyKeywords) && anyKeywords.length >= 2 && anyKeywords.length <= 8, `${label} domainKeywords must contain 2 to 8 entries`)
+    if (allKeywords !== undefined) assert(Array.isArray(allKeywords) && allKeywords.length >= 1 && allKeywords.length <= 8, `${label} allDomainKeywords must contain 1 to 8 entries`)
+    const any = anyKeywords ?? []
+    const all = allKeywords ?? []
+    assert(primaries.length <= 1 && (primaries.length === 1 || any.length + all.length > 0), `${label} selector is invalid`)
+    if (rule.domain !== undefined) assert(validHost(rule.domain) && !rule.domain.startsWith('*.'), `${label} domain is invalid`)
+    if (rule.domainSuffix !== undefined) assert(validHost(rule.domainSuffix) && !rule.domainSuffix.startsWith('*.'), `${label} domainSuffix is invalid`)
+    if (rule.ipCIDR !== undefined) assert(validCIDR(rule.ipCIDR) && any.length + all.length === 0, `${label} ipCIDR is invalid`)
+    const combined = [...any, ...all]
+    assert(combined.every((keyword) => typeof keyword === 'string' && keyword.length <= 64 && /^[a-z0-9._-]+$/.test(keyword)), `${label} keyword is invalid`)
+    assert(new Set(combined).size === combined.length, `${label} keywords must be unique across groups`)
+    assert(any.every((value, offset) => offset === 0 || any[offset - 1] < value), `${label} domainKeywords must be sorted`)
+    assert(all.every((value, offset) => offset === 0 || all[offset - 1] < value), `${label} allDomainKeywords must be sorted`)
+    if (rule.network !== undefined) assert(rule.network === 'tcp' || rule.network === 'udp', `${label} network is invalid`)
+    if (rule.destinationPort !== undefined) assert(Number.isInteger(rule.destinationPort) && rule.destinationPort >= 1 && rule.destinationPort <= 65535, `${label} destinationPort is invalid`)
+    const identity = JSON.stringify({
+      action: rule.action,
+      domain: rule.domain ?? null,
+      domainSuffix: rule.domainSuffix ?? null,
+      domainKeywords: any,
+      allDomainKeywords: all,
+      ipCIDR: rule.ipCIDR ?? null,
+      network: rule.network ?? null,
+      destinationPort: rule.destinationPort ?? null,
+    })
+    assert(!seenRules.has(identity), `${label} duplicates an earlier rule`)
+    seenRules.add(identity)
+  }
 }
 
 function sha256(body) {
@@ -82,7 +140,7 @@ function parseStrictManifest(body, directory) {
     assert(typeof manifest.requirements.egressGroup.required === 'boolean', `${directory}: egressGroup.required must be boolean`)
   }
 
-  assertKeys(manifest.traffic, new Set(['captureHosts', 'upstreamMappings']), `${directory}: traffic`)
+  assertKeys(manifest.traffic, new Set(['captureHosts', 'upstreamMappings', 'routingRules']), `${directory}: traffic`)
   assert(Array.isArray(manifest.traffic.captureHosts) && manifest.traffic.captureHosts.length > 0, `${directory}: captureHosts must not be empty`)
   assert(new Set(manifest.traffic.captureHosts).size === manifest.traffic.captureHosts.length, `${directory}: captureHosts must be unique`)
   for (const host of manifest.traffic.captureHosts) assertString(host, `${directory}: capture host`)
@@ -93,6 +151,8 @@ function parseStrictManifest(body, directory) {
     assertString(mapping.host, `${directory}: upstreamMappings[${index}].host`)
     assertString(mapping.target, `${directory}: upstreamMappings[${index}].target`)
   }
+  const routingRules = manifest.traffic.routingRules ?? []
+  validateRoutingRules(routingRules, directory)
 
   const settings = manifest.settings ?? []
   assert(Array.isArray(settings), `${directory}: settings must be an array`)
@@ -242,6 +302,7 @@ export async function generateMarketplace({ root = repositoryRoot, revision }) {
         networkOrigins: [...(manifest.permissions.network?.origins ?? [])].sort(),
         persistentStorage: manifest.permissions.persistentStorage,
         upstreamMappingCount: (manifest.traffic.upstreamMappings ?? []).length,
+        routingRuleCount: (manifest.traffic.routingRules ?? []).length,
         egressGroupRequired: manifest.requirements?.egressGroup?.required ?? false,
       },
     })

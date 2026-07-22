@@ -49,6 +49,8 @@ function transform(context) {
       status: 200,
       headers: {
         'Content-Type': 'application/grpc',
+      },
+      trailers: {
         'Grpc-Status': '0',
       },
       body: decodeBase64(encoded),

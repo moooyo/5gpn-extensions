@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package bilibili.polymer.app.search.v1;
+
+message SearchAllResponse {
+    repeated Item item = 4;
+}
+
+message Item {
+    string linktype = 4;
+}

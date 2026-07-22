@@ -30,21 +30,33 @@ discover a mirrored plugin version, but its CC BY-NC-SA root license does not
 override Sparkle's original GPL license. The extension README pins the exact
 Sparkle commits and identifies every mapped artifact and modification.
 
-Sparkle's generated Protobuf output incorporates Apache-2.0 `protobuf-ts`
-2.11.1 material. That generated output was audited but is not distributed by
-this extension because the complete preferred source and build inputs are not
-vendored. The Apache-2.0 text remains present for the independently licensed
-YouTube extension.
+The native runtime files, final `protobuf.js` bundle, native adapter, schema
+inputs, generated TypeScript, pinned Sparkle source closure, and deterministic
+build inputs are distributed under GPL-3.0-only. The complete corresponding
+source is included under `bilibili-cleaner/source/`; the exact file-level
+mapping is recorded in `REUSE.toml`.
 
-## Reddit Cleaner
+The rebuild also distributes these independently licensed components:
 
-`reddit-cleaner` ports the GPL-3.0-only JQ program from
-`mist-whisper/JQLang@00944babf9ef1b5e55e87b48df71bd1fc2c855d6`.
-The KeleeOne LPX metadata credits `xream`; that creator credit is retained in
-the extension README, but KeleeOne's repository-level CC license is not used
-to relicense the GPL JQ implementation.
+| Component | Distributed scope | License |
+| --- | --- | --- |
+| `fflate` 0.8.2 | Preferred TypeScript source, npm archive, license, and the code retained in the final bundle | MIT, Copyright (c) 2023 Arjun Barrett |
+| `protobuf-ts` 2.11.1 | Preferred runtime TypeScript source, license, npm archive, and the Apache-licensed runtime code retained in the final bundle | Apache-2.0, except for the file below |
+| `protobufjs-utf8.ts` | Exact preferred source retained inside the `protobuf-ts` source snapshot and npm runtime archive | BSD-3-Clause, Copyright (c) 2016 Daniel Wirtz |
 
-The GPL-3.0-only legal text used by both GPL extensions is retained in
+The retained `protobuf-ts` runtime archive therefore has the package's
+declared `Apache-2.0 AND BSD-3-Clause` license expression. The deterministic
+`bundle-inputs.json` projection shows that esbuild tree-shakes
+`protobufjs-utf8.ts` from the final `protobuf.js` bundle, so the final bundle
+contains Apache-2.0 `protobuf-ts` code but no BSD-licensed UTF-8 implementation.
+The BSD source is still distributed and remains covered by its notice.
+
+The complete component terms are retained in
+`bilibili-cleaner/source/licenses/` and the shared legal texts are available
+as [`LICENSES/MIT.txt`](LICENSES/MIT.txt),
+[`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt), and
+[`LICENSES/BSD-3-Clause.txt`](LICENSES/BSD-3-Clause.txt). The GPL-3.0-only
+text governing the combined Bilibili work is retained in
 [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt).
 
 ## YouTube Cleaner
@@ -65,35 +77,6 @@ commit `edee9b955f673cc8c4a52eb0a9c687a2e25dde4a`.
 MIT License
 
 Copyright (c) 2026 WLOC ProxyPin Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-## Spotify Cleaner
-
-`spotify-cleaner` is derived from the MIT-licensed Spotify transformer in
-`sve1r/Rules-For-Quantumult-X` at commit
-`692aec6a28c0d7c1d44d69febb581632a8175e9f`. The extension deliberately omits
-features found only in an unlicensed `001ProMax/Surge` source snapshot.
-
-MIT License
-
-Copyright (c) 2020 SVE1R
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

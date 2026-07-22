@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package bilibili.app.view.v1;
+
+message ViewReply {
+    ReqUser req_user = 4;
+    repeated Relate relates = 10;
+    optional bytes label = 23;
+    repeated bytes cms = 30;
+    optional bytes cm_config = 31;
+    optional bytes cm_ipad = 41;
+    repeated bytes special_cell_new = 50;
+}
+
+message ReqUser {
+    optional bytes elec_plus_btn = 9;
+}
+
+message Relate {
+    bytes cm = 28;
+}
+
+message ViewProgressReply {
+    optional bytes video_guide = 1;
+    Chronos chronos = 2;
+}
+
+message Chronos {
+    string md5 = 1;
+    string file = 2;
+    optional string sign = 3;
+}
+
+message TFInfoReply {
+    int64 tips_id = 1;
+    optional bytes tf_toast = 2;
+    optional bytes tf_panel_customized = 3;
+}

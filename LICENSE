@@ -5,12 +5,16 @@ software license. A file's license is determined by the explicit mapping in
 [`REUSE.toml`](REUSE.toml), with attribution and provenance recorded in the
 owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-- Repository scaffolding, validation tooling, `apple-wloc`, and
-  `spotify-cleaner` use the MIT License. The complete project MIT text is in
+- Repository scaffolding, validation tooling, and `apple-wloc` use the MIT
+  License. The complete project MIT text is in
   [`LICENSES/MIT.txt`](LICENSES/MIT.txt); retained upstream MIT notices are in
   [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
-- `bilibili-cleaner` and `reddit-cleaner` use `GPL-3.0-only`. The complete
-  text is in [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt).
+- The combined `bilibili-cleaner` work uses `GPL-3.0-only`. Its distributed corresponding source also retains
+  independently licensed MIT `fflate`, Apache-2.0 `protobuf-ts`, and the
+  exact BSD-3-Clause `protobufjs-utf8` component; `REUSE.toml` is
+  authoritative for those file-level boundaries. The complete GPL text is in
+  [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt), and the BSD text is
+  in [`LICENSES/BSD-3-Clause.txt`](LICENSES/BSD-3-Clause.txt).
 - `youtube-cleaner` uses `Apache-2.0`. The complete text is in
   [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
 - `ad-platform-blocker`, `httpdns-interceptor`, and

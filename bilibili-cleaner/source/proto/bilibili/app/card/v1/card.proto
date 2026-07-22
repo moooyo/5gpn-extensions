@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package bilibili.app.card.v1;
+
+message Card {
+    oneof item {
+        SmallCoverV5 small_cover_v5 = 1;
+        bytes rcmd_one_item = 10;
+        bytes small_cover_v5_ad = 11;
+        bytes topic_list = 12;
+    }
+}
+
+message SmallCoverV5 {
+    Base base = 1;
+}
+
+message Base {
+    bytes ad_info = 12;
+    string from_type = 14;
+}

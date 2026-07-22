@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package bilibili.app.show.popular.v1;
+
+import "bilibili/app/card/v1/card.proto";
+
+message PopularReply {
+    repeated bilibili.app.card.v1.Card items = 1;
+}

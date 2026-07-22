@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package bilibili.playershared;
+
+message VideoVod {
+    int64 aid = 1;
+    int64 cid = 2;
+}
+
+message VodInfo {
+    repeated Stream stream_list = 5;
+}
+
+message Stream {
+    StreamInfo stream_info = 1;
+}
+
+message StreamInfo {
+    optional bool need_vip = 6;
+}
+
+message PlayArcConf {
+    map<int32, ArcConf> arc_confs = 1;
+}
+
+enum ConfType {
+    NO_TYPE = 0;
+    BACKGROUNDPLAY = 9;
+    SMALLWINDOW = 23;
+    FREYAENTER = 31;
+    FREYAFULLENTER = 32;
+    SKIPOPED = 33;
+}
+
+message ArcConf {
+    bool is_support = 1;
+    bool disabled = 2;
+    ExtraContent extra_content = 3;
+    repeated int32 unsupport_scene = 4;
+}
+
+message ExtraContent {
+    string disable_reason = 1;
+    int64 disable_code = 2;
+}
+
+message PlayArc {
+    BizType video_type = 1;
+}
+
+enum BizType {
+    BIZ_TYPE_UNKNOWN = 0;
+    BIZ_TYPE_UGC = 1;
+    BIZ_TYPE_PGC = 2;
+    BIZ_TYPE_PUGV = 3;
+}
+
+message ViewInfo {
+    optional bytes prompt_bar = 2;
+}

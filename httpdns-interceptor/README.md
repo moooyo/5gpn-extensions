@@ -2,10 +2,10 @@
 
 License: [`CC-BY-NC-SA-4.0`](../LICENSES/CC-BY-NC-SA-4.0.txt)
 
-This directory contains a normal 5gpn.io/v1 extension. It blocks the remaining
-hostname-based HTTPDNS-related HTTP requests from the pinned upstream rule set.
-It is not compiled into either 5gpn daemon and is not installed or enabled
-automatically.
+This directory contains a normal 5gpn.io/v1 extension. It blocks 117 reviewed
+HTTPDNS domain/IP routes and seven hostname-based HTTP request paths from the
+pinned upstream rule set. It is not compiled into either 5gpn daemon and is
+not installed or enabled automatically.
 
 Install extension.yaml from the Console's Install from URL action:
 
@@ -17,8 +17,9 @@ This public raw URL is installable directly. For a private fork, use the Console
 
 The extension has no settings, persistent storage, network permission, upstream
 mapping, or required egress-group binding. When enabled with the global
-interception master, it captures exactly six hosts and aborts only the request
-paths documented below. All other traffic keeps the normal mihomo egress path.
+interception master, it captures exactly six hosts for the documented request
+paths and also activates 117 global typed `REJECT` rules. Traffic not matched
+by either capability keeps the normal mihomo egress path.
 
 ## Pinned upstream
 
@@ -29,6 +30,7 @@ paths documented below. All other traffic keeps the normal mihomo egress path.
 | Upstream file | Plugin/Block_HTTPDNS.lpx |
 | Pinned commit | ab6c3182fb2b09bcc34456f496282ec0b8e9217b |
 | Raw URL | https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/Block_HTTPDNS.lpx |
+| Raw file size | 9,257 bytes |
 | Raw file SHA-256 | 08429c4f1c677d79e87eb3cd41e880868f7a71381dc1d6c81b393734fd5df21a |
 | Upstream-declared date | 2025-08-20 00:30:31 |
 | Snapshot verified | 2026-07-20 |
@@ -42,9 +44,10 @@ site.
 This native extension port is adapted material from KeleeOne's
 Block_HTTPDNS.lpx at the pinned commit above. The original Loon rule format was
 changed into a strict 5gpn.io/v1 manifest and a native transform(context)
-request-abort script. DNS-policy-covered domain rules and unsupported
-hard-coded-IP, IPv6, non-HTTP, and non-steered rules were intentionally omitted
-from this extension, as documented below.
+request-abort script. Its canonical domain, IPv4, and IPv6 rules are retained
+as typed routing declarations. Only IP-literal URL rewrites and traffic that
+cannot physically reach a DNS-steering gateway remain outside the port, as
+documented below.
 
 The upstream root license is
 [CC BY-NC-SA 4.0](../KELEEONE-LICENSE.md). This adapted material is provided
@@ -84,135 +87,20 @@ The upstream reject-dict action has no native compatibility mode. It is
 deliberately converted to the same fail-closed request abort as reject, avoiding
 an invented response schema for an undocumented third-party client format.
 
-## Not migrated and limitations
+## Typed routing parity and remaining limitation
 
-### Already covered by DNS policy
+All 117 unique canonical `DOMAIN`, `IP-CIDR`, and `IP-CIDR6` effects from the
+pinned `[Rule]` section are represented as typed, reviewed `REJECT` rules. They
+activate only with the extension and MITM master and are removed transactionally.
 
-The following 58 unique upstream DOMAIN rules are already covered by the
-operator-editable etc/block-dns-bypass.txt DNS policy seed. They remain DNS-only
-blocks and are intentionally not duplicated as capture hosts:
+IP-literal `URL-REGEX` and rewrite rules remain physically unreachable on a
+DNS-steering-only gateway when the client connects directly to the hard-coded
+address. The project does not install a transparent proxy, firewall rule, or
+policy-routing table, so it cannot truthfully claim those requests are blocked.
+Hostname-based URL rules remain implemented as bounded request actions.
 
-~~~
-aedns.weixin.qq.com
-apidns-js.kwd.inkuai.com
-apidns.kwd.inkuai.com
-dns.iqiyi.com
-dns.jd.com
-dns.qiyipic.iqiyi.com
-dns.weibo.cn
-dns.weixin.qq.com
-dns.weixin.qq.com.cn
-dns2.q2cdn.com
-doh.iqiyi.com
-doh.ptqy.gitv.tv
-dotserver.douyucdn.cn
-hd.xiaojukeji.com
-hdns.ksyun.com
-httpdns-api.aliyuncs.com
-httpdns-browser.platform.dbankcloud.cn
-httpdns-sc.aliyuncs.com
-httpdns-sdk.n.netease.com
-httpdns-v6.gslb.yy.com
-httpdns.alicdn.com
-httpdns.baidu.com
-httpdns.baidubce.com
-httpdns.bcelive.com
-httpdns.bilivideo.com
-httpdns.browser.miui.com
-httpdns.c.cdnhwc2.com
-httpdns.calorietech.com
-httpdns.cctv.com
-httpdns.danuoyi.tbcache.com
-httpdns.huaweicloud.com
-httpdns.kg.qq.com
-httpdns.kwd.inkuai.com
-httpdns.meituan.com
-httpdns.music.163.com
-httpdns.n.netease.com
-httpdns.n.shifen.com
-httpdns.ocloud.heytapmobi.com
-httpdns.ocloud.oppomobile.com
-httpdns.platform.dbankcloud.cn
-httpdns.platform.dbankcloud.com
-httpdns.push.heytapmobi.com
-httpdns.push.oppomobile.com
-httpdns.yunxindns.com
-httpdns.zybang.com
-httpdns1.cc.cdnhwc5.com
-httpdnsmultiapi.meituan.com
-httpdnsmultiapivip.meituan.com
-httpsdns.baidu.com
-kuaishou.httpdns.pro
-lofter.httpdns.c.163.com
-music.httpdns.c.163.com
-resolver.msg.xiaomi.net
-serveraddr.service.kugou.com
-tp2p.kg.qq.com
-twns.p2ptun.qq.com
-union-httpdns.gslb.yy.com
-yyapp-httpdns.gslb.yy.com
-~~~
-
-The source's incomplete https? amdc.alipay.com/query rewrite line has no
-terminal Loon action. It is not converted; amdc.alipay.com is already present
-in the DNS bypass blocklist.
-
-### Hard-coded IP rules
-
-No source rule that targets an IP literal is migrated. A native extension can
-acquire traffic only through a DNS hostname in traffic.captureHosts; it cannot
-request an IP certificate, infer a host from an IP URL, or reliably recover
-traffic that did not traverse DNS steering. This excludes every upstream
-IP-CIDR, IP-CIDR6, IP-literal URL-REGEX, bare URL rule, Rewrite IP rule, and IP
-entry in MitM.
-
-Excluded IPv4 CIDR targets:
-
-~~~
-39.156.140.30/32, 39.156.140.47/32, 39.156.140.245/32
-42.81.232.18/32, 42.187.182.106/32, 42.187.182.123/32, 42.187.184.154/32
-43.130.30.237/32, 43.130.30.240/32, 43.137.153.151/32, 43.137.159.31/32
-43.152.112.101/32, 43.153.248.120/32, 60.28.172.100/32, 61.151.231.157/32
-101.32.104.104/32, 101.124.19.122/32, 106.39.206.21/32, 106.39.206.25/32
-106.39.206.70/32, 111.31.201.194/32, 111.31.241.76/32, 111.31.241.140/32
-111.206.147.156/32, 111.206.147.210/32, 111.206.148.27/32, 116.128.177.249/32
-116.130.224.150/32, 116.130.224.205/32, 117.185.247.73/32, 118.89.204.198/23
-119.29.29.98/32, 119.29.29.99/32, 123.151.48.171/32, 123.151.48.193/32
-123.151.48.208/32, 123.151.54.50/32, 180.153.202.85/32, 183.192.196.31/32
-186.76.76.200/32, 203.107.1.0/24, 203.205.129.102/32, 203.205.234.132/32
-220.196.159.73/32, 103.224.222.208/32, 81.71.61.216/32, 59.111.239.61/32
-59.111.239.62/32, 115.236.121.51/32, 115.236.121.195/32, 39.97.130.51/32
-39.97.128.148/32
-~~~
-
-Excluded IPv6 CIDR targets:
-
-~~~
-240e:928:1400:10::25/128
-2402:4e00:8030:1::17/128
-2402:4e00:1900:1700:0:9554:1ad9:c3a/128
-2408:8711:10:10::20/128
-2409:8702:4860:10::4d/128
-2402:db40:5100:1011::5/128
-2402:4e00:1200:ed00:0:9089:6dac:96b6/128
-~~~
-
-Excluded IP-literal URL and rewrite targets:
-
-~~~
-103.44.58.64, 182.256.116.116, 47.101.175.206, 47.100.123.169
-120.46.169.234, 121.36.72.124, 116.63.10.135, 117.185.228.108
-117.144.238.29, 122.9.7.134, 101.91.140.124, 101.91.140.224
-122.9.13.79, 122.9.15.129, 112.65.200.117, 112.64.218.119
-114.116.215.110, 116.63.10.31, 180.76.76.112, 180.76.76.220
-182.254.116.116, 119.29.29.98, 203.107.1.33, 203.107.1.34
-162.14.3.250, 103.37.155.60, 81.69.130.131, 101.35.204.35
-101.35.212.35, 114.110.96.6, 114.110.96.26, 114.110.97.30
-114.110.97.97, 121.5.84.85, 103.41.167.237, 119.29.29.29
-54.222.159.138:8053, 101.42.130.147:8053, 106.55.220.18:8053
-139.196.12.179:8053, 203.107.1.1, 203.107.1.66, 203.107.1.67, 203.107.1.97
-2402:4e00:1411:201:0:9964:ba21:5a41, 2401:b180:2000:30::1c, 2401:b180:2000:20::10
-~~~
+The source's incomplete `amdc.alipay.com/query` rewrite has no terminal Loon
+action and therefore has no behavior to reproduce.
 
 ### General interception limits
 
@@ -237,10 +125,10 @@ connection behavior.
 2. If updating to another upstream commit, record its immutable commit, raw
    URL, SHA-256, upstream-declared date, and review date in this README before
    changing the manifest.
-3. Classify every changed source rule: keep DNS-only names in the DNS policy,
-   translate only hostname-based HTTP or HTTPS request rejects to a bounded
-   action, and add all unsupported IP, IPv6, non-HTTP, and non-steered rules to
-   the exclusions above.
+3. Run `node scripts/sync-routing-rules.mjs` after updating its immutable URL
+   and digest. Review every normalized domain, IPv4, and IPv6 routing rule;
+   translate hostname-based HTTP or HTTPS path rejects to bounded actions, and
+   record only physically unreachable IP-literal URL behavior as a limitation.
 4. Preserve the source scheme and path scope. Do not turn a path-specific rule
    into a host-wide capture action. Keep captureHosts at or below 256 entries.
 5. Bump metadata.version, validate the strict manifest, and review the snapshot
@@ -250,12 +138,12 @@ connection behavior.
 
 1. Confirm that the upstream file SHA-256 matches the pinned value above.
 2. Install the manifest URL in the Console. Confirm that the reviewed manifest
-   has six capture hosts, seven request actions, no network origins, and no
-   required egress binding.
+   has six capture hosts, seven request actions, 117 typed routing rules, no
+   network origins, and no required egress binding.
 3. Enable the extension and the global interception master, then verify in
    /extensions/hosts that only the six declared hosts are active.
 4. Send a request that matches each table row and verify that it fails closed;
    send a nearby nonmatching path on the same host and verify that the extension
    does not abort it.
-5. Disable the extension and verify that its capture-host overlay disappears
-   before relying on a DNS-policy-only block for the 58 names listed above.
+5. Disable the extension and verify that both its capture-host overlay and all
+   117 routing rules disappear transactionally.

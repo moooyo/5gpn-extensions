@@ -2,7 +2,7 @@
 
 function transform(context) {
   const rewritten = context.request.url.replace(
-    /([?&]mobi_app=)iphone(?=&|$)/,
+    /(&mobi_app=)iphone(?=&)/,
     '$1iphone_i',
   )
 

@@ -28,16 +28,6 @@
       "tags": ["blocking", "dns", "privacy"]
     },
     {
-      "directory": "reddit-cleaner",
-      "licenseSpdx": "GPL-3.0-only",
-      "tags": ["ads", "privacy", "reddit"]
-    },
-    {
-      "directory": "spotify-cleaner",
-      "licenseSpdx": "MIT",
-      "tags": ["ads", "media", "spotify"]
-    },
-    {
       "directory": "testflight-region-unlock",
       "licenseSpdx": "CC-BY-NC-SA-4.0",
       "tags": ["apple", "region", "testflight"]

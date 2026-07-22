@@ -15,10 +15,12 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/ad-platform-blocke
 
 This public raw URL is installable directly. For a private fork, use the Console's local-add/upload flow or an operator-controlled public HTTPS mirror; never embed repository credentials in an extension URL.
 
-Enabling it requests interception only for the 183 hosts in
-`traffic.captureHosts`. It has no settings, persistent storage, network
-origins, upstream mappings, or egress-group requirement. Each matching request
-returns `{ abort: true }`; no request or response body is read.
+Enabling it requests interception for the 183 hosts in `traffic.captureHosts`
+and activates 201 reviewed typed routing rules. It has no settings, persistent
+storage, network origins, upstream mappings, or egress-group requirement. The
+request actions return `{ abort: true }` without reading a body; routing rules
+apply before capture and may `REJECT` or use the one pinned narrow `DIRECT`
+exception.
 
 ## Pinned upstream
 
@@ -30,6 +32,7 @@ The port is based on the following immutable upstream snapshot:
 | Upstream name | `Plugin/BlockAdvertisers.lpx` (Ad Platform Blocker) |
 | Commit | `ab6c3182fb2b09bcc34456f496282ec0b8e9217b` |
 | Raw URL | `https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/BlockAdvertisers.lpx` |
+| Size | 9,494 bytes |
 | SHA-256 | `3974936ec21be3675db2496bdcbf05fa20af8f0be8c105e61bbada9b86e01c3e` |
 | Upstream file date | `2025-09-16 13:41:39` |
 | Port snapshot date | `2026-07-20` |
@@ -71,8 +74,9 @@ same source.
 
 | Upstream LPX form | Native 5gpn translation |
 | --- | --- |
-| `DOMAIN,host,REJECT` | Exact capture host plus `block-ad-platform-hosts`, which aborts all HTTP and HTTPS paths. |
-| `DOMAIN-SUFFIX,suffix,REJECT` | Constrained `*.suffix` capture host and the same abort action. The apex is deliberately not captured. |
+| `DOMAIN,host,REJECT` | Exact typed `domain` routing rule with `action: reject`. |
+| `DOMAIN-SUFFIX,suffix,REJECT` | Typed `domainSuffix` routing rule that covers the apex and children exactly as mihomo does. |
+| Keyword, CIDR, composite, and `DIRECT` forms | Bounded typed keyword/IP selectors with the pinned action; no raw mihomo string or proxy-group name is accepted. |
 | Pinduoduo `[Rewrite]` reject URL | Exact capture host and a separate HTTPS request action with an equivalent anchored `pathRegex`. |
 
 The conversion uses 88 exact hosts, 92 constrained subdomain wildcards, and
@@ -81,18 +85,18 @@ limit of 256. Wildcards are intentionally child-only: `*.example.com` does
 not capture `example.com`. This avoids intercepting a registrable-domain apex
 when the LPX suffix rule was intended for an advertising endpoint.
 
-## Deliberate exclusions
+## Typed routing parity
 
-The following source rules are not ported:
+All 201 unique effects from the pinned `[Rule]` section are represented as
+reviewed typed routing rules, including exact domains, suffixes, keywords,
+composite keyword/suffix conditions, the IPv4 CIDR reject, and the narrowly
+scoped `DIRECT` exception. They are not raw mihomo strings and cannot name an
+operator proxy group. They activate only after the extension enable review and
+are removed transactionally when the extension or MITM master is disabled.
 
-- The `IP-CIDR,47.110.187.87/32` rule: native extensions acquire traffic only
-  through DNS host patterns and must not create IP-based interception.
-- All `DOMAIN-KEYWORD` rules and composite `AND`/`OR` rules: host acquisition
-  cannot be inferred from a substring or a boolean expression, and converting
-  them into broad capture hosts would violate the capture-host boundary.
-- The LPX `DIRECT` rule: a native extension cannot select or change egress.
-- The LPX `[MitM]` stanza: `traffic.captureHosts` is its native replacement;
-  no third-party MITM configuration is imported.
+The LPX `[MitM]` stanza remains metadata rather than an imported configuration;
+`traffic.captureHosts` is its native replacement for the three path-specific
+Pinduoduo request actions.
 The pinned upstream intentionally includes push, crash-reporting, attribution,
 installation, monitoring, location, and telemetry endpoints where it provides
 exact domain rules. They are ported unchanged when native host matching can
@@ -107,15 +111,16 @@ attribution, telemetry, or application behaviour.
 2. Record its commit, raw URL, SHA-256, upstream file date, and review date in
    the **Pinned upstream** table.
 3. Diff `[Rule]`, `[Rewrite]`, and `[MitM]` against the pinned snapshot.
-4. Translate only exact `DOMAIN,...,REJECT` rules and reviewed
-   `DOMAIN-SUFFIX,...,REJECT` rules. Use exact hosts or child-only wildcards;
-   keep every action matcher within its own `captureHosts` list.
+4. Run `node scripts/sync-routing-rules.mjs` after updating its immutable URL
+   and digest, then review every normalized exact, suffix, keyword, composite,
+   CIDR, and `DIRECT` result. Keep every action matcher within its own
+   `captureHosts` list.
 5. Translate a URL reject only when its host is explicit and its URL predicate
    can be represented safely by an anchored RE2 `pathRegex`. Do not turn a
    URL path into a host-wide block.
-6. Exclude only rules that cannot be expressed faithfully under the native
-   capture-host boundary, retain the `<=256` capture-host limit,
-   and update the coverage and exclusion text when the review changes.
+6. Exclude only behavior that cannot be expressed faithfully, retain both the
+   `<=256` capture-host and routing-rule limits, and update the coverage text
+   when the review changes.
 7. Test the manifest locally and install the reviewed raw manifest as disabled
    before enabling it on production traffic.
 
@@ -130,7 +135,7 @@ existing Go tests:
 ```
 
 For a focused review, confirm that `extension.yaml` has 183 capture-host
-entries, every `actions[].match.hosts` entry is covered by
+entries and 201 typed routing rules, every `actions[].match.hosts` entry is covered by
 `traffic.captureHosts`, `block.js` contains only the native `transform(context)`
 entry point, and the three Pinduoduo actions retain their host-specific,
 anchored path predicates. Then import the manifest disabled in the Console,

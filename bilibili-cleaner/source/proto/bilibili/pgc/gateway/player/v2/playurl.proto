@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package bilibili.pgc.gateway.player.v2;
+
+message PlayViewReply {
+    ViewInfo view_info = 5;
+    PlayAbilityExtConf play_ext_conf = 6;
+}
+
+message ViewInfo {
+    optional bytes try_watch_prompt_bar = 8;
+}
+
+message PlayAbilityExtConf {
+    bool allow_close_subtitle = 1;
+    CastTips cast_tips = 3;
+}
+
+message CastTips {
+    int32 code = 1;
+    string message = 2;
+}
+
+message PlayViewBusinessInfo {
+    repeated ClipInfo clip_info = 6;
+    int32 vip_status = 16;
+    EpisodeInfo episode_info = 18;
+    UserStatus user_status = 20;
+}
+
+message ClipInfo {
+    int32 start = 2;
+    int32 end = 3;
+    ClipType clip_type = 4;
+}
+
+enum ClipType {
+    NT_UNKNOWN = 0;
+    CLIP_TYPE_OP = 1;
+    CLIP_TYPE_ED = 2;
+}
+
+message EpisodeInfo {
+    int32 ep_id = 1;
+    int64 cid = 2;
+    int64 aid = 3;
+    int64 ep_status = 4;
+    SeasonInfo season_info = 5;
+}
+
+message SeasonInfo {
+    int32 season_id = 1;
+    int32 season_type = 2;
+    int32 season_status = 3;
+    int32 mode = 7;
+}
+
+message UserStatus {
+    WatchProgress watch_progress = 3;
+}
+
+message WatchProgress {
+    int32 last_ep_id = 1;
+    string last_ep_index = 2;
+    int64 progress = 3;
+    int64 last_play_cid = 4;
+    int64 last_play_aid = 7;
+}

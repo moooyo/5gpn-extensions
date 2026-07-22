@@ -1,0 +1,158 @@
+[
+  {
+    "path": "generated/bilibili/app/card/v1/card.ts",
+    "bytesInOutput": 7212
+  },
+  {
+    "path": "generated/bilibili/app/dynamic/v2/dynamic.ts",
+    "bytesInOutput": 10822
+  },
+  {
+    "path": "generated/bilibili/app/playerunite/v1/player.ts",
+    "bytesInOutput": 2232
+  },
+  {
+    "path": "generated/bilibili/app/playurl/v1/playurl.ts",
+    "bytesInOutput": 9529
+  },
+  {
+    "path": "generated/bilibili/app/show/popular/v1/popular.ts",
+    "bytesInOutput": 1778
+  },
+  {
+    "path": "generated/bilibili/app/view/v1/view.ts",
+    "bytesInOutput": 12220
+  },
+  {
+    "path": "generated/bilibili/app/viewunite/v1/view.ts",
+    "bytesInOutput": 28434
+  },
+  {
+    "path": "generated/bilibili/community/service/dm/v1/dm.ts",
+    "bytesInOutput": 18117
+  },
+  {
+    "path": "generated/bilibili/main/community/reply/v1/reply.ts",
+    "bytesInOutput": 12093
+  },
+  {
+    "path": "generated/bilibili/pgc/gateway/player/v2/playurl.ts",
+    "bytesInOutput": 8305
+  },
+  {
+    "path": "generated/bilibili/playershared/playershared.ts",
+    "bytesInOutput": 9741
+  },
+  {
+    "path": "generated/bilibili/polymer/app/search/v1/search.ts",
+    "bytesInOutput": 3489
+  },
+  {
+    "path": "native-protobuf.ts",
+    "bytesInOutput": 20217
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/assert.js",
+    "bytesInOutput": 1024
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/base64.js",
+    "bytesInOutput": 2380
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/binary-format-contract.js",
+    "bytesInOutput": 1499
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/binary-reader.js",
+    "bytesInOutput": 4542
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/binary-writer.js",
+    "bytesInOutput": 5919
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/goog-varint.js",
+    "bytesInOutput": 4724
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/index.js",
+    "bytesInOutput": 0
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/json-format-contract.js",
+    "bytesInOutput": 473
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/json-typings.js",
+    "bytesInOutput": 333
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/lower-camel-case.js",
+    "bytesInOutput": 536
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/message-type-contract.js",
+    "bytesInOutput": 61
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/message-type.js",
+    "bytesInOutput": 5736
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/oneof.js",
+    "bytesInOutput": 428
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/pb-long.js",
+    "bytesInOutput": 6425
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-binary-reader.js",
+    "bytesInOutput": 5792
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-binary-writer.js",
+    "bytesInOutput": 6402
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-create.js",
+    "bytesInOutput": 735
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-equals.js",
+    "bytesInOutput": 1928
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-info.js",
+    "bytesInOutput": 1915
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-json-reader.js",
+    "bytesInOutput": 11064
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-json-writer.js",
+    "bytesInOutput": 8212
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-long-convert.js",
+    "bytesInOutput": 244
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-merge-partial.js",
+    "bytesInOutput": 1867
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-scalar-default.js",
+    "bytesInOutput": 648
+  },
+  {
+    "path": "node_modules/@protobuf-ts/runtime/build/es2015/reflection-type-check.js",
+    "bytesInOutput": 7000
+  },
+  {
+    "path": "node_modules/fflate/esm/browser.js",
+    "bytesInOutput": 10823
+  }
+]

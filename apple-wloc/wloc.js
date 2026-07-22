@@ -63,9 +63,10 @@ function parseFields(bytes) {
     const start = offset
     const key = decodeVarint(bytes, offset)
     offset += key.length
-    const number = Number(key.value >> 3n)
+    const numberValue = key.value >> 3n
+    if (numberValue === 0n || numberValue > 536870911n) throw new Error('protobuf field number is invalid')
+    const number = Number(numberValue)
     const wireType = Number(key.value & 7n)
-    if (number === 0) throw new Error('protobuf field number is zero')
     let valueStart = offset
     let valueEnd = offset
     if (wireType === 0) {
@@ -96,19 +97,40 @@ function parseFields(bytes) {
 }
 
 function isMAC(bytes) {
-  if (bytes.length !== 17) return false
+  let separators = 0
+  let digits = 0
   for (let index = 0; index < bytes.length; index += 1) {
     const byte = bytes[index]
-    if (index % 3 === 2) {
-      if (byte !== 58) return false
+    if (byte === 58) {
+      if (digits < 1 || digits > 2) return false
+      separators += 1
+      digits = 0
       continue
     }
     const decimal = byte >= 48 && byte <= 57
     const lower = byte >= 97 && byte <= 102
     const upper = byte >= 65 && byte <= 70
     if (!decimal && !lower && !upper) return false
+    digits += 1
+    if (digits > 2) return false
   }
-  return true
+  return separators === 5 && digits >= 1 && digits <= 2
+}
+
+function normalizeTarget(target) {
+  const longitude = Number(target.longitude)
+  const latitude = Number(target.latitude)
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new Error('target longitude is invalid')
+  }
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    throw new Error('target latitude is invalid')
+  }
+
+  let accuracy = Number(target.accuracy)
+  if (!Number.isFinite(accuracy) || accuracy <= 0) accuracy = 25
+  accuracy = Math.max(1, Math.min(10000, Math.round(accuracy)))
+  return { longitude, latitude, accuracy }
 }
 
 function patchLocation(bytes, target, stats) {
@@ -134,9 +156,14 @@ function patchWiFi(bytes, target, stats) {
   let changed = false
   const parts = fields.map((field) => {
     if (field.number !== 2 || field.wireType !== 2) return field.raw
-    const patched = patchLocation(field.value, target, stats)
-    if (!bytesEqual(patched, field.value)) changed = true
-    return encodeLengthField(field.number, patched)
+    try {
+      const patched = patchLocation(field.value, target, stats)
+      if (!bytesEqual(patched, field.value)) changed = true
+      return encodeLengthField(field.number, patched)
+    } catch (_) {
+      stats.skipped += 1
+      return field.raw
+    }
   })
   if (changed) stats.wifi += 1
   return concatBytes(parts)
@@ -147,9 +174,14 @@ function patchCell(bytes, target, stats) {
   let changed = false
   const parts = fields.map((field) => {
     if (field.number !== 5 || field.wireType !== 2) return field.raw
-    const patched = patchLocation(field.value, target, stats)
-    if (!bytesEqual(patched, field.value)) changed = true
-    return encodeLengthField(field.number, patched)
+    try {
+      const patched = patchLocation(field.value, target, stats)
+      if (!bytesEqual(patched, field.value)) changed = true
+      return encodeLengthField(field.number, patched)
+    } catch (_) {
+      stats.skipped += 1
+      return field.raw
+    }
   })
   if (changed) stats.cell += 1
   return concatBytes(parts)
@@ -169,55 +201,26 @@ function patchRoot(bytes, target, stats) {
   return concatBytes(parts)
 }
 
-function patchFramed(bytes, offset, target, stats) {
-  if (offset < 0 || offset + 10 > bytes.length) throw new Error('body is too short for framed WLOC')
-  const length = bytes[offset + 8] * 256 + bytes[offset + 9]
-  if (length <= 0 || offset + 10 + length > bytes.length) throw new Error('invalid framed WLOC length')
-  const payload = bytes.slice(offset + 10, offset + 10 + length)
+function patchFramed(bytes, target, stats) {
+  if (bytes.length < 10) throw new Error('body is too short for framed WLOC')
+  const length = bytes[8] * 256 + bytes[9]
+  if (length <= 0 || 10 + length > bytes.length) throw new Error('invalid framed WLOC length')
+  const payload = bytes.slice(10, 10 + length)
   const patched = patchRoot(payload, target, stats)
   if (stats.locations === 0 || bytesEqual(payload, patched)) throw new Error('framed payload has no patchable location')
   if (patched.length > 65535) throw new Error('patched framed payload is too large')
   return concatBytes([
-    bytes.slice(0, offset + 8),
+    bytes.slice(0, 8),
     new Uint8Array([patched.length >> 8, patched.length & 0xff]),
     patched,
-    bytes.slice(offset + 10 + length),
+    bytes.slice(10 + length),
   ])
 }
 
 function patchWLOC(bytes, target) {
   if (!(bytes instanceof Uint8Array) || bytes.length === 0) throw new Error('empty WLOC response')
-  const offsets = []
-  for (const offset of [0, 2, 4, 6, 8, 10, 12, 14, 16]) {
-    if (offset + 10 <= bytes.length) offsets.push(offset)
-  }
-  const framedLimit = Math.min(96, bytes.length - 10)
-  for (let offset = 0; offset <= framedLimit; offset += 1) {
-    if (!offsets.includes(offset)) offsets.push(offset)
-  }
-  for (const offset of offsets) {
-    const stats = { wifi: 0, cell: 0, locations: 0 }
-    try {
-      const body = patchFramed(bytes, offset, target, stats)
-      return { body, stats }
-    } catch (_) {
-      // Continue with the next bounded framing candidate.
-    }
-  }
-  const rootLimit = Math.min(256, bytes.length - 1)
-  for (let offset = 0; offset <= rootLimit; offset += 1) {
-    const stats = { wifi: 0, cell: 0, locations: 0 }
-    try {
-      const suffix = bytes.slice(offset)
-      const patched = patchRoot(suffix, target, stats)
-      if (stats.locations > 0 && !bytesEqual(suffix, patched)) {
-        return { body: concatBytes([bytes.slice(0, offset), patched]), stats }
-      }
-    } catch (_) {
-      // Continue with the next bounded root candidate.
-    }
-  }
-  throw new Error('no patchable WLOC payload found')
+  const stats = { wifi: 0, cell: 0, locations: 0, skipped: 0 }
+  return { body: patchFramed(bytes, target, stats), stats }
 }
 
 function transform(context) {
@@ -226,9 +229,10 @@ function transform(context) {
   if (!location || location.longitude == null || location.latitude == null) {
     throw new Error('target location is not configured')
   }
+  const target = normalizeTarget(location)
   try {
-    const patched = patchWLOC(context.response.body, location)
-    console.info(`patched locations=${patched.stats.locations} wifi=${patched.stats.wifi} cell=${patched.stats.cell}`)
+    const patched = patchWLOC(context.response.body, target)
+    console.info(`patched locations=${patched.stats.locations} wifi=${patched.stats.wifi} cell=${patched.stats.cell} skipped=${patched.stats.skipped}`)
     return { response: { body: patched.body } }
   } catch (error) {
     if (failClosed) throw error

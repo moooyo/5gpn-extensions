@@ -4,8 +4,9 @@ kind: Extension
 metadata:
   id: io.5gpn.httpdns-interceptor
   name: HTTPDNS Interceptor
-  version: 1.0.0
-  description: Blocks the remaining hostname-based HTTPDNS endpoints that are not already covered by the DNS bypass blocklist.
+  version: 2.0.0
+  description: Blocks 117 reviewed HTTPDNS domain/IP routes and seven
+    hostname-based request paths.
 
 permissions:
   persistentStorage: false
@@ -18,6 +19,241 @@ traffic:
     - gslbali.ximalaya.com
     - msglb.91160.com
     - xmc.ximalaya.com
+  routingRules:
+    - action: reject
+      domain: yyapp-httpdns.gslb.yy.com
+    - action: reject
+      domain: union-httpdns.gslb.yy.com
+    - action: reject
+      domain: httpdns-v6.gslb.yy.com
+    - action: reject
+      domain: dns2.q2cdn.com
+    - action: reject
+      domain: dns.weixin.qq.com
+    - action: reject
+      domain: dns.weixin.qq.com.cn
+    - action: reject
+      domain: aedns.weixin.qq.com
+    - action: reject
+      ipCIDR: 39.156.140.30/32
+    - action: reject
+      ipCIDR: 39.156.140.47/32
+    - action: reject
+      ipCIDR: 39.156.140.245/32
+    - action: reject
+      ipCIDR: 42.81.232.18/32
+    - action: reject
+      ipCIDR: 42.187.182.106/32
+    - action: reject
+      ipCIDR: 42.187.182.123/32
+    - action: reject
+      ipCIDR: 42.187.184.154/32
+    - action: reject
+      ipCIDR: 43.130.30.237/32
+    - action: reject
+      ipCIDR: 43.130.30.240/32
+    - action: reject
+      ipCIDR: 43.137.153.151/32
+    - action: reject
+      ipCIDR: 43.137.159.31/32
+    - action: reject
+      ipCIDR: 43.152.112.101/32
+    - action: reject
+      ipCIDR: 43.153.248.120/32
+    - action: reject
+      ipCIDR: 60.28.172.100/32
+    - action: reject
+      ipCIDR: 61.151.231.157/32
+    - action: reject
+      ipCIDR: 101.32.104.104/32
+    - action: reject
+      ipCIDR: 106.39.206.21/32
+    - action: reject
+      ipCIDR: 106.39.206.25/32
+    - action: reject
+      ipCIDR: 106.39.206.70/32
+    - action: reject
+      ipCIDR: 111.31.201.194/32
+    - action: reject
+      ipCIDR: 111.31.241.76/32
+    - action: reject
+      ipCIDR: 111.31.241.140/32
+    - action: reject
+      ipCIDR: 111.206.147.156/32
+    - action: reject
+      ipCIDR: 111.206.147.210/32
+    - action: reject
+      ipCIDR: 111.206.148.27/32
+    - action: reject
+      ipCIDR: 116.128.177.249/32
+    - action: reject
+      ipCIDR: 116.130.224.150/32
+    - action: reject
+      ipCIDR: 116.130.224.205/32
+    - action: reject
+      ipCIDR: 117.185.247.73/32
+    - action: reject
+      ipCIDR: 123.151.48.171/32
+    - action: reject
+      ipCIDR: 123.151.48.193/32
+    - action: reject
+      ipCIDR: 123.151.48.208/32
+    - action: reject
+      ipCIDR: 123.151.54.50/32
+    - action: reject
+      ipCIDR: 180.153.202.85/32
+    - action: reject
+      ipCIDR: 183.192.196.31/32
+    - action: reject
+      ipCIDR: 203.205.129.102/32
+    - action: reject
+      ipCIDR: 203.205.234.132/32
+    - action: reject
+      ipCIDR: 220.196.159.73/32
+    - action: reject
+      ipCIDR: 240e:928:1400:10::25/128
+    - action: reject
+      ipCIDR: 2402:4e00:8030:1::17/128
+    - action: reject
+      ipCIDR: 2402:4e00:1900:1700:0:9554:1ad9:c3a/128
+    - action: reject
+      ipCIDR: 2408:8711:10:10::20/128
+    - action: reject
+      ipCIDR: 2409:8702:4860:10::4d/128
+    - action: reject
+      domain: httpdns.kg.qq.com
+    - action: reject
+      domain: httpdns.bilivideo.com
+    - action: reject
+      domain: httpdns.browser.miui.com
+    - action: reject
+      domain: resolver.msg.xiaomi.net
+    - action: reject
+      domain: httpdns.alicdn.com
+    - action: reject
+      domain: httpdns-api.aliyuncs.com
+    - action: reject
+      domain: httpdns-sc.aliyuncs.com
+    - action: reject
+      ipCIDR: 203.107.1.0/24
+    - action: reject
+      domain: httpdns.danuoyi.tbcache.com
+    - action: reject
+      domain: httpdns.cctv.com
+    - action: reject
+      domain: httpdns-browser.platform.dbankcloud.cn
+    - action: reject
+      domain: httpdns.huaweicloud.com
+    - action: reject
+      domain: httpdns.c.cdnhwc2.com
+    - action: reject
+      domain: httpdns.platform.dbankcloud.cn
+    - action: reject
+      domain: httpdns.platform.dbankcloud.com
+    - action: reject
+      domain: httpdns1.cc.cdnhwc5.com
+    - action: reject
+      domain: doh.ptqy.gitv.tv
+    - action: reject
+      domain: httpdns.baidu.com
+    - action: reject
+      domain: httpsdns.baidu.com
+    - action: reject
+      domain: httpdns.bcelive.com
+    - action: reject
+      domain: httpdns.baidubce.com
+    - action: reject
+      domain: dns.iqiyi.com
+    - action: reject
+      domain: doh.iqiyi.com
+    - action: reject
+      domain: dns.qiyipic.iqiyi.com
+    - action: reject
+      domain: httpdns.n.shifen.com
+    - action: reject
+      ipCIDR: 186.76.76.200/32
+    - action: reject
+      domain: httpdns.ocloud.heytapmobi.com
+    - action: reject
+      domain: httpdns.push.heytapmobi.com
+    - action: reject
+      domain: dns.jd.com
+    - action: reject
+      ipCIDR: 101.124.19.122/32
+    - action: reject
+      ipCIDR: 2402:db40:5100:1011::5/128
+    - action: reject
+      ipCIDR: 103.224.222.208/32
+    - action: reject
+      ipCIDR: 119.29.29.98/32
+    - action: reject
+      ipCIDR: 119.29.29.99/32
+    - action: reject
+      domain: dotserver.douyucdn.cn
+    - action: reject
+      domain: hdns.ksyun.com
+    - action: reject
+      domain: httpdns.push.oppomobile.com
+    - action: reject
+      domain: httpdns.ocloud.oppomobile.com
+    - action: reject
+      domain: kuaishou.httpdns.pro
+    - action: reject
+      domain: httpdns.kwd.inkuai.com
+    - action: reject
+      domain: apidns.kwd.inkuai.com
+    - action: reject
+      domain: apidns-js.kwd.inkuai.com
+    - action: reject
+      domain: httpdns.meituan.com
+    - action: reject
+      domain: httpdnsmultiapi.meituan.com
+    - action: reject
+      domain: httpdnsmultiapivip.meituan.com
+    - action: reject
+      domain: httpdns.music.163.com
+    - action: reject
+      domain: httpdns.n.netease.com
+    - action: reject
+      domain: httpdns-sdk.n.netease.com
+    - action: reject
+      domain: httpdns.yunxindns.com
+    - action: reject
+      domain: lofter.httpdns.c.163.com
+    - action: reject
+      domain: music.httpdns.c.163.com
+    - action: reject
+      ipCIDR: 59.111.239.61/32
+    - action: reject
+      ipCIDR: 59.111.239.62/32
+    - action: reject
+      ipCIDR: 115.236.121.51/32
+    - action: reject
+      ipCIDR: 115.236.121.195/32
+    - action: reject
+      domain: httpdns.zybang.com
+    - action: reject
+      domain: httpdns.calorietech.com
+    - action: reject
+      domain: dns.weibo.cn
+    - action: reject
+      ipCIDR: 39.97.130.51/32
+    - action: reject
+      ipCIDR: 39.97.128.148/32
+    - action: reject
+      ipCIDR: 118.89.204.0/23
+    - action: reject
+      ipCIDR: 2402:4e00:1200:ed00:0:9089:6dac:96b6/128
+    - action: reject
+      domain: hd.xiaojukeji.com
+    - action: reject
+      domain: serveraddr.service.kugou.com
+    - action: reject
+      domain: twns.p2ptun.qq.com
+    - action: reject
+      domain: tp2p.kg.qq.com
+    - action: reject
+      ipCIDR: 81.71.61.216/32
 
 actions:
   - id: block-huya-httpdns-launch

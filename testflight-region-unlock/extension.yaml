@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.testflight-region-unlock
   name: TestFlight Region Unlock
-  version: 1.0.0
+  version: 1.1.0
   description: Rewrites the TestFlight install storefront and requires an operator-selected regional egress group.
 
 permissions:
@@ -46,7 +46,7 @@ actions:
       schemes:
         - http
         - https
-      pathRegex: '^/v[0-9]+/accounts/[^/?]+/install(\?.*)?$'
+      pathRegex: '^/v[0-9]/accounts/.+?/install$'
     script:
       source: ./rewrite-storefront.js
       bodyMode: text

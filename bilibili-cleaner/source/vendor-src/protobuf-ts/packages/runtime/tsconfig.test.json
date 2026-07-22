@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "include": [
+    "spec/*.ts",
+    "spec/**/*.ts"
+  ],
+  "compilerOptions": {
+    "sourceMap": true,
+    "module": "CommonJS",
+    "types": ["jasmine", "node"]
+  }
+}
