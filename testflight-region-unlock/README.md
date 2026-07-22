@@ -25,12 +25,14 @@ storefront. The extension cannot name or change the selected group.
 | Repository | `mihoyo-typ/KeleeOne` |
 | Upstream name | `TestFlightRegionUnlock.lpx` (`TestFlight Region Unlock`) |
 | Pinned commit | `ab6c3182fb2b09bcc34456f496282ec0b8e9217b` |
+| Source file last changed | `c8112507802d0690d8b94d4110945e9c782df40e` |
+| Latest branch audit | The pinned commit remained the latest `Loon` head on `2026-07-22`; all later commits after the file-level commit left this LPX unchanged. |
 | Original file | `Plugin/TestFlightRegionUnlock.lpx` |
 | Pinned source URL | `https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/TestFlightRegionUnlock.lpx` |
 | Upstream-declared reference URL | `https://kelee.one/Tool/Loon/Lpx/TestFlightRegionUnlock.lpx` |
 | Size | 778 bytes |
 | SHA-256 | `a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e` |
-| Fetched on | `2026-07-20` |
+| Fetched on | `2026-07-22` |
 
 The pinned source is 778 bytes. Its upstream metadata reports version date
 `2025-09-02 23:42:06` and Loon version `3.2.1(749)`.
@@ -60,7 +62,7 @@ adaptations under the same license. See the repository's
 [pinned upstream LICENSE](https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/LICENSE).
 The pinned license is 21,286 bytes with SHA-256
 `047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98`
-and was verified on `2026-07-20`.
+and was reverified on `2026-07-22`.
 
 ## Port mapping
 

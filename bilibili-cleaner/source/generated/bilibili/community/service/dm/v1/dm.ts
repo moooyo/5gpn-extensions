@@ -24,6 +24,10 @@ export interface DmViewReply {
      * @generated from protobuf field: bilibili.community.service.dm.v1.Command command = 22
      */
     command?: Command;
+    /**
+     * @generated from protobuf field: optional bytes qoe = 25
+     */
+    qoe?: Uint8Array;
 }
 /**
  * @generated from protobuf message bilibili.community.service.dm.v1.Command
@@ -171,7 +175,8 @@ class DmViewReply$Type extends MessageType<DmViewReply> {
     constructor() {
         super("bilibili.community.service.dm.v1.DmViewReply", [
             { no: 18, name: "activity_meta", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 22, name: "command", kind: "message", T: () => Command }
+            { no: 22, name: "command", kind: "message", T: () => Command },
+            { no: 25, name: "qoe", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ }
         ]);
     }
     create(value?: PartialMessage<DmViewReply>): DmViewReply {
@@ -192,6 +197,9 @@ class DmViewReply$Type extends MessageType<DmViewReply> {
                 case /* bilibili.community.service.dm.v1.Command command */ 22:
                     message.command = Command.internalBinaryRead(reader, reader.uint32(), options, message.command);
                     break;
+                case /* optional bytes qoe */ 25:
+                    message.qoe = reader.bytes();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -210,6 +218,9 @@ class DmViewReply$Type extends MessageType<DmViewReply> {
         /* bilibili.community.service.dm.v1.Command command = 22; */
         if (message.command)
             Command.internalBinaryWrite(message.command, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional bytes qoe = 25; */
+        if (message.qoe !== undefined)
+            writer.tag(25, WireType.LengthDelimited).bytes(message.qoe);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

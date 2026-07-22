@@ -4,26 +4,19 @@ kind: Extension
 metadata:
   id: io.5gpn.youtube-cleaner
   name: YouTube Application Cleaner
-  version: 2.0.0
-  description: Cleans YouTube application responses and restores selected playback and caption capabilities.
+  version: 3.0.0
+  description: Cleans YouTube responses and prepares the reviewed external Onesie playback path.
 
 permissions:
   persistentStorage: true
   network:
     origins:
-      - https://translate.google.com
+      - https://init-stream.maasea.workers.dev
 
 traffic:
   captureHosts:
     - "*.googlevideo.com"
     - youtubei.googleapis.com
-  routingRules:
-    - action: reject
-      domainSuffix: googlevideo.com
-      network: udp
-    - action: reject
-      domain: youtubei.googleapis.com
-      network: udp
 
 settings:
   - key: blockUpload
@@ -50,12 +43,6 @@ settings:
     description: Uses a bounded language code such as en or zh-Hans, or off to disable caption rewriting.
     required: true
     default: "off"
-  - key: lyricLang
-    type: text
-    label: Lyric translation language
-    description: Uses a bounded language code or off; eligible music text is sent to the declared Google Translate origin.
-    required: true
-    default: "off"
   - key: debug
     type: boolean
     label: Debug logging
@@ -64,7 +51,7 @@ settings:
     default: false
 
 actions:
-  - id: block-ad-initplayback
+  - id: prepare-onesie-initplayback
     phase: request
     match:
       hosts:
@@ -72,9 +59,23 @@ actions:
       schemes:
         - http
         - https
-      pathRegex: '^/initplayback.+&oad.*$'
+      pathRegex: '^/initplayback.+&ack.*$'
     script:
-      source: ./block-initplayback.js
+      source: ./request-handler.js
+      bodyMode: binary
+      timeoutMs: 1000
+      maxBodyBytes: 4194304
+
+  - id: prepare-youtube-log-event
+    phase: request
+    match:
+      hosts:
+        - youtubei.googleapis.com
+      schemes:
+        - https
+      pathRegex: '^/youtubei/v1/log_event(\?.*)?$'
+    script:
+      source: ./request-handler.js
       bodyMode: none
       timeoutMs: 250
       maxBodyBytes: 1024
@@ -86,7 +87,7 @@ actions:
         - youtubei.googleapis.com
       schemes:
         - https
-      pathRegex: '^/youtubei/v1/(browse|next|player|search|reel/reel_watch_sequence|guide|account/get_setting|get_watch)(\?.*)?$'
+      pathRegex: '^/youtubei/v1/(browse|next|player|search|reel/reel_watch_sequence|guide|account/get_setting|get_watch|log_event|config)(\?.*)?$'
     script:
       source: ./clean-player.js
       bodyMode: binary

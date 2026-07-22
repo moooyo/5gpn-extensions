@@ -26,26 +26,26 @@ const CLIENT_SCRIPT = `(()=>{
       const container = isContainer(node.name)
       if (container) ancestors.push(node.uuid)
       if (hasExternalLink(node)) ancestors.forEach((uuid) => hidden.add(uuid))
-      if (node.slots?.length) walkSlots(node.slots, ancestors)
+      for (const slot of node.slots || []) {
+        if (slot.children?.length) walkNodes(slot.children, ancestors)
+      }
       if (container) ancestors.pop()
-    }
-  }
-
-  function walkSlots(slots, ancestors = []) {
-    for (const slot of slots) {
-      if (slot.children?.length) walkNodes(slot.children, ancestors)
     }
   }
 
   const layerTree = window.__BILIACT_EVAPAGEDATA__?.layerTree
   if (!layerTree) return
   walkNodes(layerTree)
+  if (!hidden.size) return
   const style = document.createElement('style')
   style.textContent = Array.from(hidden)
     .map((uuid) => '#' + uuid + '{display:none!important}')
     .join('')
-  document.head.append(style)
+  document.head.appendChild(style)
 })();`
+
+const RAW_TEXT_NAMES = new Set(['script', 'style', 'title', 'textarea'])
+const TAG_NAME_PATTERN = /^\/?([A-Za-z][A-Za-z0-9:-]*)/
 
 function headerValue(headers, name) {
   if (!headers || typeof headers !== 'object') {
@@ -77,7 +77,6 @@ function findTagEnd(body, start) {
 
 function findDocumentBoundaries(body) {
   const lower = body.toLowerCase()
-  const rawTextNames = new Set(['script', 'style', 'title', 'textarea'])
   const boundaries = { headOpenEnd: -1, headCloseStart: -1, htmlOpenEnd: -1 }
   let offset = 0
 
@@ -93,7 +92,7 @@ function findDocumentBoundaries(body) {
     if (end < 0) break
     const token = body.slice(start + 1, end).trim()
     const closing = token.startsWith('/')
-    const nameMatch = /^\/?([A-Za-z][A-Za-z0-9:-]*)/.exec(token)
+    const nameMatch = TAG_NAME_PATTERN.exec(token)
     if (!nameMatch) {
       offset = end + 1
       continue
@@ -108,7 +107,7 @@ function findDocumentBoundaries(body) {
     } else if (name === 'html' && !closing && boundaries.htmlOpenEnd < 0) {
       boundaries.htmlOpenEnd = end + 1
     }
-    if (!closing && rawTextNames.has(name)) {
+    if (!closing && RAW_TEXT_NAMES.has(name)) {
       const close = lower.indexOf(`</${name}`, end + 1)
       if (close < 0) break
       const closeEnd = findTagEnd(body, close + name.length + 2)
@@ -139,11 +138,6 @@ function injectIntoHead(body, script) {
 }
 
 function transform(context) {
-  const settings = context.settings || {}
-  if (settings.purifyWebpage === false) {
-    return null
-  }
-
   const response = context.response || {}
   const contentType = headerValue(response.headers, 'content-type')
   if (!contentType || !contentType.includes('text/html') || typeof response.body !== 'string') {

@@ -54,8 +54,6 @@ path = [
   "bilibili-cleaner/inject-live-page.js",
   "bilibili-cleaner/mock-grpc.js",
   "bilibili-cleaner/mock-json.js",
-  "bilibili-cleaner/protobuf.js",
-  "bilibili-cleaner/rewrite-channel.js",
 ]
 precedence = "override"
 SPDX-FileCopyrightText = [
@@ -63,6 +61,16 @@ SPDX-FileCopyrightText = [
   "2026 moooyo",
 ]
 SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = "bilibili-cleaner/protobuf.js"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "kokoryh and Sparkle contributors",
+  "2026 moooyo",
+  "2008 Google Inc.",
+]
+SPDX-License-Identifier = "GPL-3.0-only AND BSD-3-Clause"
 
 [[annotations]]
 path = [
@@ -92,11 +100,11 @@ SPDX-License-Identifier = "GPL-3.0-only"
 [[annotations]]
 path = [
   "bilibili-cleaner/source/licenses/fflate-MIT.txt",
-  "bilibili-cleaner/source/vendor/fflate-0.8.2.tgz",
+  "bilibili-cleaner/source/vendor/fflate-0.8.3.tgz",
   "bilibili-cleaner/source/vendor-src/fflate/**",
 ]
 precedence = "override"
-SPDX-FileCopyrightText = "2023 Arjun Barrett"
+SPDX-FileCopyrightText = "2026 Arjun Barrett"
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]
@@ -118,7 +126,6 @@ path = [
   "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/binary-reader.ts",
   "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/binary-writer.ts",
   "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/enum-object.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/goog-varint.ts",
   "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/index.ts",
   "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/json-format-contract.ts",
   "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/json-typings.ts",
@@ -147,6 +154,15 @@ SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
 path = [
+  "bilibili-cleaner/source/licenses/goog-varint-BSD-3-Clause.txt",
+  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/goog-varint.ts",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2008 Google Inc."
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = [
   "bilibili-cleaner/source/licenses/protobufjs-BSD-3-Clause.txt",
   "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/protobufjs-utf8.ts",
 ]
@@ -160,6 +176,7 @@ precedence = "override"
 SPDX-FileCopyrightText = [
   "Timo Stamm and protobuf-ts contributors",
   "2016 Daniel Wirtz",
+  "2008 Google Inc.",
 ]
 SPDX-License-Identifier = "Apache-2.0 AND BSD-3-Clause"
 
@@ -174,8 +191,8 @@ SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
 path = [
-  "youtube-cleaner/block-initplayback.js",
   "youtube-cleaner/clean-player.js",
+  "youtube-cleaner/request-handler.js",
 ]
 precedence = "override"
 SPDX-FileCopyrightText = [
@@ -184,8 +201,9 @@ SPDX-FileCopyrightText = [
 ]
 SPDX-License-Identifier = "Apache-2.0"
 
-# The source metadata credits are retained in each extension README and in
-# THIRD_PARTY_NOTICES.md. They are not promoted to unverified copyright claims.
+# Exact immutable artifact provenance and source metadata credits are retained
+# in each extension README and in THIRD_PARTY_NOTICES.md. They are not promoted
+# to unverified copyright claims.
 [[annotations]]
 path = "ad-platform-blocker/*"
 precedence = "override"

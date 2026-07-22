@@ -71,8 +71,19 @@ function lengthField(field, bytes) {
 }
 
 {
-  const { transform } = await loadTransform('youtube-cleaner/block-initplayback.js')
-  const result = transform({ request: { url: 'https://r1.googlevideo.com/initplayback?a=1&oad=1' } })
+  const { transform } = await loadTransform('youtube-cleaner/request-handler.js')
+  const result = transform({
+    request: {
+      url: 'https://r1.googlevideo.com/initplayback?a=1&ack=1',
+      headers: {},
+      body: new Uint8Array(lengthField(3, lengthField(5, [1, 2, 3]))),
+    },
+    settings: { captionLang: 'off' },
+    storage: {
+      get() { return null },
+      set() { return true },
+    },
+  })
   assert.equal(result.response.status, 200)
 }
 

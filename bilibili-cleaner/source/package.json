@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@protobuf-ts/runtime": "2.11.1",
-    "fflate": "0.8.2"
+    "fflate": "0.8.3"
   },
   "devDependencies": {
     "@bufbuild/buf": "1.55.1",

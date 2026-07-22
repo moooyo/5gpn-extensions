@@ -9,12 +9,15 @@ owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.
   License. The complete project MIT text is in
   [`LICENSES/MIT.txt`](LICENSES/MIT.txt); retained upstream MIT notices are in
   [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
-- The combined `bilibili-cleaner` work uses `GPL-3.0-only`. Its distributed corresponding source also retains
-  independently licensed MIT `fflate`, Apache-2.0 `protobuf-ts`, and the
-  exact BSD-3-Clause `protobufjs-utf8` component; `REUSE.toml` is
-  authoritative for those file-level boundaries. The complete GPL text is in
-  [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt), and the BSD text is
-  in [`LICENSES/BSD-3-Clause.txt`](LICENSES/BSD-3-Clause.txt).
+- The original `bilibili-cleaner` native work uses `GPL-3.0-only`; its final
+  bundle is mapped as `GPL-3.0-only AND BSD-3-Clause` because it retains
+  Google's 2008 `goog-varint` code. Distributed corresponding source also
+  retains independently licensed MIT `fflate`, Apache-2.0 `protobuf-ts`, and
+  the BSD-3-Clause `protobufjs-utf8` component. `REUSE.toml` is authoritative
+  for those file-level boundaries. The complete GPL text is in
+  [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt), and BSD texts are in
+  [`LICENSES/BSD-3-Clause.txt`](LICENSES/BSD-3-Clause.txt) and the owning
+  extension's `source/licenses/` directory.
 - `youtube-cleaner` uses `Apache-2.0`. The complete text is in
   [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
 - `ad-platform-blocker`, `httpdns-interceptor`, and

@@ -9,12 +9,12 @@
 
 | 扩展 | 用途 | 许可证 |
 | --- | --- | --- |
-| `ad-platform-blocker` | 阻止经审查的广告 SDK 端点 | CC BY-NC-SA 4.0 |
+| `ad-platform-blocker` | 获取有界选择器流量并阻止 201 条经审查的广告平台路由 | CC BY-NC-SA 4.0 |
 | `apple-wloc` | 将 Apple WLOC 响应改写为运营者选择的位置 | MIT |
 | `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
-| `httpdns-interceptor` | 阻止 117 条已审查 HTTPDNS 路由和 7 条请求路径 | CC BY-NC-SA 4.0 |
+| `httpdns-interceptor` | 获取 58 个 HTTPDNS 域名；拒绝 59 条网关可见 CIDR 路由和 7 条请求路径 | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
-| `youtube-cleaner` | 移除部分 YouTube 播放器广告字段 | Apache-2.0 |
+| `youtube-cleaner` | 清理 YouTube 响应并准备经审查的外部 Onesie 播放链路 | Apache-2.0 |
 
 ## 安装
 

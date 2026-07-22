@@ -22,6 +22,11 @@ in [`FFF686868/proxypin-wloc-spoofer`][upstream] at the immutable commit
 project is MIT licensed; its attribution and license text are retained in this
 repository's [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
 
+That commit remains the latest `main` head reviewed on `2026-07-22`. The
+transformer and import manifest bytes at that head are unchanged since source
+commit [`ab4d55ceed0593ad1ad8f3424088c291f7db748f`][upstream-source-commit];
+the later commits change only documentation and assets.
+
 The provenance is supported by all of the following repository records:
 
 - `wloc.js` identifies that project in its source header.
@@ -40,12 +45,13 @@ At the time this document was written, the canonical 5gpn source record was:
 | Item | Canonical value |
 | --- | --- |
 | Core migration baseline | `moooyo/5gpn@7ca3eb93b7cd552ff3f32adfd9eca4b177d772db` |
-| Manifest | `apple-wloc/extension.yaml` — SHA-256 `b89a64873f38c7e5bd65e8c3de443ee07fd29486797f94a07dd0f35d640f4952` |
-| Script | `apple-wloc/wloc.js` — SHA-256 `f258239a9d36b66d105c32bc0952ff620310a9489d519eaeb143d91f5d37297b` |
+| Manifest | `apple-wloc/extension.yaml` — SHA-256 `ed223d3ad6b476be6ae62508f452f93198266d2ab6b9044318a210a25e1251d1` |
+| Script | `apple-wloc/wloc.js` — SHA-256 `ebc545511ccb8e66c05bd40198d357ea38d9f62f0aece7a37fc9639a905e94a8` |
 | Upstream script | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/proxypin_wloc_compat_v2.js` — 45,072 bytes — SHA-256 `d8ae57eb8696af05413e3fbbf0bd57513a4f649407a1d0a7bb891916482fca70` |
+| Upstream ProxyPin import manifest | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/proxypin-scripts.json` — 46,561 bytes — SHA-256 `016168f87274e55b285bad2f1073567782818f1710f6bd4df8e56f1712e406c0` |
 | Upstream license | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/LICENSE` — MIT — 1,083 bytes — SHA-256 `e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa` |
 | Upstream copyright | `Copyright (c) 2026 WLOC ProxyPin Contributors` |
-| Upstream fetch date | `2026-07-20` |
+| Upstream fetch date | `2026-07-22` |
 
 The recorded 5gpn revision is provenance, not a release pin. For an installed
 extension, the Console's reviewed immutable snapshot digest is the authority.
@@ -86,7 +92,9 @@ The port performs the following bounded transformation:
 4. It reaches candidate locations through the observed root-field mapping:
    Wi-Fi entries at field 2 (identified by the upstream one-or-two-hex-digit
    MAC-octet syntax) and cellular entries at fields 22 and 24, with nested
-   location field 2 or 5 respectively.
+   location field 2 or 5 respectively. Repeated Wi-Fi identifier field 1 uses
+   the upstream protobuf singular-field behavior: the last declaration decides
+   whether the entry is recognized as Wi-Fi.
 5. A malformed nested location is preserved while other valid entries continue
    to be patched, matching the upstream partial-skip behavior. Malformed root
    framing and payloads still fail the whole action.
@@ -103,6 +111,7 @@ tests below validate a deliberate update.
 | Upstream ProxyPin capability | 5gpn equivalent |
 | --- | --- |
 | URL matching for the two Apple WLOC endpoints | `traffic.captureHosts` plus the response action's HTTPS host and path matcher |
+| Request hook that returns the original WLOC request unchanged | No request action is declared; the native interception runtime forwards the request body unchanged |
 | ProxyPin response hook and raw body | Native `transform(context)` with `bodyMode: binary` and `context.response.body` |
 | ProxyPin picker/session target | Required generic `location` setting, rendered by the Console map picker |
 | ProxyPin gzip decoding via bundled `pako` | 5gpn interception runtime's bounded content-decoding pipeline; no bundled script library |
@@ -115,10 +124,10 @@ returns through the authenticated mihomo interception egress path.
 
 ## Upstream parity and native safety differences
 
-The pinned transformer's offset-zero frame, Wi-Fi MAC recognition, root field
-mapping, per-entry malformed-location skip, suffix preservation, and framing
-length rewrite are covered by independent fixtures. The following differences
-are intentional:
+The pinned transformer's offset-zero frame, last-declared Wi-Fi identifier
+recognition, root field mapping, per-entry malformed-location skip, suffix
+preservation, and framing length rewrite are covered by independent fixtures.
+The following differences are intentional:
 
 - The required typed `location` replaces the upstream picker, session state,
   and Shenzhen fallback. Native setting validation bounds longitude and
@@ -195,10 +204,11 @@ npm run verify:upstreams
 The focused fixture runs the script only through `transform(context)` and
 checks the manifest boundary, Wi-Fi and both cellular mappings, signed
 coordinates, accuracy clamping, unknown-field and suffix preservation,
-one-digit MAC octets, partial malformed-entry skips, exact offset-zero framing,
-and both `failClosed` modes. For a runtime change, also run the complete core
-repository gates required by its `AGENTS.md` and perform authorised end-to-end
-validation following the Apple WLOC checklist in
+one-digit MAC octets, repeated singular MAC-field ordering, partial
+malformed-entry skips, exact offset-zero framing, and both `failClosed` modes.
+For a runtime change, also run the complete core repository gates required by
+its `AGENTS.md` and perform authorised end-to-end validation following the
+Apple WLOC checklist in
 [`tests/integration-smoke.md`](../../tests/integration-smoke.md).
 
 ## Limitations
@@ -219,3 +229,4 @@ validation following the Apple WLOC checklist in
 
 [upstream]: https://github.com/FFF686868/proxypin-wloc-spoofer
 [upstream-commit]: https://github.com/FFF686868/proxypin-wloc-spoofer/tree/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a
+[upstream-source-commit]: https://github.com/FFF686868/proxypin-wloc-spoofer/tree/ab4d55ceed0593ad1ad8f3424088c291f7db748f

@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.ad-platform-blocker
   name: Ad Platform Blocker
-  version: 2.0.0
+  version: 2.1.0
   description: Blocks selected advertising-platform endpoints and narrow Pinduoduo
     marketing paths.
 
@@ -13,189 +13,283 @@ permissions:
 
 traffic:
   captureHosts:
-    - '*.17admob.com'
-    - '*.1rtb.com'
-    - '*.1rtb.net'
-    - '*.66mobi.com'
-    - '*.ad.xiaomi.com'
-    - '*.adfunlink.com'
-    - '*.adintl.cn'
-    - '*.adjust.com'
-    - '*.adjust.net.in'
-    - '*.adkwai.com'
-    - '*.admobile.top'
-    - '*.ads.vungle.com'
-    - '*.adsmoloco.com'
-    - '*.adtaipo.com'
-    - '*.adtianmai.com'
-    - '*.adukwai.com'
-    - '*.adx.yixin.im'
-    - '*.anythinktech.com'
-    - '*.api.touch-moblie.com'
-    - '*.applovin.com'
-    - '*.appsad.cn'
-    - '*.bds.snssdk.com'
-    - '*.beizi.biz'
-    - '*.bridgeoos.com'
-    - '*.bxsnews.com'
-    - '*.byteadverts.com'
-    - '*.ctobsnssdk.com'
-    - '*.domob.cn'
-    - '*.doubleclick-cn.net'
-    - '*.dutils.com'
-    - '*.fancyapi.com'
-    - '*.fanglinad.com'
-    - '*.gdt.qq.com'
-    - '*.getui.com'
-    - '*.getui.net'
-    - '*.googlesyndication-cn.com'
-    - '*.halomobi.com'
-    - '*.hubcloud.com.cn'
-    - '*.iads.unity3d.com'
-    - '*.igexin.com'
-    - '*.inmobi.cn'
-    - '*.jiguang.cn'
-    - '*.jpush.cn'
-    - '*.jpush.io'
-    - '*.kuaiyiad.com'
-    - '*.l.qq.com'
-    - '*.lnk0.com'
-    - '*.maplehaze.cn'
-    - '*.medproad.com'
-    - '*.miaozhen.com'
-    - '*.mob.com'
-    - '*.mobrtb.com'
-    - '*.motowoo.com'
-    - '*.openinstall.io'
-    - '*.pangolin-dsp-toutiao-b.com'
-    - '*.pangolin-dsp-toutiao.com'
-    - '*.pangolin-sdk-toutiao-b.com'
-    - '*.pangolin-sdk-toutiao.com'
-    - '*.pangolin-sdk-toutiao1.com'
-    - '*.pangolin.snssdk.com'
-    - '*.panplayable-toutiao-b.com'
-    - '*.panplayable-toutiao.com'
-    - '*.partner.gifshow.com'
-    - '*.pglstatp-sdk-toutiao.com'
-    - '*.pglstatp-snssdk-toutiao.com'
-    - '*.pglstatp-toutiao-b.com'
-    - '*.pglstatp-toutiao.com'
-    - '*.puata.info'
-    - '*.readgps.com'
-    - '*.richmob.cn'
-    - '*.sf3-ttcdn-tos.pstatp.com'
-    - '*.sigmob.cn'
-    - '*.slyxmobi.com'
-    - '*.supersonicads.com'
-    - '*.tapjoy.com'
-    - '*.tianmu.mobi'
-    - '*.toponadss.com'
-    - '*.tradplusad.com'
-    - '*.tuia.cn'
-    - '*.ubixioe.com'
-    - '*.ugdtimg.com'
-    - '*.union.baidu.cn'
-    - '*.union.baidu.com'
-    - '*.unityads.unitychina.cn'
-    - '*.umeng.com'
-    - '*.umengcloud.com'
-    - '*.umsns.com'
-    - '*.umtrack.com'
-    - '*.uyunad.com'
-    - '*.xdplt.com'
-    - '*.xinduoad.com'
-    - '*.yksdks.com'
-    - 2fwin.gdt.qq.com
+    - "*.17admob.com"
+    - "*.1rtb.com"
+    - "*.1rtb.net"
+    - "*.66mobi.com"
+    - "*.ad.xiaomi.com"
+    - "*.adfunlink.com"
+    - "*.adintl.cn"
+    - "*.adjust.com"
+    - "*.adjust.net.in"
+    - "*.adkwai.com"
+    - "*.admobile.top"
+    - "*.ads.vungle.com"
+    - "*.adsmoloco.com"
+    - "*.adtaipo.com"
+    - "*.adtianmai.com"
+    - "*.adukwai.com"
+    - "*.adx.yixin.im"
+    - "*.anythinktech.com"
+    - "*.api.touch-moblie.com"
+    - "*.applovin.com"
+    - "*.appsad.cn"
+    - "*.bds.snssdk.com"
+    - "*.beizi.biz"
+    - "*.bridgeoos.com"
+    - "*.bxsnews.com"
+    - "*.byteadverts.com"
+    - "*.bytedance.com"
+    - "*.byteimg.com"
+    - "*.capcutapi.com"
+    - "*.ctobsnssdk.com"
+    - "*.domob.cn"
+    - "*.doubleclick-cn.net"
+    - "*.dutils.com"
+    - "*.fancyapi.com"
+    - "*.fanglinad.com"
+    - "*.gdt.qq.com"
+    - "*.getui.com"
+    - "*.getui.net"
+    - "*.googlesyndication-cn.com"
+    - "*.halomobi.com"
+    - "*.hubcloud.com.cn"
+    - "*.iads.unity3d.com"
+    - "*.igexin.com"
+    - "*.inmobi.cn"
+    - "*.isnssdk.com"
+    - "*.jiguang.cn"
+    - "*.jpush.cn"
+    - "*.jpush.io"
+    - "*.kuaiyiad.com"
+    - "*.l.qq.com"
+    - "*.lnk0.com"
+    - "*.maplehaze.cn"
+    - "*.medproad.com"
+    - "*.miaozhen.com"
+    - "*.mob.com"
+    - "*.mobrtb.com"
+    - "*.motowoo.com"
+    - "*.openinstall.io"
+    - "*.pangolin-dsp-toutiao-b.com"
+    - "*.pangolin-dsp-toutiao.com"
+    - "*.pangolin-sdk-toutiao-b.com"
+    - "*.pangolin-sdk-toutiao.com"
+    - "*.pangolin-sdk-toutiao1.com"
+    - "*.pangolin.snssdk.com"
+    - "*.panplayable-toutiao-b.com"
+    - "*.panplayable-toutiao.com"
+    - "*.partner.gifshow.com"
+    - "*.pglstatp-sdk-toutiao.com"
+    - "*.pglstatp-snssdk-toutiao.com"
+    - "*.pglstatp-toutiao-b.com"
+    - "*.pglstatp-toutiao.com"
+    - "*.puata.info"
+    - "*.readgps.com"
+    - "*.richmob.cn"
+    - "*.sf3-ttcdn-tos.pstatp.com"
+    - "*.sgsnssdk.com"
+    - "*.sigmob.cn"
+    - "*.slyxmobi.com"
+    - "*.snssdk.com"
+    - "*.supersonicads.com"
+    - "*.tapjoy.com"
+    - "*.tianmu.mobi"
+    - "*.toponadss.com"
+    - "*.toutiaoapi.com"
+    - "*.tradplusad.com"
+    - "*.tuia.cn"
+    - "*.ubixioe.com"
+    - "*.ugdtimg.com"
+    - "*.umeng.com"
+    - "*.umengcloud.com"
+    - "*.umsns.com"
+    - "*.umtrack.com"
+    - "*.union.baidu.cn"
+    - "*.union.baidu.com"
+    - "*.unityads.unitychina.cn"
+    - "*.ut.taobao.com"
+    - "*.uyunad.com"
+    - "*.xdplt.com"
+    - "*.xinduoad.com"
+    - "*.yksdks.com"
+    - "*.zijieapi.com"
+    - 17admob.com
+    - 1rtb.com
+    - 1rtb.net
+    - 66mobi.com
     - ad-evods.tianya.tv
     - ad.shunchangzhixing.com
     - ad.tencentmusic.com
+    - ad.xiaomi.com
     - adapi.izuiyou.com
     - adash.man.aliyuncs.com
+    - adfunlink.com
+    - adintl.cn
+    - adjust.com
+    - adjust.net.in
+    - adkwai.com
+    - admobile.top
+    - ads.vungle.com
     - adsmind.gdtimg.com
-    - adsmind.ugdtimg.com
+    - adsmoloco.com
+    - adtaipo.com
+    - adtianmai.com
     - adtrack.e.kuaishou.com
+    - adukwai.com
+    - adx.yixin.im
     - afd.baidu.com
     - al-log.d.meituan.net
     - als.baidu.com
+    - anythinktech.com
     - api.touch-moblie.com
     - applog.uc.cn
+    - applovin.com
+    - appsad.cn
     - babel-statistics-android.d.meituan.net
+    - bds.snssdk.com
     - beacon-api.aliyuncs.com
+    - beizi.biz
     - bgg.baidu.com
-    - c2.gdt.qq.com
+    - bridgeoos.com
+    - bxsnews.com
+    - byteadverts.com
+    - bytedance.com
+    - byteimg.com
+    - capcutapi.com
     - click-bes.baidu.com
     - cpro.baidustatic.com
+    - ctobsnssdk.com
     - df.tanx.com
     - dig.bdurl.net
+    - domob.cn
+    - doubleclick-cn.net
     - dsp-x.jd.com
+    - dutils.com
     - eclick.baidu.com
     - ems.youku.com
     - et.tanx.com
-    - extlog.snssdk.com
+    - fancyapi.com
+    - fanglinad.com
     - feed-image.baidu.com
     - gdfp.gifshow.com
+    - gdt.qq.com
+    - getui.com
+    - getui.net
+    - googlesyndication-cn.com
     - gorgon.youdao.com
     - guide2.bianxianmao.com
+    - halomobi.com
     - huatuocode.huatuo.qq.com
+    - hubcloud.com.cn
     - hudong.alicdn.com
     - huichuan.sm.cn
-    - i.snssdk.com
     - iad.g.163.com
-    - ii.gdt.qq.com
+    - iads.unity3d.com
+    - igexin.com
     - im-x.jd.com
+    - images.pinduoduo.com
     - info4.video.qq.com
     - info6.video.qq.com
+    - inmobi.cn
     - ios.bugly.qq.com
     - ios.video.mpush.qq.com
+    - isnssdk.com
     - janapi.jd.com
+    - jiguang.cn
+    - jpush.cn
+    - jpush.io
+    - kuaiyiad.com
+    - l.qq.com
     - lf-ad-ies.bytecdn.cn
-    - mc.tencentmusic.com
-    - mcs.snssdk.com
-    - mercury-gateway.ixiaochuan.cn
+    - lnk0.com
+    - maplehaze.cn
     - maplocatesdksnapshot.d.meituan.net
+    - mc.tencentmusic.com
+    - medproad.com
+    - mercury-gateway.ixiaochuan.cn
     - metrics-picture.d.meituan.net
-    - mi.gdt.qq.com
+    - miaozhen.com
     - miniapp-ad.cdn.bcebos.com
+    - mob.com
     - mobads-logs.baidu.com
     - mobads-pre-config.cdn.bcebos.com
     - mobads.baidu.com
+    - mobrtb.com
+    - motowoo.com
     - nadvideo2.baidu.com
     - nex.163.com
     - opehs.tanx.com
     - open.e.kuaishou.cn
     - open.e.kuaishou.com
+    - openinstall.io
     - ossgw.alicdn.com
     - otheve.beacon.qq.com
+    - pangolin-dsp-toutiao-b.com
+    - pangolin-dsp-toutiao.com
+    - pangolin-sdk-toutiao-b.com
+    - pangolin-sdk-toutiao.com
+    - pangolin-sdk-toutiao1.com
+    - pangolin.snssdk.com
+    - panplayable-toutiao-b.com
+    - panplayable-toutiao.com
+    - partner.gifshow.com
     - pgdt.gtimg.cn
-    - pgdt.ugdtimg.com
+    - pglstatp-sdk-toutiao.com
+    - pglstatp-snssdk-toutiao.com
+    - pglstatp-toutiao-b.com
+    - pglstatp-toutiao.com
     - pro.bugly.qq.com
+    - puata.info
     - qzs.gdtimg.com
     - qzs.qq.com
+    - readgps.com
     - redirect.shunchangzhixing.com
+    - richmob.cn
     - rmonitor.qq.com
     - route-stats.d.meituan.net
     - sdk.e.qq.com
     - sdk.zhangyuyidong.cn
     - sdkconfig.video.qq.com
     - sdklog.zhangyuyidong.cn
-    - sf3-fe-tos.pglstatp-toutiao.com
+    - sf3-ttcdn-tos.pstatp.com
+    - sgsnssdk.com
+    - sigmob.cn
+    - slyxmobi.com
+    - snssdk.com
     - statis.miwuad.com
+    - supersonicads.com
     - t-dsp.pinduoduo.com
-    - t.gdt.qq.com
+    - tapjoy.com
+    - tianmu.mobi
     - tmead.y.qq.com
     - tmeadbak.y.qq.com
     - tmeadcomm.y.qq.com
+    - toponadss.com
+    - toutiaoapi.com
     - tpns.qq.com
     - tpstelemetry.tencent.com
-    - us.l.qq.com
-    - v.gdt.qq.com
-    - v2.gdt.qq.com
+    - tradplusad.com
+    - tuia.cn
+    - ubixioe.com
+    - ugdtimg.com
+    - umeng.com
+    - umengcloud.com
+    - umsns.com
+    - umtrack.com
+    - union.baidu.cn
+    - union.baidu.com
+    - unityads.unitychina.cn
+    - ut.taobao.com
+    - uyunad.com
     - video-dsp.pddpic.com
-    - win.gdt.qq.com
     - wn.pos.baidu.com
     - wup.imtt.qq.com
+    - xdplt.com
+    - xinduoad.com
     - xlog.jd.com
-    - images.pinduoduo.com
+    - yksdks.com
+    - zijieapi.com
   routingRules:
     - action: direct
       domainSuffix: capcutapi.com
@@ -634,200 +728,6 @@ traffic:
       domainSuffix: adsmoloco.com
 
 actions:
-  - id: block-ad-platform-hosts
-    phase: request
-    match:
-      hosts:
-        - '*.17admob.com'
-        - '*.1rtb.com'
-        - '*.1rtb.net'
-        - '*.66mobi.com'
-        - '*.ad.xiaomi.com'
-        - '*.adfunlink.com'
-        - '*.adintl.cn'
-        - '*.adjust.com'
-        - '*.adjust.net.in'
-        - '*.adkwai.com'
-        - '*.admobile.top'
-        - '*.ads.vungle.com'
-        - '*.adsmoloco.com'
-        - '*.adtaipo.com'
-        - '*.adtianmai.com'
-        - '*.adukwai.com'
-        - '*.adx.yixin.im'
-        - '*.anythinktech.com'
-        - '*.api.touch-moblie.com'
-        - '*.applovin.com'
-        - '*.appsad.cn'
-        - '*.bds.snssdk.com'
-        - '*.beizi.biz'
-        - '*.bridgeoos.com'
-        - '*.bxsnews.com'
-        - '*.byteadverts.com'
-        - '*.ctobsnssdk.com'
-        - '*.domob.cn'
-        - '*.doubleclick-cn.net'
-        - '*.dutils.com'
-        - '*.fancyapi.com'
-        - '*.fanglinad.com'
-        - '*.gdt.qq.com'
-        - '*.getui.com'
-        - '*.getui.net'
-        - '*.googlesyndication-cn.com'
-        - '*.halomobi.com'
-        - '*.hubcloud.com.cn'
-        - '*.iads.unity3d.com'
-        - '*.igexin.com'
-        - '*.inmobi.cn'
-        - '*.jiguang.cn'
-        - '*.jpush.cn'
-        - '*.jpush.io'
-        - '*.kuaiyiad.com'
-        - '*.l.qq.com'
-        - '*.lnk0.com'
-        - '*.maplehaze.cn'
-        - '*.medproad.com'
-        - '*.miaozhen.com'
-        - '*.mob.com'
-        - '*.mobrtb.com'
-        - '*.motowoo.com'
-        - '*.openinstall.io'
-        - '*.pangolin-dsp-toutiao-b.com'
-        - '*.pangolin-dsp-toutiao.com'
-        - '*.pangolin-sdk-toutiao-b.com'
-        - '*.pangolin-sdk-toutiao.com'
-        - '*.pangolin-sdk-toutiao1.com'
-        - '*.pangolin.snssdk.com'
-        - '*.panplayable-toutiao-b.com'
-        - '*.panplayable-toutiao.com'
-        - '*.partner.gifshow.com'
-        - '*.pglstatp-sdk-toutiao.com'
-        - '*.pglstatp-snssdk-toutiao.com'
-        - '*.pglstatp-toutiao-b.com'
-        - '*.pglstatp-toutiao.com'
-        - '*.puata.info'
-        - '*.readgps.com'
-        - '*.richmob.cn'
-        - '*.sf3-ttcdn-tos.pstatp.com'
-        - '*.sigmob.cn'
-        - '*.slyxmobi.com'
-        - '*.supersonicads.com'
-        - '*.tapjoy.com'
-        - '*.tianmu.mobi'
-        - '*.toponadss.com'
-        - '*.tradplusad.com'
-        - '*.tuia.cn'
-        - '*.ubixioe.com'
-        - '*.ugdtimg.com'
-        - '*.union.baidu.cn'
-        - '*.union.baidu.com'
-        - '*.unityads.unitychina.cn'
-        - '*.umeng.com'
-        - '*.umengcloud.com'
-        - '*.umsns.com'
-        - '*.umtrack.com'
-        - '*.uyunad.com'
-        - '*.xdplt.com'
-        - '*.xinduoad.com'
-        - '*.yksdks.com'
-        - 2fwin.gdt.qq.com
-        - ad-evods.tianya.tv
-        - ad.shunchangzhixing.com
-        - ad.tencentmusic.com
-        - adapi.izuiyou.com
-        - adash.man.aliyuncs.com
-        - adsmind.gdtimg.com
-        - adsmind.ugdtimg.com
-        - adtrack.e.kuaishou.com
-        - afd.baidu.com
-        - al-log.d.meituan.net
-        - als.baidu.com
-        - api.touch-moblie.com
-        - applog.uc.cn
-        - babel-statistics-android.d.meituan.net
-        - beacon-api.aliyuncs.com
-        - bgg.baidu.com
-        - c2.gdt.qq.com
-        - click-bes.baidu.com
-        - cpro.baidustatic.com
-        - df.tanx.com
-        - dig.bdurl.net
-        - dsp-x.jd.com
-        - eclick.baidu.com
-        - ems.youku.com
-        - et.tanx.com
-        - extlog.snssdk.com
-        - feed-image.baidu.com
-        - gdfp.gifshow.com
-        - gorgon.youdao.com
-        - guide2.bianxianmao.com
-        - huatuocode.huatuo.qq.com
-        - hudong.alicdn.com
-        - huichuan.sm.cn
-        - i.snssdk.com
-        - iad.g.163.com
-        - ii.gdt.qq.com
-        - im-x.jd.com
-        - info4.video.qq.com
-        - info6.video.qq.com
-        - ios.bugly.qq.com
-        - ios.video.mpush.qq.com
-        - janapi.jd.com
-        - lf-ad-ies.bytecdn.cn
-        - mc.tencentmusic.com
-        - mcs.snssdk.com
-        - mercury-gateway.ixiaochuan.cn
-        - maplocatesdksnapshot.d.meituan.net
-        - metrics-picture.d.meituan.net
-        - mi.gdt.qq.com
-        - miniapp-ad.cdn.bcebos.com
-        - mobads-logs.baidu.com
-        - mobads-pre-config.cdn.bcebos.com
-        - mobads.baidu.com
-        - nadvideo2.baidu.com
-        - nex.163.com
-        - opehs.tanx.com
-        - open.e.kuaishou.cn
-        - open.e.kuaishou.com
-        - ossgw.alicdn.com
-        - otheve.beacon.qq.com
-        - pgdt.gtimg.cn
-        - pgdt.ugdtimg.com
-        - pro.bugly.qq.com
-        - qzs.gdtimg.com
-        - qzs.qq.com
-        - redirect.shunchangzhixing.com
-        - rmonitor.qq.com
-        - route-stats.d.meituan.net
-        - sdk.e.qq.com
-        - sdk.zhangyuyidong.cn
-        - sdkconfig.video.qq.com
-        - sdklog.zhangyuyidong.cn
-        - sf3-fe-tos.pglstatp-toutiao.com
-        - statis.miwuad.com
-        - t.gdt.qq.com
-        - tmead.y.qq.com
-        - tmeadbak.y.qq.com
-        - tmeadcomm.y.qq.com
-        - tpns.qq.com
-        - tpstelemetry.tencent.com
-        - us.l.qq.com
-        - v.gdt.qq.com
-        - v2.gdt.qq.com
-        - win.gdt.qq.com
-        - wn.pos.baidu.com
-        - wup.imtt.qq.com
-        - xlog.jd.com
-      schemes:
-        - http
-        - https
-      pathRegex: '^/'
-    script:
-      source: ./block.js
-      bodyMode: none
-      timeoutMs: 500
-      maxBodyBytes: 1024
-
   - id: block-pdd-video-dsp
     phase: request
     match:
@@ -835,13 +735,12 @@ actions:
         - video-dsp.pddpic.com
       schemes:
         - https
-      pathRegex: '^/market-dsp-video/'
+      pathRegex: ^/market-dsp-video/
     script:
       source: ./block.js
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024
-
   - id: block-pdd-dsp-callback
     phase: request
     match:
@@ -849,13 +748,12 @@ actions:
         - t-dsp.pinduoduo.com
       schemes:
         - https
-      pathRegex: '^/dspcb/i/mrk_'
+      pathRegex: ^/dspcb/i/mrk_
     script:
       source: ./block.js
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024
-
   - id: block-pdd-marketing-images
     phase: request
     match:
@@ -863,7 +761,7 @@ actions:
         - images.pinduoduo.com
       schemes:
         - https
-      pathRegex: '^/(mrk/|marketing_api/)'
+      pathRegex: ^/(mrk/|marketing_api/)
     script:
       source: ./block.js
       bodyMode: none

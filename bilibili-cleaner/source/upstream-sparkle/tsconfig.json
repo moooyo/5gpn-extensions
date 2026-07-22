@@ -9,16 +9,13 @@
         "moduleResolution": "bundler",
         "typeRoots": ["./node_modules/@types", "src/types"],
         "paths": {
-            "@entity/*": ["src/core/entity/*"],
-            "@service/*": ["src/core/service/*"],
             "@core/*": ["src/core/*"],
             "@proto/*": ["src/proto/*"],
+            "@service/*": ["src/service/*"],
             "@utils/*": ["src/utils/*"],
             "@/*": ["src/*"]
         },
-        "strict": true,
-        "noImplicitAny": false,
-        "alwaysStrict": false
+        "strict": true
     },
     "include": ["src/**/*"]
 }

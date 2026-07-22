@@ -1,14 +1,12 @@
-export function isIPad(): boolean {
-    let device = '';
-    if (typeof $environment !== 'undefined' && $environment['device-model']) {
-        device = $environment['device-model'];
-    } else if (typeof $loon !== 'undefined') {
-        device = $loon;
-    }
-    return device.includes('iPad');
-}
+// import { gunzipSync } from 'fflate';
 
-export function createCaseInsensitiveDictionary<T extends object>(initial: T = {} as T): T & { [key: string]: any } {
+export { assert } from './assert';
+export { toAvid, toBvid } from './bilibili';
+export { toArrayBuffer, toUint8Array, isUint8Array } from './binary';
+
+export function createCaseInsensitiveDictionary<T extends object>(
+    initial: T = {} as T
+): T & { [key: string]: unknown } {
     const target = Object.create(null);
     const normalize = (property: string | symbol) => {
         return typeof property === 'string' ? property.toLowerCase() : property;
@@ -42,15 +40,12 @@ export function createCaseInsensitiveDictionary<T extends object>(initial: T = {
     return new Proxy(target, proxyHandler);
 }
 
-export function stringify(value: any): string {
+export function toString(value: unknown): string {
     if (typeof value !== 'object' || value === null) {
         return String(value);
     }
-    if (value instanceof Date) {
-        return value.toISOString();
-    }
-    if (value instanceof RegExp) {
-        return value.toString();
+    if (value instanceof Error) {
+        return `${value.toString()} ${JSON.stringify({ stack: value.stack })}`;
     }
     if (Array.isArray(value)) {
         return JSON.stringify(value);
@@ -67,4 +62,19 @@ export function uuid() {
         const v = c == 'x' ? r : (r & 0x3) | 0x8;
         return v.toString(16);
     });
+}
+
+export function getDevice(): string {
+    let device = '';
+    if (typeof $environment !== 'undefined' && $environment['device-model']) {
+        device = $environment['device-model'];
+    } else if (typeof $loon !== 'undefined') {
+        device = $loon;
+    }
+    return device;
+}
+
+export function ungzip(data: Uint8Array): Uint8Array {
+    return $utils.ungzip(data);
+    // return typeof $utils !== 'undefined' ? $utils.ungzip(data) : gunzipSync(data);
 }

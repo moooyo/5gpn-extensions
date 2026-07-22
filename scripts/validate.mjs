@@ -6,6 +6,7 @@ import vm from 'node:vm'
 import { parseDocument } from 'yaml'
 
 const root = path.resolve(import.meta.dirname, '..')
+const maxCaptureHosts = 512
 const rootReadme = await readFile(path.join(root, 'README.md'), 'utf8')
 const licenseSummary = await readFile(path.join(root, 'LICENSE'), 'utf8')
 const reusePolicy = await readFile(path.join(root, 'REUSE.toml'), 'utf8')
@@ -28,10 +29,10 @@ assert(packageMetadata.license === 'SEE LICENSE IN LICENSE', 'package.json must 
 const expectedExtensions = new Map([
   ['ad-platform-blocker', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
   ['apple-wloc', { license: 'MIT', pin: 'edee9b955f673cc8c4a52eb0a9c687a2e25dde4a', licenseDigest: 'e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa' }],
-  ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '70a4914d7189e0a1da4b5839ba5f60d0206edf11', licenseDigest: '8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b' }],
+  ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '12e89d6d93d72d39eb283ef81d2b58eb204cdb58', licenseDigest: '8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b' }],
   ['httpdns-interceptor', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
-  ['youtube-cleaner', { license: 'Apache-2.0', pin: '26871a1f7b984fa1df39a05b5037898035987239', licenseDigest: 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4' }],
+  ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525', licenseDigest: 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4' }],
 ])
 const entries = await readdir(root, { withFileTypes: true })
 const extensionNames = []
@@ -140,7 +141,7 @@ for (const entry of entries) {
 
   assertKeys(manifest.traffic, new Set(['captureHosts', 'upstreamMappings', 'routingRules']), `${entry.name}: traffic`)
   const captureHosts = manifest.traffic.captureHosts
-  assert(Array.isArray(captureHosts) && captureHosts.length > 0 && captureHosts.length <= 256, `${entry.name}: captureHosts must contain 1 to 256 entries`)
+  assert(Array.isArray(captureHosts) && captureHosts.length > 0 && captureHosts.length <= maxCaptureHosts, `${entry.name}: captureHosts must contain 1 to ${maxCaptureHosts} entries`)
   assert(new Set(captureHosts).size === captureHosts.length, `${entry.name}: captureHosts must be unique`)
   for (const host of captureHosts) assert(validHost(host), `${entry.name}: invalid capture host ${host}`)
   const captureSet = new Set(captureHosts)
@@ -247,10 +248,15 @@ for (const entry of entries) {
     assert(/CC BY-NC-SA 4\.0/.test(readme), `${entry.name}: README has no adapted-material license`)
   }
   if (entry.name === 'bilibili-cleaner') {
-    assert(actions.length === 12 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3, 'bilibili-cleaner: pinned LPX capability set is incomplete')
+    assert(actions.length === 11 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3 && manifest.requirements?.egressGroup?.required === true, 'bilibili-cleaner: pinned LPX capability set is incomplete')
     const sourceRoot = path.join(directory, 'source')
+    const finalBundle = await readFile(path.join(directory, 'protobuf.js'), 'utf8')
+    assert(finalBundle.startsWith('// SPDX-License-Identifier: GPL-3.0-only AND BSD-3-Clause\n'), 'bilibili-cleaner: final bundle SPDX expression is incomplete')
+    assert(finalBundle.includes('Copyright 2008 Google Inc.  All rights reserved.'), 'bilibili-cleaner: final bundle omits the Google BSD copyright')
+    assert(finalBundle.includes('THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS'), 'bilibili-cleaner: final bundle omits the Google BSD disclaimer')
     const componentDigests = new Map([
-      ['licenses/fflate-MIT.txt', '805f6cb28bb8b6d3a0badd83c93bccd9671fa01a3b4b92b7042b0743325ac243'],
+      ['licenses/fflate-MIT.txt', '0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551'],
+      ['licenses/goog-varint-BSD-3-Clause.txt', '182a1bc8985a586e8e0ca3b5a3af1ff3c28bd3475833a07f50b42b53dd7ac889'],
       ['licenses/protobuf-ts-Apache-2.0.txt', '5e3400b93bbb099e83e52bab885e7441750673c21f97988ca3f1240639b63283'],
       ['licenses/protobufjs-BSD-3-Clause.txt', '331ff828cd69efbb82098684450a752a05f05cd4b8f181f4829ba14795d1b5ca'],
     ])
@@ -261,29 +267,48 @@ for (const entry of entries) {
     const bundleInputs = JSON.parse(await readFile(path.join(sourceRoot, 'bundle-inputs.json'), 'utf8'))
     const bundlePaths = bundleInputs.map((input) => input.path)
     assert(bundlePaths.some((inputPath) => inputPath.startsWith('node_modules/@protobuf-ts/runtime/')), 'bilibili-cleaner: protobuf-ts runtime is absent from the bundle projection')
+    assert(bundlePaths.some((inputPath) => inputPath.endsWith('/goog-varint.js')), 'bilibili-cleaner: Google BSD varint code is absent from the bundle projection')
     assert(bundlePaths.some((inputPath) => inputPath.startsWith('node_modules/fflate/')), 'bilibili-cleaner: fflate is absent from the bundle projection')
     assert(!bundlePaths.some((inputPath) => inputPath.endsWith('/protobufjs-utf8.js')), 'bilibili-cleaner: BSD protobufjs UTF-8 code unexpectedly reached the final bundle')
-    assert(reuseParagraphFor('bilibili-cleaner/protobuf.js', 'GPL-3.0-only'), 'bilibili-cleaner: final bundle GPL mapping is missing')
+    assert(reuseParagraphFor('bilibili-cleaner/protobuf.js', 'GPL-3.0-only AND BSD-3-Clause'), 'bilibili-cleaner: final bundle compound mapping is missing')
+    assert(reuseParagraphFor('bilibili-cleaner/source/licenses/goog-varint-BSD-3-Clause.txt', 'BSD-3-Clause'), 'bilibili-cleaner: Google BSD notice mapping is missing')
     assert(reuseParagraphFor('bilibili-cleaner/source/generated/**', 'GPL-3.0-only'), 'bilibili-cleaner: generated source GPL mapping is missing')
     assert(reuseParagraphFor('bilibili-cleaner/source/upstream-sparkle/**', 'GPL-3.0-only'), 'bilibili-cleaner: Sparkle source GPL mapping is missing')
     assert(reuseParagraphFor('bilibili-cleaner/source/vendor-src/fflate/**', 'MIT'), 'bilibili-cleaner: fflate MIT mapping is missing')
-    assert(reuseParagraphFor('bilibili-cleaner/source/vendor/fflate-0.8.2.tgz', 'MIT'), 'bilibili-cleaner: fflate archive MIT mapping is missing')
+    assert(reuseParagraphFor('bilibili-cleaner/source/vendor/fflate-0.8.3.tgz', 'MIT'), 'bilibili-cleaner: fflate archive MIT mapping is missing')
     const protobufSourceRoot = path.join(sourceRoot, 'vendor-src', 'protobuf-ts')
     for (const relativePath of await relativeFiles(protobufSourceRoot)) {
       const reusePath = `bilibili-cleaner/source/vendor-src/protobuf-ts/${relativePath}`
-      const expectedLicense = relativePath === 'packages/runtime/src/protobufjs-utf8.ts' ? 'BSD-3-Clause' : 'Apache-2.0'
+      const expectedLicense = relativePath === 'packages/runtime/src/protobufjs-utf8.ts' || relativePath === 'packages/runtime/src/goog-varint.ts' ? 'BSD-3-Clause' : 'Apache-2.0'
       assert(reuseParagraphFor(reusePath, expectedLicense), `bilibili-cleaner: ${relativePath} ${expectedLicense} mapping is missing`)
     }
     assert(reuseParagraphFor('bilibili-cleaner/source/vendor/protobuf-ts-runtime-2.11.1.tgz', 'Apache-2.0 AND BSD-3-Clause'), 'bilibili-cleaner: runtime archive compound mapping is missing')
+    const reuseParagraphs = reusePolicy.split(/\r?\n\s*\r?\n/)
+    const bundleAnnotation = reuseParagraphs.find((paragraph) => paragraph.includes('"bilibili-cleaner/protobuf.js"')) ?? ''
+    const runtimeArchiveAnnotation = reuseParagraphs.find((paragraph) => paragraph.includes('"bilibili-cleaner/source/vendor/protobuf-ts-runtime-2.11.1.tgz"')) ?? ''
+    assert(bundleAnnotation.includes('"2008 Google Inc."'), 'bilibili-cleaner: final bundle Google copyright mapping is missing')
+    assert(runtimeArchiveAnnotation.includes('"2008 Google Inc."'), 'bilibili-cleaner: runtime archive Google copyright mapping is missing')
   }
   if (entry.name === 'ad-platform-blocker') {
     assert(routingRules.length === 201, 'ad-platform-blocker: reviewed upstream routing rules are incomplete')
+    assert(captureHosts.length === 277, 'ad-platform-blocker: reviewed routing domains are not fully acquired')
+    assert(actions.length === 3 && actions.every((action) => action.match.hosts.length === 1), 'ad-platform-blocker: reviewed path actions are incomplete')
   }
   if (entry.name === 'httpdns-interceptor') {
     assert(routingRules.length === 117, 'httpdns-interceptor: reviewed hostname/CIDR routing rules are incomplete')
+    const routeDomains = routingRules.flatMap((rule) => rule.domain === undefined ? [] : [rule.domain])
+    const routeCIDRs = routingRules.flatMap((rule) => rule.ipCIDR === undefined ? [] : [rule.ipCIDR])
+    const requiredCaptureHosts = new Set([...routeDomains, ...actions.flatMap((action) => action.match.hosts)])
+    assert(routeDomains.length === 58 && routeCIDRs.length === 59, 'httpdns-interceptor: routing selector split is incomplete')
+    assert(actions.length === 7, 'httpdns-interceptor: reviewed hostname path actions are incomplete')
+    assert(
+      captureHosts.length === 64 && captureHosts.length === requiredCaptureHosts.size &&
+        captureHosts.every((host) => requiredCaptureHosts.has(host)),
+      'httpdns-interceptor: every domain route and action host must acquire traffic exactly once',
+    )
   }
   if (entry.name === 'youtube-cleaner') {
-    assert(actions.length === 2 && manifest.settings?.length === 6 && manifest.permissions.persistentStorage && manifest.permissions.network?.origins?.length === 1, 'youtube-cleaner: application parity capability set is incomplete')
+    assert(actions.length === 3 && manifest.settings?.length === 5 && manifest.permissions.persistentStorage && manifest.permissions.network?.origins?.length === 1 && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')
   }
   assert(rootReadme.includes(`\`${entry.name}\``), `${entry.name}: missing from root catalog table`)
 }
@@ -291,8 +316,10 @@ for (const entry of entries) {
 extensionNames.sort()
 assert(extensionNames.length === expectedExtensions.size, 'extension catalog and license policy differ')
 assert(thirdPartyNotices.includes('Copyright (c) 2026 WLOC ProxyPin Contributors'), 'Apple upstream MIT notice is missing')
-assert(thirdPartyNotices.includes('Copyright (c) 2023 Arjun Barrett'), 'fflate upstream MIT notice is missing')
+assert(thirdPartyNotices.includes('Copyright (c) 2026 Arjun Barrett'), 'fflate upstream MIT notice is missing')
 assert(thirdPartyNotices.includes('Copyright (c) 2016 Daniel Wirtz'), 'protobufjs BSD notice is missing')
+assert(thirdPartyNotices.includes('Copyright 2008 Google Inc.'), 'Google BSD notice is missing')
+assert(thirdPartyNotices.includes('goog-varint.js'), 'retained Google BSD bundle scope is undocumented')
 assert(thirdPartyNotices.includes('tree-shakes'), 'Bilibili BSD tree-shaking scope is not documented')
 assert(licenseSummary.includes('LICENSES/BSD-3-Clause.txt'), 'root LICENSE does not describe the BSD component boundary')
 assert((await stat(path.join(root, 'bilibili-cleaner', 'protobuf.js'))).isFile(), 'bilibili-cleaner: deterministic protobuf bundle is missing')

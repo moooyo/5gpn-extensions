@@ -1,4 +1,4 @@
-// Derived from the MIT-licensed FFF686868/proxypin-wloc-spoofer project.
+// Derived from the MIT-licensed FFF686868/proxypin-wloc-spoofer v5.4.2 source.
 // See THIRD_PARTY_NOTICES.md for attribution and license details.
 
 function concatBytes(parts) {
@@ -89,8 +89,8 @@ function parseFields(bytes) {
     fields.push({
       number,
       wireType,
-      value: bytes.slice(valueStart, valueEnd),
-      raw: bytes.slice(start, offset),
+      value: bytes.subarray(valueStart, valueEnd),
+      raw: bytes.subarray(start, offset),
     })
   }
   return fields
@@ -152,7 +152,11 @@ function patchLocation(bytes, target, stats) {
 
 function patchWiFi(bytes, target, stats) {
   const fields = parseFields(bytes)
-  if (!fields.some((field) => field.number === 1 && field.wireType === 2 && isMAC(field.value))) return bytes
+  let looksLikeWiFi = false
+  for (const field of fields) {
+    if (field.number === 1 && field.wireType === 2) looksLikeWiFi = isMAC(field.value)
+  }
+  if (!looksLikeWiFi) return bytes
   let changed = false
   const parts = fields.map((field) => {
     if (field.number !== 2 || field.wireType !== 2) return field.raw
@@ -205,15 +209,15 @@ function patchFramed(bytes, target, stats) {
   if (bytes.length < 10) throw new Error('body is too short for framed WLOC')
   const length = bytes[8] * 256 + bytes[9]
   if (length <= 0 || 10 + length > bytes.length) throw new Error('invalid framed WLOC length')
-  const payload = bytes.slice(10, 10 + length)
+  const payload = bytes.subarray(10, 10 + length)
   const patched = patchRoot(payload, target, stats)
   if (stats.locations === 0 || bytesEqual(payload, patched)) throw new Error('framed payload has no patchable location')
   if (patched.length > 65535) throw new Error('patched framed payload is too large')
   return concatBytes([
-    bytes.slice(0, 8),
+    bytes.subarray(0, 8),
     new Uint8Array([patched.length >> 8, patched.length & 0xff]),
     patched,
-    bytes.slice(10 + length),
+    bytes.subarray(10 + length),
   ])
 }
 

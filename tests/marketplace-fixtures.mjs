@@ -21,7 +21,20 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const catalog = JSON.parse(await generateMarketplace({ revision }))
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
   assert.equal(catalog.entries.length, 6)
+  const adPlatform = catalog.entries.find(entry => entry.id === 'io.5gpn.ad-platform-blocker')
+  assert.deepEqual(
+    [adPlatform.capabilities.captureHostCount, adPlatform.capabilities.actionCount, adPlatform.capabilities.routingRuleCount],
+    [277, 3, 201],
+  )
+  const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
+  assert.equal(bilibili.capabilities.actionCount, 11)
+  assert.equal(bilibili.resources.filter(resource => resource.path === 'protobuf.js').length, 1)
   assert.equal(validate(catalog), true, ajv.errorsText(validate.errors))
+  const boundary = structuredClone(catalog)
+  boundary.entries[0].capabilities.captureHostCount = 512
+  assert.equal(validate(boundary), true, ajv.errorsText(validate.errors))
+  boundary.entries[0].capabilities.captureHostCount = 513
+  assert.equal(validate(boundary), false, 'schema accepted more than 512 capture hosts')
   const invalid = structuredClone(catalog)
   invalid.entries[0].manifest.sha256 = 'invalid'
   assert.equal(validate(invalid), false, 'schema accepted an invalid manifest digest')
@@ -107,6 +120,15 @@ actions:
 `
 }
 
+function manifestWithCaptureHostCount(count) {
+  assert(Number.isInteger(count) && count > 0)
+  const hosts = ['api.example.com', ...Array.from({ length: count - 1 }, (_, index) => `h${index}.example.com`)]
+  return manifest().replace(
+    '  captureHosts:\n    - api.example.com',
+    `  captureHosts:\n${hosts.map((host) => `    - ${host}`).join('\n')}`,
+  )
+}
+
 async function fixtureRepository({ metadataDocument = metadata(), manifestBody = manifest() } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), '5gpn-marketplace-'))
   await mkdir(path.join(root, 'marketplace'), { recursive: true })
@@ -169,6 +191,17 @@ await expectFailure({ metadataDocument: metadata([
 await expectFailure({ manifestBody: manifest('./../escape.js') }, /escapes its extension directory/)
 await expectFailure({ metadataDocument: metadata([{ directory: 'missing-extension', licenseSpdx: 'MIT', tags: ['fixture'] }]) }, /missing marketplace metadata/)
 await expectFailure({ metadataDocument: { ...metadata(), metadata: { ...metadata().metadata, id: 'io.example.other' } } }, /id must be io\.5gpn\.official/)
+await expectFailure({ manifestBody: manifestWithCaptureHostCount(513) }, /captureHosts must contain 1 to 512 entries/)
+
+{
+  const root = await fixtureRepository({ manifestBody: manifestWithCaptureHostCount(512) })
+  try {
+    const catalog = JSON.parse(await generateMarketplace({ root, revision }))
+    assert.equal(catalog.entries[0].capabilities.captureHostCount, 512)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}
 
 {
   const root = await fixtureRepository()

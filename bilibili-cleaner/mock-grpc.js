@@ -4,8 +4,10 @@ const MOCK_FRAMES = Object.freeze({
   '/bilibili.app.interface.v1.Teenagers/ModeStatus':
     'AAAAABMKEQgCEgl0ZWVuYWdlcnMgAioA',
   '/bilibili.app.interface.v1.Search/DefaultWords':
-    'AAAAACkaHeaQnOe0ouinhumikeOAgeeVquWJp+aIlnVw5Li7IgAoAToAQgBKAA==',
-  '/bilibili.app.view.v1.View/TFInfo': 'AAAAAAIIAQ==',
+    'AAAAACEaHeaQnOe0ouinhumikeOAgeeVquWJp+aIlnVw5Li7KAE=',
+  '/bilibili.app.view.v1.View/TFInfo': 'AAAAAAA=',
+  '/bilibili.app.viewunite.v1.View/PlayPause': 'AAAAAAA=',
+  '/bilibili.app.viewunite.v1.View/ViewEndPage': 'AAAAAAA=',
 })
 
 function decodeBase64(value) {
@@ -49,8 +51,6 @@ function transform(context) {
       status: 200,
       headers: {
         'Content-Type': 'application/grpc',
-      },
-      trailers: {
         'Grpc-Status': '0',
       },
       body: decodeBase64(encoded),

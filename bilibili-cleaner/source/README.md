@@ -1,9 +1,10 @@
 # Bilibili Cleaner corresponding source
 
 This directory is the preferred form for modifying the native Protobuf
-transformer. It is derived from `kokoryh/Sparkle` commit
-`70a4914d7189e0a1da4b5839ba5f60d0206edf11` and is licensed under
-`GPL-3.0-only`.
+transformer. The native work is derived from `kokoryh/Sparkle` commit
+`12e89d6d93d72d39eb283ef81d2b58eb204cdb58` under `GPL-3.0-only`; embedded
+component source and notices retain their independent Apache-2.0, MIT, and
+BSD-3-Clause boundaries as mapped in the repository `REUSE.toml`.
 
 The checked-in `proto/` files are the pinned schema inputs. The checked-in
 `generated/` files are the corresponding `protobuf-ts` 2.11.1 output, kept so
@@ -30,12 +31,20 @@ npm run build
 npm run verify:sources
 ```
 
-`npm run build` is deterministic and contains no timestamp or absolute path.
-It also writes `bundle-inputs.json`, the deterministic esbuild input projection
-used to audit exactly which Apache/MIT/BSD component files reached the bundle.
-The generated bundle embeds Apache-2.0 `protobuf-ts` runtime material and MIT
-`fflate` material. Their exact published npm archives are retained in
-`vendor/`, and their original license texts are retained in `licenses/`.
+`npm run build` uses the pinned esbuild 0.25.6 with deterministic minification,
+the repository SPDX banner, EOF legal comments, a fixed stable
+`function transform(context)` footer, and no source map. A source map is not
+required for modification because this complete preferred source, generated
+schema output, lockfile, vendor source, and build program are distributed
+together. The bundle contains no timestamp or absolute path. The build also
+writes `bundle-inputs.json`, the deterministic esbuild input projection used to
+audit exactly which Apache/MIT/BSD component files reached the bundle. The
+generated bundle embeds Apache-2.0 `protobuf-ts` 2.11.1 runtime material, its
+Google 2008 BSD-licensed `goog-varint` component, and MIT `fflate` 0.8.3
+material. The complete Google notice is embedded in the raw bundle banner and
+retained independently in `licenses/goog-varint-BSD-3-Clause.txt`. Exact npm
+archives remain in `vendor/`, and component license texts remain in
+`licenses/`.
 
 The build toolchain is not installed on a gateway. Release artifacts are built
 and verified before publication.

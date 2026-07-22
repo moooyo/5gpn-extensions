@@ -11,6 +11,7 @@ const revisionPattern = /^[0-9a-f]{40}$/
 const directoryPattern = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/
 const tagPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const spdxPattern = /^[A-Za-z0-9][A-Za-z0-9.+-]*$/
+const maxCaptureHosts = 512
 
 function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0
@@ -141,7 +142,11 @@ function parseStrictManifest(body, directory) {
   }
 
   assertKeys(manifest.traffic, new Set(['captureHosts', 'upstreamMappings', 'routingRules']), `${directory}: traffic`)
-  assert(Array.isArray(manifest.traffic.captureHosts) && manifest.traffic.captureHosts.length > 0, `${directory}: captureHosts must not be empty`)
+  assert(
+    Array.isArray(manifest.traffic.captureHosts) && manifest.traffic.captureHosts.length > 0 &&
+      manifest.traffic.captureHosts.length <= maxCaptureHosts,
+    `${directory}: captureHosts must contain 1 to ${maxCaptureHosts} entries`,
+  )
   assert(new Set(manifest.traffic.captureHosts).size === manifest.traffic.captureHosts.length, `${directory}: captureHosts must be unique`)
   for (const host of manifest.traffic.captureHosts) assertString(host, `${directory}: capture host`)
   const mappings = manifest.traffic.upstreamMappings ?? []

@@ -203,7 +203,7 @@ function sha256(bytes) {
 
 const appleManifest = await readManifest('apple-wloc/extension.yaml')
 assert.equal(appleManifest.metadata.id, 'io.5gpn.apple-wloc')
-assert.equal(appleManifest.metadata.version, '1.1.0')
+assert.equal(appleManifest.metadata.version, '1.1.1')
 assert.deepEqual(appleManifest.permissions, { persistentStorage: false })
 assert.equal(appleManifest.requirements, undefined)
 assert.deepEqual(appleManifest.traffic, {
@@ -274,6 +274,29 @@ for (const patchedLocation of patchedLocations) {
   assert.deepEqual([...values.unknown], [...field(parseFields(originalLocation), 4, 2).raw])
 }
 assert.match(apple.messages.at(-1)[1], /locations=3 wifi=1 cell=2 skipped=0/)
+
+const duplicateMACLastInvalid = concat([
+  lengthField(1, encoder.encode('aa:bb:cc:dd:ee:ff')),
+  lengthField(1, encoder.encode('not-a-mac')),
+  lengthField(2, originalLocation),
+])
+assert.equal(apple.transform({
+  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: false },
+  response: { body: framed(lengthField(2, duplicateMACLastInvalid)) },
+}), null, 'the last singular Wi-Fi identifier must determine upstream MAC recognition')
+
+const duplicateMACLastValid = concat([
+  lengthField(1, encoder.encode('not-a-mac')),
+  lengthField(1, encoder.encode('a:b:0c:d:0e:f')),
+  lengthField(2, originalLocation),
+])
+const duplicateMACLastValidResult = apple.transform({
+  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: true },
+  response: { body: framed(lengthField(2, duplicateMACLastValid)) },
+})
+const duplicateMACRoot = parseFields(framedPayload(duplicateMACLastValidResult.response.body))
+const duplicateMACWiFi = parseFields(field(duplicateMACRoot, 2, 2).value)
+assert.equal(locationValues(field(duplicateMACWiFi, 2, 2).value).latitude, 300000000n)
 
 apple.resetMessages()
 const noAccuracy = locationMessage({ includeAccuracy: false })
@@ -455,10 +478,13 @@ const appleReadme = await readFile(path.join(root, 'apple-wloc/README.md'), 'utf
 const testflightReadme = await readFile(path.join(root, 'testflight-region-unlock/README.md'), 'utf8')
 assert.match(appleReadme, /License: \[`MIT`\]/)
 assert.match(appleReadme, /edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/)
+assert.match(appleReadme, /ab4d55ceed0593ad1ad8f3424088c291f7db748f/)
 assert.match(appleReadme, /d8ae57eb8696af05413e3fbbf0bd57513a4f649407a1d0a7bb891916482fca70/)
+assert.match(appleReadme, /016168f87274e55b285bad2f1073567782818f1710f6bd4df8e56f1712e406c0/)
 assert.match(appleReadme, /e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa/)
 assert.match(testflightReadme, /License: \[`CC-BY-NC-SA-4\.0`\]/)
 assert.match(testflightReadme, /ab6c3182fb2b09bcc34456f496282ec0b8e9217b/)
+assert.match(testflightReadme, /c8112507802d0690d8b94d4110945e9c782df40e/)
 assert.match(testflightReadme, /a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e/)
 assert.match(testflightReadme, /047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98/)
 for (const [readme, manifestPath, scriptPath] of [

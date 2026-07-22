@@ -9,7 +9,7 @@ export default <T>(c: string, id: number, msg: unknown, transfer: ArrayBuffer[],
   w.onmessage = e => {
     const d = e.data, ed = d.$e$;
     if (ed) {
-      const err = new Error(ed[0]);
+      const err = new Error(ed[0]) as Error & { code: number };
       err['code'] = ed[1];
       err.stack = ed[2];
       cb(err, null);

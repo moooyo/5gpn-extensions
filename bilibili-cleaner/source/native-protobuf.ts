@@ -8,6 +8,7 @@ import { PlayViewReply } from './generated/bilibili/app/playurl/v1/playurl'
 import { PopularReply } from './generated/bilibili/app/show/popular/v1/popular'
 import {
   Chronos,
+  RelatesFeedReply as IpadRelatesFeedReply,
   ViewReply as IpadViewReply,
   ViewProgressReply as IpadViewProgressReply,
 } from './generated/bilibili/app/view/v1/view'
@@ -57,10 +58,10 @@ interface TransformContext {
     body?: Uint8Array
   }
   settings: {
-    showUpList?: 'show' | 'hide' | 'auto'
-    purifyTopReplies?: boolean
-    purifyWebpage?: boolean
-    airborne?: boolean
+    displayUpList?: 'show' | 'hide' | 'auto'
+    purifyComment?: boolean
+    optimizeRequest?: boolean
+    sponsorBlock?: boolean
     logLevel?: 'off' | 'error' | 'warn' | 'info' | 'debug'
   }
   network?: {
@@ -175,19 +176,61 @@ if (typeof globalThis.TextDecoder === 'undefined') {
 }
 
 const CHRONOS_MD5: Record<string, string> = Object.freeze({
-  universal: 'ecca73e42e160074e0caf4b3ddb54a52',
-  hd: '932002070dc1b51241198a074d2279fc',
+  universal: 'e5a968f1a5055bbe5c12e67b100a6dcb',
+  hd: 'f993a054969a4f6ae6b20a65f1292e47',
   inter: '8c3feda2e92bf60e8a7aeade1a231586',
-  f6d0676e75bf9a4b4469e40b19565154: 'ecca73e42e160074e0caf4b3ddb54a52',
+  '45b564f5ba1fdd3746406937059addd8': 'e5a968f1a5055bbe5c12e67b100a6dcb',
   c29bd8f2b64a8f57f49c3622c0f763db: 'ecca73e42e160074e0caf4b3ddb54a52',
+  c218977c14e5dfdafd51edf3ae49ed02: 'f993a054969a4f6ae6b20a65f1292e47',
   '8232ffb6ee43b687b5fe5add5b3e97de': 'feaca416bbc1174b8e935cf87ff8f0b5',
   '325e7073ffc6fb5263682fecdcd1058f': '932002070dc1b51241198a074d2279fc',
   '3a14beddd23328eaddfe9f0eb048d713': '8c3feda2e92bf60e8a7aeade1a231586',
 })
-const CHRONOS_COMMIT = 'a96c334eb6e46d4403740c0258d064d33321a03a'
+const CHRONOS_COMMIT = '69a8996b1f1311b606021e3f194b0390280ab618'
 
 const MAX_GRPC_MESSAGE_BYTES = 8 * 1024 * 1024
 const GZIP_INPUT_CHUNK_BYTES = 1024
+const REQUEST_PATH_PATTERN = /^https?:\/\/[^/?#]+([^?#]*)/i
+const REQUEST_HOST_PATTERN = /^https?:\/\/([^/:?#]+)(?::[0-9]+)?(?:[/?#]|$)/i
+const REQUEST_HOST_REPLACE_PATTERN = /^(https?:\/\/)[^/:?#]+/i
+const BILI_HD_UA_PATTERN = /^bili-hd/i
+const COMMENT_LINK_PATTERN = /https:\/\/b23\.tv\/(?:cm|mall)/
+const COMMENT_KEYWORD_PATTERN = /淘宝|某宝|天猫|京东|狗东|拼多多|饿了么|美团|转转|妙界|神气小鹿/
+const SEARCH_AD_LINK_PATTERN = /_ad_?/
+const LOG_LEVEL_VALUES = Object.freeze({ debug: 1, info: 2, warn: 3, error: 4, off: 5 })
+const BILIBILI_REPLAY_HOSTS = Object.freeze(['grpc.biliapi.net', 'app.bilibili.com'])
+const POPULAR_BLOCKED = new Set(['rcmdOneItem', 'smallCoverV5Ad', 'topicList'])
+const INTRODUCTION_BLOCKED = new Set([
+  ModuleType.ACTIVITY,
+  ModuleType.PAY_BAR,
+  ModuleType.SPECIALTAG,
+  ModuleType.MERCHANDISE,
+  ModuleType.VIDEO_MENTIONS,
+])
+const REQUEST_BLOCKED_HEADERS = new Set([
+  'connection',
+  'content-length',
+  'host',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'proxy-connection',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+])
+const TRAILER_BLOCKED_HEADERS = new Set([
+  'connection',
+  'content-length',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'proxy-connection',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+])
 
 const RELATE_BLOCKED = new Set([
   RelateCardType.GAME,
@@ -198,23 +241,27 @@ const RELATE_BLOCKED = new Set([
 ])
 
 function requestPath(url: string): string {
-  const match = /^https?:\/\/[^/?#]+([^?#]*)/i.exec(url)
+  const match = REQUEST_PATH_PATTERN.exec(url)
   if (!match) throw new Error('Invalid request URL')
   return match[1] || '/'
 }
 
-function headerValue(headers: Record<string, string>, name: string): string {
+function headerValue(headers: HeaderValues, name: string): string {
   const wanted = name.toLowerCase()
   for (const [key, value] of Object.entries(headers || {})) {
-    if (key.toLowerCase() === wanted) return value
+    if (key.toLowerCase() === wanted) return Array.isArray(value) ? value[0] || '' : value
   }
   return ''
 }
 
+function hasHeader(headers: HeaderValues, name: string): boolean {
+  const wanted = name.toLowerCase()
+  return Object.keys(headers || {}).some(key => key.toLowerCase() === wanted)
+}
+
 function shouldLog(context: TransformContext, level: 'error' | 'warn' | 'info' | 'debug'): boolean {
-  const values = { debug: 1, info: 2, warn: 3, error: 4, off: 5 }
-  const configured = context.settings.logLevel || 'info'
-  return values[level] >= values[configured]
+  const configured = context.settings.logLevel || 'error'
+  return LOG_LEVEL_VALUES[level] >= LOG_LEVEL_VALUES[configured]
 }
 
 function logError(context: TransformContext, error: unknown): void {
@@ -275,7 +322,7 @@ function encodeFrame<T extends object>(type: MessageType<T>, message: T): Uint8A
 }
 
 function isIpad(context: TransformContext): boolean {
-  return /^bili-hd/i.test(headerValue(context.request.headers, 'user-agent'))
+  return BILI_HD_UA_PATTERN.test(headerValue(context.request.headers, 'user-agent'))
 }
 
 function appEdition(context: TransformContext): 'universal' | 'hd' | 'inter' {
@@ -302,16 +349,16 @@ function filterRelateCard(card: RelateCard): boolean {
 
 function transformResponse(context: TransformContext, path: string, frame: Uint8Array): Uint8Array | null {
   logDebug(context, 'Bilibili Protobuf response', context.request.url, context.settings)
-  const airborne = context.settings.airborne !== false
+  const sponsorBlock = context.settings.sponsorBlock !== false
   if (path.endsWith('/bilibili.app.dynamic.v2.Dynamic/DynAll')) {
     const message = decodeFrame(DynAllReply, frame)
     delete message.topicList
     if (message.dynamicList) {
       message.dynamicList.list = message.dynamicList.list.filter(
-        item => ![DynamicType.AD, DynamicType.LIVE_RCMD].includes(item.cardType),
+        item => item.cardType !== DynamicType.AD && item.cardType !== DynamicType.LIVE_RCMD,
       )
     }
-    const mode = context.settings.showUpList || 'show'
+    const mode = context.settings.displayUpList || 'show'
     if (mode !== 'show' && !isIpad(context) && message.upList) {
       if (mode === 'hide' || !message.upList.showLiveNum) {
         delete message.upList
@@ -360,7 +407,7 @@ function transformResponse(context: TransformContext, path: string, frame: Uint8
         const card = item.item.smallCoverV5
         return card.base?.fromType === 'recommend' && !card.base.adInfo.length
       }
-      return !['rcmdOneItem', 'smallCoverV5Ad', 'topicList'].includes(item.item.oneofKind as string)
+      return !POPULAR_BLOCKED.has(item.item.oneofKind as string)
     })
     return encodeFrame(PopularReply, message)
   }
@@ -378,8 +425,13 @@ function transformResponse(context: TransformContext, path: string, frame: Uint8
   if (path.endsWith('/bilibili.app.view.v1.View/ViewProgress')) {
     const message = decodeFrame(IpadViewProgressReply, frame)
     delete message.videoGuide
-    if (airborne && message.chronos) processChronos(context, message.chronos)
+    if (sponsorBlock && message.chronos) processChronos(context, message.chronos)
     return encodeFrame(IpadViewProgressReply, message)
+  }
+  if (path.endsWith('/bilibili.app.view.v1.View/RelatesFeed')) {
+    const message = decodeFrame(IpadRelatesFeedReply, frame)
+    message.list = message.list.filter(item => !item.cm.length)
+    return encodeFrame(IpadRelatesFeedReply, message)
   }
   if (path.endsWith('/bilibili.app.viewunite.v1.View/RelatesFeed')) {
     const message = decodeFrame(RelatesFeedReply, frame)
@@ -394,11 +446,7 @@ function transformResponse(context: TransformContext, path: string, frame: Uint8
       if (tabModule.tab.oneofKind !== 'introduction') continue
       tabModule.tab.introduction.modules = tabModule.tab.introduction.modules.reduce(
         (modules: Module[], module) => {
-          if (
-            [ModuleType.ACTIVITY, ModuleType.PAY_BAR, ModuleType.SPECIALTAG, ModuleType.MERCHANDISE].includes(
-              module.type,
-            )
-          ) {
+          if (INTRODUCTION_BLOCKED.has(module.type)) {
             return modules
           }
           if (module.type === ModuleType.UGC_HEADLINE && module.data.oneofKind === 'headLine') {
@@ -417,11 +465,12 @@ function transformResponse(context: TransformContext, path: string, frame: Uint8
   if (path.endsWith('/bilibili.app.viewunite.v1.View/ViewProgress')) {
     const message = decodeFrame(ViewProgressReply, frame)
     delete message.dm
-    if (airborne && message.chronos) processChronos(context, message.chronos)
+    if (sponsorBlock && message.chronos) processChronos(context, message.chronos)
     return encodeFrame(ViewProgressReply, message)
   }
   if (path.endsWith('/bilibili.community.service.dm.v1.DM/DmView')) {
     const message = decodeFrame(DmViewReply, frame)
+    delete message.qoe
     message.activityMeta.length = 0
     if (message.command?.commandDms.length) message.command.commandDms.length = 0
     return encodeFrame(DmViewReply, message)
@@ -429,13 +478,18 @@ function transformResponse(context: TransformContext, path: string, frame: Uint8
   if (path.endsWith('/bilibili.main.community.reply.v1.Reply/MainList')) {
     const message = decodeFrame(MainListReply, frame)
     delete message.cm
-    message.subjectTopCards = message.subjectTopCards.filter(item => item.type !== Type.CM)
-    if (context.settings.purifyTopReplies !== false) {
-      const pattern = /https:\/\/b23\.tv\/(cm|mall)/
+    message.subjectTopCards = message.subjectTopCards.filter(
+      item => item.type !== Type.CM && item.type !== Type.OPERATION,
+    )
+    if (context.settings.purifyComment !== false) {
       message.topReplies = message.topReplies.filter(reply => {
         const urls = reply.content?.urls || {}
         const text = reply.content?.message || ''
-        return !Object.keys(urls).some(url => pattern.test(url)) && !pattern.test(text)
+        return (
+          !Object.keys(urls).some(url => COMMENT_LINK_PATTERN.test(url)) &&
+          !COMMENT_LINK_PATTERN.test(text) &&
+          !COMMENT_KEYWORD_PATTERN.test(text)
+        )
       })
     }
     return encodeFrame(MainListReply, message)
@@ -448,7 +502,7 @@ function transformResponse(context: TransformContext, path: string, frame: Uint8
   }
   if (path.endsWith('/bilibili.polymer.app.search.v1.Search/SearchAll')) {
     const message = decodeFrame(SearchAllResponse, frame)
-    message.item = message.item.filter(item => !/_ad_?/.test(item.linktype))
+    message.item = message.item.filter(item => !SEARCH_AD_LINK_PATTERN.test(item.linktype))
     return encodeFrame(SearchAllResponse, message)
   }
   return null
@@ -474,24 +528,12 @@ function avToBv(avid: string): string {
 }
 
 function sanitizeRequestHeaders(headers: Record<string, string>): Record<string, string> {
-  const blocked = new Set([
-    'connection',
-    'content-length',
-    'host',
-    'keep-alive',
-    'proxy-authenticate',
-    'proxy-authorization',
-    'proxy-connection',
-    'trailer',
-    'transfer-encoding',
-    'upgrade',
-  ])
   const output: Record<string, string> = {}
   for (const [name, value] of Object.entries(headers || {})) {
     const lower = name.toLowerCase()
     if (lower === 'te') {
       if (value === 'trailers') output.TE = 'trailers'
-    } else if (!blocked.has(lower)) {
+    } else if (!REQUEST_BLOCKED_HEADERS.has(lower)) {
       output[name] = value
     }
   }
@@ -501,25 +543,84 @@ function sanitizeRequestHeaders(headers: Record<string, string>): Record<string,
 function sanitizeResponseHeaders(headers: HeaderValues): HeaderValues {
   return Object.fromEntries(
     Object.entries(headers || {}).filter(
-      ([name]) => !['content-length', 'transfer-encoding'].includes(name.toLowerCase()),
+      ([name]) => {
+        const lower = name.toLowerCase()
+        return lower !== 'content-length' && lower !== 'transfer-encoding'
+      },
     ),
   )
 }
 
 function sanitizeTrailers(headers: HeaderValues): HeaderValues {
-  const blocked = new Set([
-    'connection',
-    'content-length',
-    'keep-alive',
-    'proxy-authenticate',
-    'proxy-authorization',
-    'proxy-connection',
-    'te',
-    'trailer',
-    'transfer-encoding',
-    'upgrade',
-  ])
-  return Object.fromEntries(Object.entries(headers || {}).filter(([name]) => !blocked.has(name.toLowerCase())))
+  return Object.fromEntries(
+    Object.entries(headers || {}).filter(([name]) => !TRAILER_BLOCKED_HEADERS.has(name.toLowerCase())),
+  )
+}
+
+function addGrpcStatusHeader(
+  context: TransformContext,
+  headers: HeaderValues,
+  hasTrailers: boolean,
+): HeaderValues {
+  if (hasTrailers) return headers
+  const engineType = headerValue(context.request.headers, 'x-bili-moss-engine-type')
+  if (!engineType) return headers
+  if (engineType !== '1') {
+    if (shouldLog(context, 'error')) console.error(`x-bili-moss-engine-type: ${engineType}`)
+    return headers
+  }
+  if (hasHeader(headers, 'grpc-status')) return headers
+  return { ...headers, 'Grpc-Status': '0' }
+}
+
+function requestHostname(url: string): string {
+  const match = REQUEST_HOST_PATTERN.exec(url)
+  if (!match) throw new Error('Invalid request URL')
+  return match[1].toLowerCase()
+}
+
+function replaceRequestHostname(url: string, hostname: string): string {
+  const replaced = url.replace(REQUEST_HOST_REPLACE_PATTERN, `$1${hostname}`)
+  if (replaced === url && requestHostname(url) !== hostname) throw new Error('Invalid request URL')
+  return replaced
+}
+
+function replayBilibili(context: TransformContext, maxAttempts = 2): NetworkResult | null {
+  if (!context.network || !context.request.body) return null
+  const start = BILIBILI_REPLAY_HOSTS.indexOf(requestHostname(context.request.url))
+  if (start < 0) return null
+  const end = Math.min(start + maxAttempts, BILIBILI_REPLAY_HOSTS.length)
+  for (let index = start; index < end; index += 1) {
+    const url = replaceRequestHostname(context.request.url, BILIBILI_REPLAY_HOSTS[index])
+    try {
+      const response = context.network.request({
+        url,
+        method: context.request.method || 'POST',
+        headers: sanitizeRequestHeaders(context.request.headers),
+        body: context.request.body,
+      })
+      if (response.status === 200 && response.body instanceof Uint8Array) return response
+      logDebug(context, 'Bilibili replay returned an invalid response', url, response.status)
+    } catch (error) {
+      logDebug(context, 'Bilibili replay failed', url, String(error))
+    }
+  }
+  return null
+}
+
+function syntheticResponse(
+  context: TransformContext,
+  replay: NetworkResult,
+  body: Uint8Array,
+): Record<string, unknown> {
+  const hasTrailers = replay.trailers !== undefined
+  const response: Record<string, unknown> = {
+    status: replay.status,
+    headers: addGrpcStatusHeader(context, sanitizeResponseHeaders(replay.headers), hasTrailers),
+    body,
+  }
+  if (hasTrailers) response.trailers = sanitizeTrailers(replay.trailers || {})
+  return response
 }
 
 function getSkipSegments(context: TransformContext, videoId: string, cid: string): number[][] {
@@ -584,16 +685,11 @@ function airborneDanmaku(segments: number[][]): DanmakuElem[] {
 }
 
 function transformAirborne(context: TransformContext): object | null {
-  if (context.settings.airborne === false || !context.network || !context.request.body) return null
+  if (context.settings.sponsorBlock === false || !context.network || !context.request.body) return null
   const request = decodeFrame(DmSegMobileReq, context.request.body)
   if (request.type !== 1) return null
-  const replay = context.network.request({
-    url: context.request.url,
-    method: context.request.method || 'POST',
-    headers: sanitizeRequestHeaders(context.request.headers),
-    body: context.request.body,
-  })
-  if (replay.status !== 200 || !(replay.body instanceof Uint8Array)) return null
+  const replay = replayBilibili(context, 1)
+  if (!replay) return null
   const videoId = avToBv(request.pid)
   const cid = request.oid !== '0' ? request.oid : ''
   const segments = getSkipSegments(context, videoId, cid)
@@ -603,24 +699,42 @@ function transformAirborne(context: TransformContext): object | null {
     response.elems.push(...airborneDanmaku(segments))
     body = encodeFrame(DmSegMobileReply, response)
   }
-  const synthetic: Record<string, unknown> = {
-    status: replay.status,
-    headers: sanitizeResponseHeaders(replay.headers),
-    body,
+  return { response: syntheticResponse(context, replay, body) }
+}
+
+function transformOptimizedRequest(context: TransformContext, path: string): object | null {
+  if (context.settings.optimizeRequest === false || !context.network || !context.request.body) return null
+  if (
+    !path.endsWith('/bilibili.app.viewunite.v1.View/View') &&
+    !path.endsWith('/bilibili.main.community.reply.v1.Reply/MainList')
+  ) {
+    return null
   }
-  if (replay.trailers) synthetic.trailers = sanitizeTrailers(replay.trailers)
-  return { response: synthetic }
+  const replay = replayBilibili(context)
+  if (!replay) return null
+  const body = transformResponse(context, path, replay.body)
+  if (!body) return null
+  return { response: syntheticResponse(context, replay, body) }
 }
 
 function transform(context: TransformContext): object | null {
   try {
-    if (context.phase === 'request') return transformAirborne(context)
+    const path = requestPath(context.request.url)
+    if (context.phase === 'request') {
+      if (path.endsWith('/bilibili.community.service.dm.v1.DM/DmSegMobile')) {
+        return transformAirborne(context)
+      }
+      return transformOptimizedRequest(context, path)
+    }
     const body = context.response?.body
     if (!(body instanceof Uint8Array)) return null
-    const transformed = transformResponse(context, requestPath(context.request.url), body)
+    const transformed = transformResponse(context, path, body)
     if (!transformed) return null
     const response: Record<string, unknown> = { body: transformed }
-    if (context.response?.trailers) response.trailers = sanitizeTrailers(context.response.trailers)
+    const hasTrailers = context.response?.trailers !== undefined
+    if (hasTrailers) response.trailers = sanitizeTrailers(context.response?.trailers || {})
+    const headers = addGrpcStatusHeader(context, context.response?.headers || {}, hasTrailers)
+    if (headers !== context.response?.headers) response.headers = headers
     return { response }
   } catch (error) {
     logError(context, error)

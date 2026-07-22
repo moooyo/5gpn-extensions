@@ -195,7 +195,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
     protobufTransform,
     'bilibili.app.dynamic.v2.Dynamic/DynAll',
     concat(dynamicList, upList, bytesField(3, new Uint8Array([1]))),
-    { showUpList: 'auto' },
+    { displayUpList: 'auto' },
   )
   assert.equal(fieldList(output, 3).length, 0)
   const list = onlyField(output, 1).value
@@ -288,11 +288,12 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
     protobufTransform,
     'bilibili.app.view.v1.View/ViewProgress',
     concat(bytesField(1, new Uint8Array([1])), messageField(2, chronos)),
+    { logLevel: 'warn' },
   )
   assert.equal(fieldList(output, 1).length, 0)
   const processed = onlyField(output, 2).value
-  assert.equal(text(onlyField(processed, 1)), 'ecca73e42e160074e0caf4b3ddb54a52')
-  assert.match(text(onlyField(processed, 2)), /a96c334eb6e46d4403740c0258d064d33321a03a\/ecca73e42e160074e0caf4b3ddb54a52\.zip$/)
+  assert.equal(text(onlyField(processed, 1)), 'e5a968f1a5055bbe5c12e67b100a6dcb')
+  assert.match(text(onlyField(processed, 2)), /69a8996b1f1311b606021e3f194b0390280ab618\/e5a968f1a5055bbe5c12e67b100a6dcb\.zip$/)
   assert.equal(fieldList(processed, 3).length, 0)
   assert.ok(protobufLogs.some(message => message[0] === 'warn' && String(message[1]).includes('MD5 mismatch')))
 
@@ -300,12 +301,25 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
     protobufTransform,
     'bilibili.app.view.v1.View/ViewProgress',
     concat(bytesField(1, new Uint8Array([1])), messageField(2, chronos)),
-    { airborne: false },
+    { sponsorBlock: false },
   )
   const unchanged = onlyField(disabled, 2).value
   assert.equal(text(onlyField(unchanged, 1)), 'unknown')
   assert.equal(text(onlyField(unchanged, 2)), 'old')
   assert.equal(text(onlyField(unchanged, 3)), 'signature')
+}
+
+{
+  const output = transformResponse(
+    protobufTransform,
+    'bilibili.app.view.v1.View/RelatesFeed',
+    concat(
+      messageField(1, bytesField(28, new Uint8Array([1]))),
+      messageField(1),
+    ),
+  )
+  assert.equal(fieldList(output, 1).length, 1)
+  assert.equal(fieldList(fieldList(output, 1)[0].value, 28).length, 0)
 }
 
 {
@@ -325,6 +339,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
 
 {
   const blockedModule = concat(varintField(1, 18))
+  const mentionsModule = concat(varintField(1, 63))
   const headlineModule = concat(varintField(1, 3), messageField(5, bytesField(1, new Uint8Array([1]))))
   const relatedCards = messageField(
     22,
@@ -335,6 +350,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
   const introduction = messageField(
     2,
     messageField(2, blockedModule),
+    messageField(2, mentionsModule),
     messageField(2, headlineModule),
     messageField(2, relatedModule),
     messageField(2),
@@ -365,17 +381,22 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
     { 'User-Agent': 'bili-hd/8.0' },
   )
   assert.equal(fieldList(output, 4).length, 0)
-  assert.equal(text(onlyField(onlyField(output, 2).value, 1)), '932002070dc1b51241198a074d2279fc')
+  assert.equal(text(onlyField(onlyField(output, 2).value, 1)), 'f993a054969a4f6ae6b20a65f1292e47')
 }
 
 {
   const output = transformResponse(
     protobufTransform,
     'bilibili.community.service.dm.v1.DM/DmView',
-    concat(stringField(18, 'activity'), messageField(22, bytesField(1, new Uint8Array([1])))),
+    concat(
+      stringField(18, 'activity'),
+      messageField(22, bytesField(1, new Uint8Array([1]))),
+      bytesField(25, new Uint8Array([1])),
+    ),
   )
   assert.equal(fieldList(output, 18).length, 0)
   assert.equal(fieldList(onlyField(output, 22).value, 1).length, 0)
+  assert.equal(fieldList(output, 25).length, 0)
 }
 
 {
@@ -383,6 +404,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
   const messageAd = messageField(14, messageField(12, stringField(1, 'https://b23.tv/cm/example')))
   const mapEntry = concat(stringField(1, 'https://b23.tv/mall/example'), messageField(2))
   const urlAd = messageField(14, messageField(12, messageField(5, mapEntry)))
+  const keywordAd = messageField(14, messageField(12, stringField(1, '京东推广')))
   const output = transformResponse(
     protobufTransform,
     'bilibili.main.community.reply.v1.Reply/MainList',
@@ -391,7 +413,9 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
       cleanReply,
       messageAd,
       urlAd,
+      keywordAd,
       messageField(28, varintField(1, 3)),
+      messageField(28, varintField(1, 5)),
       messageField(28, varintField(1, 1)),
     ),
   )
@@ -401,10 +425,10 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
   const unfiltered = transformResponse(
     protobufTransform,
     'bilibili.main.community.reply.v1.Reply/MainList',
-    concat(cleanReply, messageAd, urlAd),
-    { purifyTopReplies: false },
+    concat(cleanReply, messageAd, urlAd, keywordAd),
+    { purifyComment: false },
   )
-  assert.equal(fieldList(unfiltered, 14).length, 3)
+  assert.equal(fieldList(unfiltered, 14).length, 4)
 }
 
 {
@@ -447,6 +471,17 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
     },
   })
   assert.deepEqual(trailerResult.response.trailers, { 'Grpc-Status': '0', 'Grpc-Message': '' })
+
+  const headerResult = protobufTransform(
+    responseContext(
+      'bilibili.polymer.app.search.v1.Search/SearchAll',
+      grpcFrame(messageField(4, stringField(4, 'video'))),
+      {},
+      { 'x-bili-moss-engine-type': '1' },
+    ),
+  )
+  assert.equal(headerResult.response.headers['Content-Type'], 'application/grpc')
+  assert.equal(headerResult.response.headers['Grpc-Status'], '0')
 }
 
 {
@@ -463,7 +498,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
 
 {
   const noOp = protobufTransform(
-    responseContext('bilibili.app.view.v1.View/RelatesFeed', grpcFrame(new Uint8Array()), {}),
+    responseContext('bilibili.app.view.v1.View/Unknown', grpcFrame(new Uint8Array()), {}),
   )
   assert.equal(noOp, null)
   const malformed = protobufTransform(
@@ -532,7 +567,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
       },
       body: requestBody,
     },
-    settings: { airborne: true },
+    settings: { sponsorBlock: true },
     network,
   })
   assert.equal(calls.length, 2)
@@ -552,7 +587,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
     protobufTransform({
       phase: 'request',
       request: { url: calls[0].url, method: 'POST', headers: {}, body: requestBody },
-      settings: { airborne: false },
+      settings: { sponsorBlock: false },
       network: { request() { disabledCalls += 1 } },
     }),
     null,
@@ -563,7 +598,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
     protobufTransform({
       phase: 'request',
       request: { url: calls[0].url, method: 'POST', headers: {}, body: requestBody },
-      settings: { airborne: true, logLevel: 'off' },
+      settings: { sponsorBlock: true, logLevel: 'off' },
       network: { request() { throw new Error('replay unavailable') } },
     }),
     null,
@@ -573,7 +608,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
   const sponsorFailure = protobufTransform({
     phase: 'request',
     request: { url: calls[0].url, method: 'POST', headers: {}, body: requestBody },
-    settings: { airborne: true, logLevel: 'off' },
+    settings: { sponsorBlock: true, logLevel: 'off' },
     network: {
       request() {
         sponsorCalls += 1
@@ -592,7 +627,7 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
   protobufTransform({
     phase: 'request',
     request: { url: calls[0].url, method: 'POST', headers: { TE: 'gzip' }, body: requestBody },
-    settings: { airborne: true, logLevel: 'off' },
+    settings: { sponsorBlock: true, logLevel: 'off' },
     network: {
       request(options) {
         invalidTEHeaders = options.headers
@@ -603,10 +638,87 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
   assert.equal(Object.keys(invalidTEHeaders).length, 0)
 }
 
+{
+  const requestBody = grpcFrame(new Uint8Array())
+  const replayBody = grpcFrame(
+    concat(
+      messageField(3, bytesField(7, new Uint8Array([1]))),
+      bytesField(7, new Uint8Array([1])),
+    ),
+  )
+  const calls = []
+  const url = 'https://grpc.biliapi.net/bilibili.app.viewunite.v1.View/View'
+  const result = protobufTransform({
+    phase: 'request',
+    request: {
+      url,
+      method: 'POST',
+      headers: { Authorization: 'token', 'x-bili-moss-engine-type': '1' },
+      body: requestBody,
+    },
+    settings: { optimizeRequest: true },
+    network: {
+      request(options) {
+        calls.push(options)
+        if (calls.length === 1) {
+          return { url: options.url, status: 503, headers: {}, body: grpcFrame(new Uint8Array()) }
+        }
+        return {
+          url: options.url,
+          status: 200,
+          headers: { 'Content-Type': ['application/grpc'], 'Content-Length': [String(replayBody.length)] },
+          body: replayBody,
+        }
+      },
+    },
+  })
+  assert.deepEqual(calls.map(call => new URL(call.url).hostname), ['grpc.biliapi.net', 'app.bilibili.com'])
+  assert.deepEqual(Array.from(result.response.headers['Content-Type']), ['application/grpc'])
+  assert.equal(result.response.headers['Grpc-Status'], '0')
+  const response = grpcMessage(result.response.body)
+  assert.equal(fieldList(response, 7).length, 0)
+  assert.equal(fieldList(onlyField(response, 3).value, 7).length, 0)
+
+  let disabledCalls = 0
+  assert.equal(
+    protobufTransform({
+      phase: 'request',
+      request: { url, method: 'POST', headers: {}, body: requestBody },
+      settings: { optimizeRequest: false },
+      network: { request() { disabledCalls += 1 } },
+    }),
+    null,
+  )
+  assert.equal(disabledCalls, 0)
+
+  const cleanReply = messageField(14, messageField(12, stringField(1, 'clean')))
+  const keywordAd = messageField(14, messageField(12, stringField(1, '淘宝推广')))
+  const commentResult = protobufTransform({
+    phase: 'request',
+    request: {
+      url: 'https://app.bilibili.com/bilibili.main.community.reply.v1.Reply/MainList',
+      method: 'POST',
+      headers: {},
+      body: requestBody,
+    },
+    settings: { optimizeRequest: true, purifyComment: true },
+    network: {
+      request(options) {
+        return {
+          url: options.url,
+          status: 200,
+          headers: { 'Content-Type': ['application/grpc'] },
+          body: grpcFrame(concat(cleanReply, keywordAd)),
+        }
+      },
+    },
+  })
+  assert.equal(fieldList(grpcMessage(commentResult.response.body), 14).length, 1)
+}
+
 const { transform: cleanJson } = await loadTransform('bilibili-cleaner/clean-json.js')
 const { transform: mockJson } = await loadTransform('bilibili-cleaner/mock-json.js')
 const { transform: mockGrpc } = await loadTransform('bilibili-cleaner/mock-grpc.js')
-const { transform: rewriteChannel } = await loadTransform('bilibili-cleaner/rewrite-channel.js')
 const { transform: injectLivePage } = await loadTransform('bilibili-cleaner/inject-live-page.js')
 
 function cleanDocument(url, document) {
@@ -683,26 +795,91 @@ function cleanDocument(url, document) {
 }
 
 {
+  const output = cleanDocument('https://api.bilibili.com/pgc/page/channel?build=1', {
+    data: {
+      modules: [
+        { type: 'TIP' },
+        {
+          type: 'BANNER',
+          module_data: {
+            items: [
+              { url: 'https://www.bilibili.com/blackboard/era/advert.html' },
+              { url: 'https://www.bilibili.com/video/BV1' },
+            ],
+          },
+        },
+        { type: 'VIDEO' },
+      ],
+    },
+  })
+  assert.deepEqual(output.data.modules, [
+    {
+      type: 'BANNER',
+      module_data: { items: [{ url: 'https://www.bilibili.com/video/BV1' }] },
+    },
+    { type: 'VIDEO' },
+  ])
+}
+
+{
   const output = cleanDocument('https://api.live.bilibili.com/xlive/app-interface/v2/index/feed?build=1', {
     data: {
       play_together_info: {},
-      play_together_info_v2: {},
-      activity_banner_info: {},
-      function_card: { first: 1, second: 2 },
-      new_tab_info: { outer_list: [{ biz_id: 33 }, { biz_id: 1 }] },
       card_list: [{ card_type: 'banner_v2' }, { card_type: 'video' }],
+    },
+  })
+  assert.deepEqual(output.data.play_together_info, {})
+  assert.deepEqual(output.data.card_list, [{ card_type: 'video' }])
+}
+
+{
+  const output = cleanDocument('https://api.live.bilibili.com/xlive/app-room/v1/index/getInfoByRoom?build=1', {
+    data: {
+      big_card_info: { id: 1 },
+      activity_banner_info: { first: 1, second: 2 },
+      function_card: { first: 1, second: 2 },
+      new_tab_info: {
+        outer_list: [{ biz_id: 33 }, { biz_id: 1 }],
+        candidate_list: [{ biz_id: 36 }, { biz_id: 2 }],
+        v2_outer_list: [{ indices: [33, 162, 2] }],
+      },
       show_reserve_status: 1,
       reserve_info: { show_reserve_status: 1 },
       shopping_info: { is_show: 1 },
+      room_info: { short_id: 255, background_render_type: 1, app_background: 'old' },
     },
   })
-  assert.equal('play_together_info' in output.data, false)
+  assert.equal(output.data.big_card_info, null)
+  assert.deepEqual(output.data.activity_banner_info, { first: null, second: null })
   assert.deepEqual(output.data.function_card, { first: null, second: null })
   assert.deepEqual(output.data.new_tab_info.outer_list, [{ biz_id: 1 }])
-  assert.deepEqual(output.data.card_list, [{ card_type: 'video' }])
+  assert.deepEqual(output.data.new_tab_info.candidate_list, [{ biz_id: 2 }])
+  assert.deepEqual(output.data.new_tab_info.v2_outer_list, [{ indices: [2] }])
   assert.equal(output.data.show_reserve_status, false)
   assert.equal(output.data.reserve_info.show_reserve_status, false)
   assert.equal(output.data.shopping_info.is_show, 0)
+  assert.equal(output.data.room_info.background_render_type, 0)
+  assert.match(output.data.room_info.app_background, /2dd8a4aa9fde3587b1a716957a07337013999324\.png$/)
+}
+
+{
+  const output = cleanDocument('https://api.live.bilibili.com/xlive/app-room/v1/index/getInfoByUser?build=1', {
+    data: {
+      play_together_info: {},
+      play_together_info_v2: {},
+      function_card: { first: 1, second: 2 },
+    },
+  })
+  assert.equal('play_together_info' in output.data, false)
+  assert.equal('play_together_info_v2' in output.data, false)
+  assert.deepEqual(output.data.function_card, { first: null, second: null })
+}
+
+{
+  const output = cleanDocument('https://api.live.bilibili.com/xlive/open-interface/v2/tracker/conf?build=1', {
+    data: { domains: ['wss://old.example'] },
+  })
+  assert.deepEqual(output.data.domains, ['wss://tracker.chat.bilibili.com'])
 }
 
 {
@@ -722,6 +899,8 @@ function cleanDocument(url, document) {
     ['https://api.live.bilibili.com/xlive/e-commerce-interface/v1/ecommerce-user/get_shopping_info?room=1', '{}'],
     ['https://line3-h5-mobile-api.biligame.com/game/live/large_card_material?room=1', '{}'],
     ['https://app.bilibili.com/x/resource/top/activity?build=1', '{"code":-404,"message":"-404","ttl":1,"data":null}'],
+    ['https://app.bilibili.com/x/resource/patch/tab/v2?build=1', '{"code":-404,"message":"-404","ttl":1,"data":null}'],
+    ['https://app.bilibili.com/x/v2/splash/list?build=1', '{"code":0,"message":"OK","ttl":1,"data":{"max_time":0,"min_interval":31536000,"pull_interval":31536000,"keep_ids":[],"show":[],"list":[{}],"splash_request_id":""}}'],
     ['https://api.bilibili.com/pgc/activity/deliver/material/receive?build=1', '{"code":0,"data":{"closeType":"close_win","container":[],"showTime":""},"message":"success"}'],
   ]
   for (const [url, expected] of cases) {
@@ -732,29 +911,18 @@ function cleanDocument(url, document) {
 }
 
 {
-  const rewritten = rewriteChannel({
-    request: { url: 'https://api.bilibili.com/pgc/page/channel?foo=1&mobi_app=iphone&bar=2' },
-  })
-  assert.match(rewritten.request.url, /mobi_app=iphone_i/)
-  assert.equal(
-    rewriteChannel({ request: { url: 'https://api.bilibili.com/pgc/page/channel?mobi_app=iphone&bar=2' } }),
-    null,
-  )
-}
-
-{
   const expected = new Map([
-    ['Teenagers/ModeStatus', 'AAAAABMKEQgCEgl0ZWVuYWdlcnMgAioA'],
-    ['Search/DefaultWords', 'AAAAACkaHeaQnOe0ouinhumikeOAgeeVquWJp+aIlnVw5Li7IgAoAToAQgBKAA=='],
-    ['View/TFInfo', 'AAAAAAIIAQ=='],
+    ['bilibili.app.interface.v1.Teenagers/ModeStatus', 'AAAAABMKEQgCEgl0ZWVuYWdlcnMgAioA'],
+    ['bilibili.app.interface.v1.Search/DefaultWords', 'AAAAACEaHeaQnOe0ouinhumikeOAgeeVquWJp+aIlnVw5Li7KAE='],
+    ['bilibili.app.view.v1.View/TFInfo', 'AAAAAAA='],
+    ['bilibili.app.viewunite.v1.View/PlayPause', 'AAAAAAA='],
+    ['bilibili.app.viewunite.v1.View/ViewEndPage', 'AAAAAAA='],
   ])
-  for (const [suffix, encoded] of expected) {
-    const prefix = suffix.startsWith('Teenagers') || suffix.startsWith('Search')
-      ? 'bilibili.app.interface.v1.'
-      : 'bilibili.app.view.v1.'
-    const result = mockGrpc({ request: { url: `https://grpc.biliapi.net/${prefix}${suffix}` } })
+  for (const [pathname, encoded] of expected) {
+    const result = mockGrpc({ request: { url: `https://grpc.biliapi.net/${pathname}` } })
     assert.equal(Buffer.from(result.response.body).toString('base64'), encoded)
-    assert.equal(result.response.trailers['Grpc-Status'], '0')
+    assert.equal(result.response.headers['Grpc-Status'], '0')
+    assert.equal(result.response.trailers, undefined)
   }
 }
 
@@ -762,20 +930,11 @@ function cleanDocument(url, document) {
   const html = '<!doctype html><html><head><title>Live</title></head><body></body></html>'
   assert.equal(
     injectLivePage({
-      settings: { purifyWebpage: false },
-      response: { headers: { 'Content-Type': 'text/html' }, body: html },
-    }),
-    null,
-  )
-  assert.equal(
-    injectLivePage({
-      settings: { purifyWebpage: true },
       response: { headers: { 'Content-Type': 'application/json' }, body: html },
     }),
     null,
   )
   const injected = injectLivePage({
-    settings: { purifyWebpage: true },
     response: { headers: { 'Content-Type': 'text/html; charset=utf-8' }, body: html },
   }).response.body
   assert.match(injected, /<script>[\s\S]+__BILIACT_EVAPAGEDATA__[\s\S]+<\/script><\/head>/)
@@ -802,7 +961,7 @@ function cleanDocument(url, document) {
     },
     document: {
       createElement: () => ({ textContent: '' }),
-      head: { append: element => appended.push(element) },
+      head: { appendChild: element => appended.push(element) },
     },
   }
   vm.createContext(clientSandbox)
@@ -812,7 +971,6 @@ function cleanDocument(url, document) {
 
   const tricky = '<!-- fake </head> --><html><head><title>literal </head></title><meta name="x"></head><body></body></html>'
   const trickyOutput = injectLivePage({
-    settings: { purifyWebpage: true },
     response: { headers: { 'Content-Type': 'text/html' }, body: tricky },
   }).response.body
   assert.ok(trickyOutput.startsWith('<!-- fake </head> -->'))
@@ -821,8 +979,17 @@ function cleanDocument(url, document) {
 }
 
 const bundle = await readFile(path.join(root, 'bilibili-cleaner', 'protobuf.js'))
-assert.equal(bundle.length, 237494)
-assert.equal(createHash('sha256').update(bundle).digest('hex'), '7e125ea7868bc4de730073c8f2c21876d3df01cc9efb5b33da9eec2f2829e662')
+assert.equal(bundle.length, 108550)
+assert.equal(createHash('sha256').update(bundle).digest('hex'), '895f6a11f23ddafea3797a9458d6450950571fe6ee3971ccf33b3c0f3ff9216a')
+const bundleSource = bundle.toString('utf8')
+assert(bundleSource.startsWith('// SPDX-License-Identifier: GPL-3.0-only AND BSD-3-Clause\n// Deterministic native build from bilibili-cleaner/source.\n'))
+assert(bundleSource.includes('Copyright 2008 Google Inc.  All rights reserved.'))
+assert(bundleSource.includes('Neither the name of Google Inc. nor the names of its'))
+assert(bundleSource.includes('THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS'))
+assert(!bundleSource.includes('sourceMappingURL='))
+assert(bundleSource.includes('bilibili.main.community.reply.v1.MainListReply'))
+assert(bundleSource.includes('Symbol.for("protobuf-ts/message-type")'))
+assert(/function\s+transform\s*\(\s*context\s*\)/.test(bundleSource))
 
 const manifest = parseYaml(await readFile(path.join(root, 'bilibili-cleaner', 'extension.yaml'), 'utf8'))
 assert.deepEqual(manifest.traffic.captureHosts, [
@@ -831,8 +998,9 @@ assert.deepEqual(manifest.traffic.captureHosts, [
   'app.bilibili.com',
   'grpc.biliapi.net',
   'line3-h5-mobile-api.biligame.com',
-  'live.bilibili.com',
+  'www.bilibili.com',
 ])
+assert.deepEqual(manifest.requirements, { egressGroup: { required: true } })
 assert.deepEqual(manifest.permissions.network.origins, [
   'https://app.bilibili.com',
   'https://bsbsb.top',
@@ -846,29 +1014,28 @@ assert.deepEqual(manifest.traffic.routingRules, [
   {
     action: 'reject',
     domainSuffix: 'chat.bilibili.com',
-    domainKeywords: ['stun', 'tracker'],
+    domainKeywords: ['p2p', 'stun', 'tracker'],
   },
 ])
 assert.deepEqual(
   manifest.settings.map(setting => [setting.key, setting.type, setting.default]),
   [
-    ['showUpList', 'select', 'show'],
-    ['purifyTopReplies', 'boolean', true],
-    ['purifyWebpage', 'boolean', true],
-    ['airborne', 'boolean', true],
-    ['logLevel', 'select', 'info'],
+    ['displayUpList', 'select', 'show'],
+    ['purifyComment', 'boolean', true],
+    ['optimizeRequest', 'boolean', true],
+    ['sponsorBlock', 'boolean', true],
+    ['logLevel', 'select', 'error'],
   ],
 )
 assert.deepEqual(
   manifest.actions.map(action => action.id),
   [
-    'rewrite-channel-request',
     'mock-grpc-promotions',
     'mock-live-shopping-json',
     'mock-game-live-card-json',
     'mock-app-promotions-json',
     'mock-api-delivery-json',
-    'add-airborne-danmaku',
+    'transform-protobuf-requests',
     'clean-app-json',
     'clean-api-json',
     'clean-live-json',
@@ -876,18 +1043,35 @@ assert.deepEqual(
     'purify-live-activity-page',
   ],
 )
-assert.equal(manifest.actions.find(action => action.id === 'add-airborne-danmaku').script.bodyMode, 'binary')
+const protobufRequestAction = manifest.actions.find(action => action.id === 'transform-protobuf-requests')
+assert.equal(protobufRequestAction.script.bodyMode, 'binary')
+for (const path of [
+  '/bilibili.community.service.dm.v1.DM/DmSegMobile',
+  '/bilibili.app.viewunite.v1.View/View',
+  '/bilibili.main.community.reply.v1.Reply/MainList',
+]) {
+  assert(new RegExp(protobufRequestAction.match.pathRegex).test(path), `merged request action misses ${path}`)
+}
+assert(!new RegExp(protobufRequestAction.match.pathRegex).test('/bilibili.app.viewunite.v1.View/ViewProgress'))
 assert.equal(manifest.actions.find(action => action.id === 'clean-protobuf-responses').script.maxBodyBytes, 8388608)
 
 const sourceRoot = path.join(root, 'bilibili-cleaner', 'source')
+const googleBSD = await readFile(path.join(sourceRoot, 'licenses', 'goog-varint-BSD-3-Clause.txt'))
+assert.equal(googleBSD.length, 1720)
+assert.equal(createHash('sha256').update(googleBSD).digest('hex'), '182a1bc8985a586e8e0ca3b5a3af1ff3c28bd3475833a07f50b42b53dd7ac889')
+const buildSource = await readFile(path.join(sourceRoot, 'build.mjs'), 'utf8')
+assert.match(buildSource, /legalComments:\s*'eof'/)
+assert.match(buildSource, /minify:\s*true/)
+assert.match(buildSource, /sourcemap:\s*false/)
+assert.match(buildSource, /function transform\(context\)/)
 const lock = JSON.parse(await readFile(path.join(sourceRoot, 'package-lock.json'), 'utf8'))
 assert.equal(lock.packages['node_modules/@protobuf-ts/runtime'].version, '2.11.1')
 assert.equal(lock.packages['node_modules/@protobuf-ts/plugin'].version, '2.11.1')
-assert.equal(lock.packages['node_modules/fflate'].version, '0.8.2')
+assert.equal(lock.packages['node_modules/fflate'].version, '0.8.3')
 assert.equal(lock.packages['node_modules/esbuild'].version, '0.25.6')
 for (const [filename, size, digest] of [
   ['protobuf-ts-runtime-2.11.1.tgz', 54285, '3bb18cb373565b5c95e466c1db76e4b1d8166b62276a15e3547c36f9e25b502b'],
-  ['fflate-0.8.2.tgz', 168507, '61fd5061e2fc8e5e3e3129f7f2fec7bd78a313e1bf4becbf1cc1cc9998d141dc'],
+  ['fflate-0.8.3.tgz', 173034, '38c2cd824402407b43153c782274aec2ea83ea688e4aa0b743c5f2c305857d92'],
 ]) {
   const archive = await readFile(path.join(sourceRoot, 'vendor', filename))
   assert.equal(archive.length, size)
@@ -908,7 +1092,7 @@ assert.equal(await countFiles(path.join(sourceRoot, 'proto'), '.proto'), 15)
 assert.equal(await countFiles(path.join(sourceRoot, 'generated'), '.ts'), 15)
 const upstreamRoot = path.join(sourceRoot, 'upstream-sparkle')
 const checksumLines = (await readFile(path.join(upstreamRoot, 'SHA256SUMS'), 'utf8')).trim().split(/\r?\n/)
-assert.equal(checksumLines.length, 26)
+assert.equal(checksumLines.length, 34)
 for (const line of checksumLines) {
   const match = /^([0-9a-f]{64})  (.+)$/.exec(line)
   assert.ok(match, `invalid upstream checksum line: ${line}`)

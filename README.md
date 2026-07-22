@@ -12,12 +12,12 @@ operator egress requirement before enabling it.
 
 | Extension | Purpose | License |
 | --- | --- | --- |
-| `ad-platform-blocker` | Block reviewed advertising SDK endpoints | CC BY-NC-SA 4.0 |
+| `ad-platform-blocker` | Acquire bounded selectors and block 201 reviewed advertising-platform routes | CC BY-NC-SA 4.0 |
 | `apple-wloc` | Rewrite Apple WLOC responses to an operator-selected point | MIT |
 | `bilibili-cleaner` | Remove selected Bilibili ads and promotions | GPL-3.0-only |
-| `httpdns-interceptor` | Block 117 reviewed HTTPDNS routes and seven request paths | CC BY-NC-SA 4.0 |
+| `httpdns-interceptor` | Acquire 58 HTTPDNS domains; reject 59 gateway-visible CIDR routes and seven request paths | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | Rewrite TestFlight storefront with operator-selected egress | CC BY-NC-SA 4.0 |
-| `youtube-cleaner` | Remove selected YouTube player advertising fields | Apache-2.0 |
+| `youtube-cleaner` | Clean YouTube responses and prepare the reviewed external Onesie playback path | Apache-2.0 |
 
 ## Installation
 

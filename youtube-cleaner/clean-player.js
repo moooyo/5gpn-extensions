@@ -1,7 +1,6 @@
 // Apache-2.0 native port of the pinned Maasea/sgmodule YouTube behavior.
 // The implementation operates on bounded protobuf wire messages. It does not
-// include the upstream generated runtime, proxy-client adapters, or the
-// license-ambiguous Google Translate token implementation.
+// include the upstream generated runtime or proxy-client adapters.
 
 const MAX_MESSAGE_DEPTH = 64
 const MAX_PARSED_FIELDS = 250000
@@ -11,13 +10,16 @@ const MAX_AD_SCAN_BYTES = 16777216
 const MAX_CACHE_ENTRIES = 512
 const MAX_CACHE_STRING_BYTES = 512
 const MAX_STORAGE_BYTES = 60000
-const MAX_NETWORK_URL_BYTES = 4096
+const MAX_KEY_BYTES = 4096
 const MAX_OUTPUT_BYTES = 33554432
 const MAX_SERIALIZATION_WORK_BYTES = 134217728
 const AD_STATE_KEY = 'YouTubeAdvertiseInfo'
 const AD_STATE_VERSION = '1.0'
-const TRANSLATE_ORIGIN = 'https://translate.google.com'
+const CONFIG_KEY = 'YouTubeConfig'
 const PAGEAD_MARKER = [112, 97, 103, 101, 97, 100]
+const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
+const LANGUAGE_PATTERN = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/
+const SHORTS_EML_PATTERN = /shorts(?!_pivot_item)/
 const PAGEAD_SKIP = new Array(256).fill(PAGEAD_MARKER.length + 1)
 for (let index = 0; index < PAGEAD_MARKER.length; index += 1) {
   PAGEAD_SKIP[PAGEAD_MARKER[index]] = PAGEAD_MARKER.length - index
@@ -172,6 +174,10 @@ const SCHEMAS = {
   },
   ReelWatchEndpoint: {
     8: message('Overlay'),
+    16: message('AdClientParams'),
+  },
+  AdClientParams: {
+    1: boolField('isAd'),
   },
   Overlay: {
     139970731: message('ReelPlayerOverlayRenderer'),
@@ -338,6 +344,44 @@ const SCHEMAS = {
     2: message('Player'),
     3: message('Next'),
   },
+
+  Config: {
+    1: message('ConfigResponseContext'),
+  },
+  ConfigResponseContext: {
+    16: message('GlobalConfigGroup'),
+  },
+  GlobalConfigGroup: {
+    6: message('ColdConfigGroup'),
+    7: message('HotConfigGroup'),
+    4: stringField('hotHashData'),
+    5: stringField('coldHashData'),
+  },
+  ColdConfigGroup: {},
+  HotConfigGroup: {
+    138536474: message('MediaHotConfig'),
+  },
+  MediaHotConfig: {
+    146311580: message('OnesieHotConfig'),
+  },
+  OnesieHotConfig: {
+    1: bytesField('clientKey'),
+    2: bytesField('encryptKey'),
+    3: intField('keyExpiresInSeconds'),
+    30: boolField('useHotConfigToCreateOnesieRequest'),
+  },
+}
+
+const SINGULAR_MESSAGE_FIELDS = Object.create(null)
+for (const [schemaName, schema] of Object.entries(SCHEMAS)) {
+  const entries = []
+  const indexes = Object.create(null)
+  for (const [rawNumber, descriptor] of Object.entries(schema)) {
+    if (descriptor.kind !== 'message' || descriptor.repeated) continue
+    indexes[rawNumber] = entries.length + 1
+    entries.push([Number(rawNumber), descriptor])
+  }
+  SINGULAR_MESSAGE_FIELDS[schemaName] = { entries, indexes }
 }
 
 function concatBytes(parts) {
@@ -627,16 +671,22 @@ function mergeMessageValues(children, schemaName) {
 }
 
 function linkMergedSingularMessages(messageValue) {
-  const schema = SCHEMAS[messageValue.schemaName]
-  for (const [rawNumber, descriptor] of Object.entries(schema)) {
-    if (descriptor.kind !== 'message' || descriptor.repeated) continue
-    const number = Number(rawNumber)
-    const occurrences = messageValue.fields.filter((field) => (
-      !field.generated &&
-      field.number === number &&
-      field.descriptor === descriptor &&
-      (field.originalChild || field.child)
-    ))
+  const info = SINGULAR_MESSAGE_FIELDS[messageValue.schemaName]
+  if (!info || !info.entries.length) return
+  const grouped = new Array(info.entries.length)
+  for (const field of messageValue.fields) {
+    if (field.generated || !(field.originalChild || field.child)) continue
+    const encodedIndex = info.indexes[field.number]
+    if (!encodedIndex) continue
+    const index = encodedIndex - 1
+    if (field.descriptor !== info.entries[index][1]) continue
+    if (!grouped[index]) grouped[index] = []
+    grouped[index].push(field)
+  }
+  for (let index = 0; index < info.entries.length; index += 1) {
+    const occurrences = grouped[index]
+    if (!occurrences) continue
+    const descriptor = info.entries[index][1]
     if (occurrences.length < 2) continue
     const merged = mergeMessageValues(
       occurrences.map((field) => field.originalChild || field.child),
@@ -667,8 +717,11 @@ function fieldsByNumber(messageValue, number) {
 }
 
 function lastField(messageValue, number) {
-  const fields = fieldsByNumber(messageValue, number)
-  return fields.length ? fields[fields.length - 1] : null
+  for (let index = messageValue.fields.length - 1; index >= 0; index -= 1) {
+    const field = messageValue.fields[index]
+    if (!field.removed && !field.shadowed && field.number === number) return field
+  }
+  return null
 }
 
 function lastMessage(messageValue, number) {
@@ -686,6 +739,16 @@ function lastInt(messageValue, number) {
   if (!field || field.wireType !== 0 || field.varintValue === null) return 0
   if (field.varintValue > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('protobuf integer exceeds JavaScript safe range')
   return Number(field.varintValue)
+}
+
+function lastBool(messageValue, number) {
+  const field = lastField(messageValue, number)
+  return Boolean(field && field.wireType === 0 && field.varintValue !== 0n)
+}
+
+function lastBytes(messageValue, number) {
+  const field = lastField(messageValue, number)
+  return field && field.wireType === 2 ? field.payload : null
 }
 
 function removeFields(messageValue, number) {
@@ -897,19 +960,27 @@ function defaultAdState() {
     blackEml: ['inline_injection_entrypoint_layout.eml'],
     dirty: false,
     scannedBytes: 0,
+    cacheSets: Object.create(null),
   }
 }
 
 function validateCacheArray(value, kind) {
   if (!Array.isArray(value) || value.length > MAX_CACHE_ENTRIES) throw new Error('invalid YouTube ad cache')
   const output = []
+  const seen = value.length > 16 ? new Set() : null
   for (const item of value) {
     if (kind === 'number') {
       if (!Number.isInteger(item) || item <= 0 || item > 536870911) throw new Error('invalid cached protobuf field number')
     } else if (typeof item !== 'string' || item.length > MAX_CACHE_STRING_BYTES) {
       throw new Error('invalid cached YouTube EML value')
     }
-    if (!output.includes(item)) output.push(item)
+    if (seen) {
+      if (seen.has(item)) continue
+      seen.add(item)
+      output.push(item)
+    } else if (!output.includes(item)) {
+      output.push(item)
+    }
   }
   return output
 }
@@ -931,17 +1002,30 @@ function loadAdState(context) {
     blackEml: validateCacheArray(parsed.blackEml, 'string'),
     dirty: false,
     scannedBytes: 0,
+    cacheSets: Object.create(null),
   }
+}
+
+function cacheHas(state, key, value) {
+  const list = state[key]
+  if (list.length <= 16) return list.includes(value)
+  let values = state.cacheSets[key]
+  if (!values) {
+    values = new Set(list)
+    state.cacheSets[key] = values
+  }
+  return values.has(value)
 }
 
 function addCacheValue(state, key, value) {
   const list = state[key]
-  if (list.includes(value)) return
+  if (cacheHas(state, key, value)) return
   if (typeof value === 'string' && value.length > MAX_CACHE_STRING_BYTES) {
     throw new Error('YouTube EML cache value exceeds its bound')
   }
   if (list.length >= MAX_CACHE_ENTRIES) throw new Error('YouTube ad cache entry limit exceeded')
   list.push(value)
+  if (state.cacheSets[key]) state.cacheSets[key].add(value)
   state.dirty = true
 }
 
@@ -956,6 +1040,99 @@ function saveAdState(context, state) {
   })
   if (raw.length > MAX_STORAGE_BYTES) throw new Error('YouTube ad cache exceeds its storage bound')
   if (!context.storage.set(AD_STATE_KEY, raw)) throw new Error('failed to persist YouTube ad cache')
+}
+
+const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+function bytesToBase64(bytes) {
+  if (!(bytes instanceof Uint8Array) || bytes.length > MAX_KEY_BYTES) throw new Error('YouTube key exceeds its bound')
+  let output = ''
+  for (let index = 0; index < bytes.length; index += 3) {
+    const first = bytes[index]
+    const second = index + 1 < bytes.length ? bytes[index + 1] : 0
+    const third = index + 2 < bytes.length ? bytes[index + 2] : 0
+    const combined = (first << 16) | (second << 8) | third
+    output += BASE64_ALPHABET[(combined >> 18) & 63]
+    output += BASE64_ALPHABET[(combined >> 12) & 63]
+    output += index + 1 < bytes.length ? BASE64_ALPHABET[(combined >> 6) & 63] : '='
+    output += index + 2 < bytes.length ? BASE64_ALPHABET[combined & 63] : '='
+  }
+  return output
+}
+
+function validBase64(value) {
+  return typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= MAX_KEY_BYTES * 2 &&
+    value.length % 4 === 0 &&
+    BASE64_PATTERN.test(value)
+}
+
+function validatePlatformConfig(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid YouTube key config')
+  if (!validBase64(value.clientKey) || !validBase64(value.encryptKey)) throw new Error('invalid YouTube key material')
+  return { clientKey: value.clientKey, encryptKey: value.encryptKey }
+}
+
+function loadKeyConfig(context) {
+  if (!context.storage || typeof context.storage.get !== 'function' || typeof context.storage.set !== 'function') {
+    throw new Error('YouTube key learning requires persistent storage permission')
+  }
+  const raw = context.storage.get(CONFIG_KEY)
+  if (raw === null || raw === undefined || raw === '') return {}
+  if (typeof raw !== 'string' || raw.length > MAX_STORAGE_BYTES) throw new Error('invalid YouTube key config encoding')
+  const parsed = JSON.parse(raw)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid YouTube key config')
+  const config = {}
+  for (const key of Object.keys(parsed)) {
+    if (key !== 'youtube' && key !== 'youtubeMusic') throw new Error('invalid YouTube key config platform')
+    config[key] = validatePlatformConfig(parsed[key])
+  }
+  return config
+}
+
+function saveKeyConfig(context, config) {
+  const raw = JSON.stringify(config)
+  if (raw.length > MAX_STORAGE_BYTES) throw new Error('YouTube key config exceeds its storage bound')
+  if (!context.storage.set(CONFIG_KEY, raw)) throw new Error('failed to persist YouTube key config')
+}
+
+function requestHeader(context, target) {
+  for (const [name, value] of Object.entries(context.request.headers || {})) {
+    if (name.toLowerCase() !== target) continue
+    return Array.isArray(value) ? (value[0] || '') : String(value)
+  }
+  return ''
+}
+
+function keyPlatform(context) {
+  return requestHeader(context, 'user-agent').includes('music') ? 'youtubeMusic' : 'youtube'
+}
+
+function learnKeyConfig(context, root, stats) {
+  const responseContext = lastMessage(root, 1)
+  const globalConfig = responseContext ? lastMessage(responseContext, 16) : null
+  const hotConfig = globalConfig ? lastMessage(globalConfig, 7) : null
+  const mediaConfig = hotConfig ? lastMessage(hotConfig, 138536474) : null
+  const onesieConfig = mediaConfig ? lastMessage(mediaConfig, 146311580) : null
+  if (!onesieConfig) return
+  const clientKey = lastBytes(onesieConfig, 1)
+  const encryptKey = lastBytes(onesieConfig, 2)
+  if (!clientKey || !clientKey.length || !encryptKey || !encryptKey.length) {
+    console.warn('YouTube hot config does not contain complete Onesie key material')
+    return
+  }
+  const next = {
+    clientKey: bytesToBase64(clientKey),
+    encryptKey: bytesToBase64(encryptKey),
+  }
+  const config = loadKeyConfig(context)
+  const platform = keyPlatform(context)
+  const current = config[platform]
+  if (current && current.clientKey === next.clientKey && current.encryptKey === next.encryptKey) return
+  config[platform] = next
+  saveKeyConfig(context, config)
+  stats.keyUpdates += 1
 }
 
 function encodedValueContainsPageAd(field, state) {
@@ -992,8 +1169,8 @@ function videoRendererContent(richItem) {
 function richItemIsAd(richItem, state) {
   const unknown = firstUnknownField(richItem)
   if (unknown) {
-    if (state.whiteNo.includes(unknown.number)) return false
-    if (state.blackNo.includes(unknown.number)) return true
+    if (cacheHas(state, 'whiteNo', unknown.number)) return false
+    if (cacheHas(state, 'blackNo', unknown.number)) return true
     const isAd = encodedValueContainsPageAd(unknown, state)
     addCacheValue(state, isAd ? 'blackNo' : 'whiteNo', unknown.number)
     return isAd
@@ -1004,8 +1181,8 @@ function richItemIsAd(richItem, state) {
   const renderInfo = lastMessage(renderer, 2)
   const layoutRender = renderInfo ? lastMessage(renderInfo, 183314536) : null
   const eml = layoutRender ? lastString(layoutRender, 1).split('|')[0] : ''
-  if (state.whiteEml.includes(eml)) return false
-  if (state.blackEml.includes(eml) || /shorts(?!_pivot_item)/.test(eml)) return true
+  if (cacheHas(state, 'whiteEml', eml)) return false
+  if (cacheHas(state, 'blackEml', eml) || SHORTS_EML_PATTERN.test(eml)) return true
 
   const videoInfo = lastMessage(renderer, 1)
   const videoContext = videoInfo ? lastMessage(videoInfo, 168777401) : null
@@ -1065,7 +1242,7 @@ function validLanguage(value, key) {
   if (typeof value !== 'string') throw new Error(`${key} must be a string`)
   const trimmed = value.trim()
   if (trimmed === 'off') return trimmed
-  if (trimmed.length > 32 || !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(trimmed)) {
+  if (trimmed.length > 32 || !LANGUAGE_PATTERN.test(trimmed)) {
     throw new Error(`${key} is not a bounded language code or off`)
   }
   return trimmed
@@ -1083,7 +1260,6 @@ function normalizeSettings(raw) {
     blockImmersive: booleanSetting('blockImmersive', true),
     blockShorts: booleanSetting('blockShorts', false),
     captionLang: validLanguage(settings.captionLang === undefined ? 'off' : settings.captionLang, 'captionLang'),
-    lyricLang: validLanguage(settings.lyricLang === undefined ? 'off' : settings.lyricLang, 'lyricLang'),
     debug: booleanSetting('debug', false),
   }
 }
@@ -1197,8 +1373,8 @@ function rewriteShorts(shorts, stats) {
     if (field.removed || field.number !== 2 || !field.child) continue
     const command = lastMessage(field.child, 1)
     const endpoint = command ? lastMessage(command, 139608561) : null
-    const overlay = endpoint ? lastMessage(endpoint, 8) : null
-    if (!overlay) {
+    const adClientParams = endpoint ? lastMessage(endpoint, 16) : null
+    if (adClientParams && lastBool(adClientParams, 1)) {
       field.removed = true
       stats.shortsEntries += 1
     }
@@ -1280,75 +1456,6 @@ function rewriteSetting(setting, stats) {
   stats.settingItems += 1
 }
 
-function browseID(browse) {
-  const context = lastMessage(browse, 1)
-  if (!context) return ''
-  let value = ''
-  walkMessages(context, (current) => {
-    if (current.schemaName !== 'Param' || lastString(current, 1) !== 'browse_id') return false
-    value = lastString(current, 2)
-    return true
-  })
-  return value
-}
-
-function translationRows(context, text, language) {
-  const url = `${TRANSLATE_ORIGIN}/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(language)}&dt=t&q=${encodeURIComponent(text)}`
-  if (url.length > MAX_NETWORK_URL_BYTES) throw new Error('Google Translate request URL exceeds the native network bound')
-  if (!context.network || typeof context.network.request !== 'function') {
-    throw new Error('lyric translation requires the declared network permission')
-  }
-  const response = context.network.request({ method: 'GET', url })
-  if (!response || response.status !== 200 || typeof response.text !== 'string') {
-    throw new Error('Google Translate returned an unusable response')
-  }
-  const data = JSON.parse(response.text)
-  if (!Array.isArray(data) || !Array.isArray(data[0])) throw new Error('Google Translate response has an unexpected shape')
-  const rows = data[0].filter((row) => Array.isArray(row) && typeof row[0] === 'string')
-  if (!rows.length) throw new Error('Google Translate response has no translated text')
-  return { rows, detectedLanguage: typeof data[2] === 'string' ? data[2] : '' }
-}
-
-function rewriteLyrics(context, browse, language, stats) {
-  if (language === 'off' || !browseID(browse).startsWith('MPLYt')) return
-  const timed = findFirstMessage(browse, 'TimedLyricsContent')
-  if (timed) {
-    const runs = fieldsByNumber(timed, 1).filter((field) => field.child)
-    if (!runs.length) return
-    const original = runs.map((field) => lastString(field.child, 1)).join('\n')
-    const translated = translationRows(context, original, language)
-    if (runs.length <= translated.rows.length) {
-      const targetBase = language.split('-')[0]
-      const sourceIsTarget = translated.detectedLanguage.includes(targetBase)
-      for (let index = 0; index < runs.length; index += 1) {
-        const prior = lastString(runs[index].child, 1)
-        const next = translated.rows[index][0]
-        setString(runs[index].child, 1, sourceIsTarget ? next : `${prior}\n${next}`)
-      }
-      setString(timed, 2, `${lastString(timed, 2)} & Translated by Google`)
-      stats.lyricTranslations += 1
-    }
-    return
-  }
-
-  const shelf = findFirstMessage(browse, 'MusicDescriptionShelfRenderer')
-  const description = shelf ? lastMessage(shelf, 3) : null
-  const descriptionRun = description ? fieldsByNumber(description, 1).find((field) => field.child) : null
-  if (!descriptionRun) return
-  const original = lastString(descriptionRun.child, 1)
-  const translated = translationRows(context, original, language)
-  const targetBase = language.split('-')[0]
-  const sourceIsTarget = translated.detectedLanguage.includes(targetBase)
-  const text = translated.rows
-    .map((row) => sourceIsTarget ? row[0] : `${typeof row[1] === 'string' ? row[1] : ''}${row[0]}`)
-    .join('\r\n')
-  setString(descriptionRun.child, 1, text)
-  const footer = lastMessage(shelf, 10)
-  const footerRun = footer ? fieldsByNumber(footer, 1).find((field) => field.child) : null
-  if (footerRun) setString(footerRun.child, 1, `${lastString(footerRun.child, 1)} & Translated by Google`)
-  stats.lyricTranslations += 1
-}
-
 function endpointForURL(rawURL) {
   const path = rawURL.split('?', 1)[0]
   if (path.endsWith('/youtubei/v1/browse')) return { name: 'browse', schema: 'Browse' }
@@ -1359,6 +1466,8 @@ function endpointForURL(rawURL) {
   if (path.endsWith('/youtubei/v1/guide')) return { name: 'guide', schema: 'Guide' }
   if (path.endsWith('/youtubei/v1/account/get_setting')) return { name: 'get_setting', schema: 'Setting' }
   if (path.endsWith('/youtubei/v1/get_watch')) return { name: 'get_watch', schema: 'Watch' }
+  if (path.endsWith('/youtubei/v1/config')) return { name: 'config', schema: 'Config' }
+  if (path.endsWith('/youtubei/v1/log_event')) return { name: 'log_event', schema: 'Config' }
   throw new Error('unexpected YouTube response endpoint')
 }
 
@@ -1373,7 +1482,7 @@ function newStats() {
     settingItems: 0,
     playerAbilities: 0,
     captionLists: 0,
-    lyricTranslations: 0,
+    keyUpdates: 0,
   }
 }
 
@@ -1391,7 +1500,6 @@ function transform(context) {
   if (endpoint.name === 'browse' || endpoint.name === 'next' || endpoint.name === 'search') {
     adState = loadAdState(context)
     cleanRichItems(root, adState, stats)
-    if (endpoint.name === 'browse') rewriteLyrics(context, root, settings.lyricLang, stats)
   } else if (endpoint.name === 'player') {
     rewritePlayer(root, settings, stats)
   } else if (endpoint.name === 'reel_watch_sequence') {
@@ -1409,9 +1517,14 @@ function transform(context) {
       if (player) rewritePlayer(player, settings, stats)
       if (next) cleanRichItems(next, adState, stats)
     }
+  } else if (endpoint.name === 'config' || endpoint.name === 'log_event') {
+    learnKeyConfig(context, root, stats)
   }
 
   if (adState) saveAdState(context, adState)
+  if ((endpoint.name === 'config' || endpoint.name === 'log_event') && settings.debug && stats.keyUpdates) {
+    console.info(`YouTube ${endpoint.name} transform: ${JSON.stringify(stats)}`)
+  }
   serializationWorkBytes = 0
   const serialized = serializeMessage(root)
   if (!serialized.changed) return null

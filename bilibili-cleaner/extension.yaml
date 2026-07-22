@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.bilibili-cleaner
   name: Bilibili Cleaner
-  version: 1.1.0
+  version: 2.0.0
   description: Removes bounded advertising and promotional response shapes from the Bilibili app.
 
 permissions:
@@ -15,6 +15,10 @@ permissions:
       - https://bsbsb.top
       - https://grpc.biliapi.net
 
+requirements:
+  egressGroup:
+    required: true
+
 traffic:
   captureHosts:
     - api.bilibili.com
@@ -22,7 +26,7 @@ traffic:
     - app.bilibili.com
     - grpc.biliapi.net
     - line3-h5-mobile-api.biligame.com
-    - live.bilibili.com
+    - www.bilibili.com
   routingRules:
     - action: reject
       domain: api.biliapi.com
@@ -35,11 +39,12 @@ traffic:
     - action: reject
       domainSuffix: chat.bilibili.com
       domainKeywords:
+        - p2p
         - stun
         - tracker
 
 settings:
-  - key: showUpList
+  - key: displayUpList
     type: select
     label: Frequent uploader list
     description: Shows, hides, or automatically shows Dynamic's frequently visited uploader list when an entry is live.
@@ -49,19 +54,19 @@ settings:
       - hide
       - auto
     default: show
-  - key: purifyTopReplies
+  - key: purifyComment
     type: boolean
     label: Filter promoted top replies
-    description: Removes pinned replies containing b23.tv/cm or b23.tv/mall links.
+    description: Removes promoted top replies matching the reviewed links or shopping keywords.
     required: true
     default: true
-  - key: purifyWebpage
+  - key: optimizeRequest
     type: boolean
-    label: Purify embedded live pages
-    description: Hides reviewed external-link containers in Bilibili live activity pages.
+    label: Optimize comment loading
+    description: Replays and cleans selected video and comment RPCs before returning them to the client.
     required: true
     default: true
-  - key: airborne
+  - key: sponsorBlock
     type: boolean
     label: Enable airborne helper
     description: Enables SponsorBlock danmaku and the commit-pinned Chronos client helper.
@@ -73,28 +78,14 @@ settings:
     description: Selects the log level used by the reviewed Bilibili scripts.
     required: true
     options:
-      - info
-      - off
       - error
       - warn
+      - info
       - debug
-    default: info
+      - off
+    default: error
 
 actions:
-  - id: rewrite-channel-request
-    phase: request
-    match:
-      hosts:
-        - api.bilibili.com
-      schemes:
-        - https
-      pathRegex: '^/pgc/page/channel\?.*&mobi_app=iphone&.*$'
-    script:
-      source: ./rewrite-channel.js
-      bodyMode: none
-      timeoutMs: 500
-      maxBodyBytes: 1024
-
   - id: mock-grpc-promotions
     phase: request
     match:
@@ -104,7 +95,7 @@ actions:
         - https
       methods:
         - POST
-      pathRegex: '^/bilibili\.(app\.interface\.v1\.(Teenagers/ModeStatus|Search/DefaultWords)|app\.view\.v1\.View/TFInfo)$'
+      pathRegex: '^/bilibili\.app\.(interface\.v1\.(Teenagers/ModeStatus|Search/DefaultWords)|view\.v1\.View/TFInfo|viewunite\.v1\.View/(PlayPause|ViewEndPage))$'
     script:
       source: ./mock-grpc.js
       bodyMode: none
@@ -147,7 +138,7 @@ actions:
         - app.bilibili.com
       schemes:
         - https
-      pathRegex: '^/x/(resource/(top/activity|patch/tab)|v2/search/square|vip/ads/materials)\?.*$'
+      pathRegex: '^/x/(v2/splash/list|resource/(top/activity|patch/tab(/v2)?)|v2/search/square|vip/ads/materials)\?.*$'
     script:
       source: ./mock-json.js
       bodyMode: none
@@ -168,7 +159,7 @@ actions:
       timeoutMs: 500
       maxBodyBytes: 1024
 
-  - id: add-airborne-danmaku
+  - id: transform-protobuf-requests
     phase: request
     match:
       hosts:
@@ -178,7 +169,7 @@ actions:
         - https
       methods:
         - POST
-      pathRegex: '^/bilibili\.community\.service\.dm\.v1\.DM/DmSegMobile$'
+      pathRegex: '^/bilibili\.(community\.service\.dm\.v1\.DM/DmSegMobile|app\.viewunite\.v1\.View/View|main\.community\.reply\.v1\.Reply/MainList)$'
     script:
       source: ./protobuf.js
       bodyMode: binary
@@ -192,7 +183,7 @@ actions:
         - app.bilibili.com
       schemes:
         - https
-      pathRegex: '^/x/(v2/splash/(list|show|event/list2)|resource/show/(tab/v2|skin)|v2/feed/index|v2/feed/index/story|v2/account/(mine(/ipad)?|myinfo))\?.*$'
+      pathRegex: '^/x/(v2/splash/(show|event/list2)|resource/show/(tab/v2|skin)|v2/feed/index|v2/feed/index/story|v2/account/(mine(/ipad)?|myinfo))\?.*$'
     script:
       source: ./clean-json.js
       bodyMode: text
@@ -206,7 +197,7 @@ actions:
         - api.bilibili.com
       schemes:
         - https
-      pathRegex: '^/(x/pd-proxy/tracker|pgc/view/v2/app/season)\?.*$'
+      pathRegex: '^/(x/pd-proxy/tracker|pgc/(view/v2/app/season|page/channel))\?.*$'
     script:
       source: ./clean-json.js
       bodyMode: text
@@ -220,7 +211,7 @@ actions:
         - api.live.bilibili.com
       schemes:
         - https
-      pathRegex: '^/xlive/(app-interface/v2/index/feed|app-room/v1/index/getInfoBy(Room|User))\?.*$'
+      pathRegex: '^/xlive/(open-interface/v2/tracker/conf|app-interface/v2/index/feed|app-room/v1/index/getInfoBy(Room|User))\?.*$'
     script:
       source: ./clean-json.js
       bodyMode: text
@@ -248,7 +239,7 @@ actions:
     phase: response
     match:
       hosts:
-        - live.bilibili.com
+        - www.bilibili.com
       schemes:
         - https
       pathRegex: '^/blackboard/era/.+\.html\?.*$'

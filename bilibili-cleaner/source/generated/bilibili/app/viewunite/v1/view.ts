@@ -231,7 +231,11 @@ export enum ModuleType {
     /**
      * @generated from protobuf enum value: MERCHANDISE = 55;
      */
-    MERCHANDISE = 55
+    MERCHANDISE = 55,
+    /**
+     * @generated from protobuf enum value: VIDEO_MENTIONS = 63;
+     */
+    VIDEO_MENTIONS = 63
 }
 /**
  * @generated from protobuf enum bilibili.app.viewunite.v1.RelateCardType

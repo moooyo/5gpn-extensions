@@ -17,7 +17,7 @@ function digest(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex')
 }
 
-const sparkleBase = 'https://raw.githubusercontent.com/kokoryh/Sparkle/70a4914d7189e0a1da4b5839ba5f60d0206edf11/'
+const sparkleBase = 'https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/'
 const sparkleLines = (await readFile(path.join(directory, 'upstream-sparkle', 'SHA256SUMS'), 'utf8'))
   .trim()
   .split(/\r?\n/)
@@ -29,7 +29,7 @@ for (const line of sparkleLines) {
 }
 
 const sourceBases = {
-  fflate: 'https://raw.githubusercontent.com/101arrowz/fflate/d3243651cb142e3e04f3e4bc037b9e985878f444/',
+  fflate: 'https://raw.githubusercontent.com/101arrowz/fflate/dcb3714a6c25db3a2748641019c5277413d09714/',
   'protobuf-ts': 'https://raw.githubusercontent.com/timostamm/protobuf-ts/3f14440c5e52dd8223ac1919ad7f44e31432c667/',
 }
 const sourceLines = (await readFile(path.join(directory, 'vendor-src', 'SOURCE_MANIFEST.tsv'), 'utf8'))

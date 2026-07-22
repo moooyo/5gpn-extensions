@@ -25,6 +25,14 @@ const VIP_PROFILE = Object.freeze({
   role: 15,
 })
 
+const REQUEST_LOCATION_PATTERN = /^https?:\/\/([^/:?#]+)(?::[0-9]+)?(\/[^?#]*)?(?:\?[^#]*)?$/i
+const SPLASH_PATH_PATTERN = /^\/x\/v2\/splash\/(show|event\/list2)$/
+const ACCOUNT_MINE_PATH_PATTERN = /^\/x\/v2\/account\/mine(\/ipad)?$/
+const FEED_CARD_TYPES = new Set(['small_cover_v2', 'large_cover_single_v9', 'large_cover_v1'])
+const STORY_BLOCKED_CARD_GOTOS = new Set(['vertical_ad_av', 'vertical_ad_live', 'vertical_ad_picture'])
+const LIVE_FEED_BLOCKED_CARD_TYPES = new Set(['banner_v2', 'activity_card_v1'])
+const ROOM_TAB_BLOCKED_IDS = new Set([33, 36, 162, 186])
+
 const ACCOUNT_LAYOUT = Object.freeze({
   sectionsV2: [
     {
@@ -255,7 +263,7 @@ function replaceAccountLayouts(data) {
 }
 
 function requestLocation(value) {
-  const match = /^https?:\/\/([^/:?#]+)(?::[0-9]+)?(\/[^?#]*)?(?:\?[^#]*)?$/i.exec(value)
+  const match = REQUEST_LOCATION_PATTERN.exec(value)
   if (!match) {
     throw new Error('Invalid request URL')
   }
@@ -271,7 +279,7 @@ function cleanApp(path, document) {
     return document
   }
 
-  if (/^\/x\/v2\/splash\/(list|show|event\/list2)$/.test(path)) {
+  if (SPLASH_PATH_PATTERN.test(path)) {
     if ('show' in data) data.show = []
     if ('event_list' in data) data.event_list = []
   } else if (path === '/x/resource/show/tab/v2') {
@@ -279,14 +287,12 @@ function cleanApp(path, document) {
     data.top = clone(TAB_LAYOUT.top)
     data.bottom = clone(TAB_LAYOUT.bottom)
   } else if (path === '/x/v2/feed/index' && Array.isArray(data.items)) {
-    const types = new Set(['small_cover_v2', 'large_cover_single_v9', 'large_cover_v1'])
     data.items = data.items.filter((item) =>
       item && item.banner_item == null && item.ad_info == null &&
-      item.card_goto === 'av' && types.has(item.card_type))
+      item.card_goto === 'av' && FEED_CARD_TYPES.has(item.card_type))
   } else if (path === '/x/v2/feed/index/story' && Array.isArray(data.items)) {
-    const blocked = new Set(['vertical_ad_av', 'vertical_ad_live', 'vertical_ad_picture'])
     data.items = data.items.filter((item) =>
-      !isContainer(item) || (item.ad_info == null && !blocked.has(item.card_goto)))
+      !isContainer(item) || (item.ad_info == null && !STORY_BLOCKED_CARD_GOTOS.has(item.card_goto)))
     for (const item of data.items) {
       if (!isContainer(item)) continue
       delete item.story_cart_icon
@@ -297,7 +303,7 @@ function cleanApp(path, document) {
     }
   } else if (path === '/x/resource/show/skin') {
     delete data.common_equip
-  } else if (/^\/x\/v2\/account\/mine(\/ipad)?$/.test(path)) {
+  } else if (ACCOUNT_MINE_PATH_PATTERN.test(path)) {
     delete data.answer
     delete data.live_tip
     delete data.vip_section
@@ -318,43 +324,76 @@ function cleanAPI(path, document) {
     replaceGrandchildren(document.data, 'stun.chat.bilibili.com:3478')
   } else if (path === '/pgc/view/v2/app/season' && isContainer(document.data)) {
     delete document.data.payment
+  } else if (
+    path === '/pgc/page/channel' &&
+    isContainer(document.data) &&
+    Array.isArray(document.data.modules)
+  ) {
+    document.data.modules = document.data.modules.filter((module) => {
+      if (!isContainer(module) || module.type === 'TIP') return false
+      if (
+        module.type === 'BANNER' &&
+        isContainer(module.module_data) &&
+        Array.isArray(module.module_data.items)
+      ) {
+        module.module_data.items = module.module_data.items.filter((item) =>
+          !isContainer(item) ||
+          typeof item.url !== 'string' ||
+          !item.url.startsWith('https://www.bilibili.com/blackboard/era/'))
+      }
+      return true
+    })
   }
   return document
 }
 
-function cleanLive(document) {
+function cleanLive(path, document) {
   const data = document.data
   if (!data || typeof data !== 'object') {
     return document
   }
 
-  delete data.play_together_info
-  delete data.play_together_info_v2
-  delete data.activity_banner_info
-  if (jqTruthy(data.function_card)) {
-    replaceChildren(data.function_card, null)
-  }
-  if (
-    isContainer(data.new_tab_info) &&
-    jqTruthy(data.new_tab_info.outer_list) &&
-    Array.isArray(data.new_tab_info.outer_list)
-  ) {
-    data.new_tab_info.outer_list = data.new_tab_info.outer_list.filter(
-      (item) => !isContainer(item) || item.biz_id !== 33,
-    )
-  }
-  if (Array.isArray(data.card_list)) {
-    const blocked = new Set(['banner_v2', 'activity_card_v1'])
+  if (path === '/xlive/open-interface/v2/tracker/conf') {
+    data.domains = ['wss://tracker.chat.bilibili.com']
+  } else if (path === '/xlive/app-interface/v2/index/feed' && Array.isArray(data.card_list)) {
     data.card_list = data.card_list.filter(
-      (item) => !isContainer(item) || !blocked.has(item.card_type),
+      (item) => !isContainer(item) || !LIVE_FEED_BLOCKED_CARD_TYPES.has(item.card_type),
     )
-  }
-  if (jqTruthy(data.show_reserve_status)) data.show_reserve_status = false
-  if (isContainer(data.reserve_info) && jqTruthy(data.reserve_info.show_reserve_status)) {
-    data.reserve_info.show_reserve_status = false
-  }
-  if (isContainer(data.shopping_info) && jqTruthy(data.shopping_info.is_show)) {
-    data.shopping_info.is_show = 0
+  } else if (path === '/xlive/app-room/v1/index/getInfoByRoom') {
+    data.big_card_info = null
+    data.show_reserve_status = false
+    if (isContainer(data.reserve_info)) data.reserve_info.show_reserve_status = false
+    if (isContainer(data.shopping_info)) data.shopping_info.is_show = 0
+    if (isContainer(data.activity_banner_info)) replaceChildren(data.activity_banner_info, null)
+    if (isContainer(data.function_card)) replaceChildren(data.function_card, null)
+    if (isContainer(data.new_tab_info)) {
+      if (Array.isArray(data.new_tab_info.outer_list)) {
+        data.new_tab_info.outer_list = data.new_tab_info.outer_list.filter(
+          (item) => !isContainer(item) || item.biz_id !== 33,
+        )
+      }
+      if (
+        Array.isArray(data.new_tab_info.candidate_list) &&
+        Array.isArray(data.new_tab_info.v2_outer_list)
+      ) {
+        data.new_tab_info.candidate_list = data.new_tab_info.candidate_list.filter(
+          (item) => !isContainer(item) || !ROOM_TAB_BLOCKED_IDS.has(item.biz_id),
+        )
+        for (const item of data.new_tab_info.v2_outer_list) {
+          if (isContainer(item) && Array.isArray(item.indices)) {
+            item.indices = item.indices.filter((id) => !ROOM_TAB_BLOCKED_IDS.has(id))
+          }
+        }
+      }
+    }
+    if (isContainer(data.room_info) && data.room_info.short_id === 255) {
+      data.room_info.background_render_type = 0
+      data.room_info.app_background = 'https://i0.hdslb.com/bfs/new_dyn/2dd8a4aa9fde3587b1a716957a07337013999324.png'
+    }
+  } else if (path === '/xlive/app-room/v1/index/getInfoByUser') {
+    delete data.play_together_info
+    delete data.play_together_info_v2
+    if (isContainer(data.function_card)) replaceChildren(data.function_card, null)
   }
   return document
 }
@@ -375,7 +414,7 @@ function transform(context) {
   } else if (url.hostname === 'api.bilibili.com') {
     cleaned = cleanAPI(url.pathname, document)
   } else if (url.hostname === 'api.live.bilibili.com') {
-    cleaned = cleanLive(document)
+    cleaned = cleanLive(url.pathname, document)
   }
 
   return {

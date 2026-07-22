@@ -4,21 +4,79 @@ kind: Extension
 metadata:
   id: io.5gpn.httpdns-interceptor
   name: HTTPDNS Interceptor
-  version: 2.0.0
-  description: Blocks 117 reviewed HTTPDNS domain/IP routes and seven
-    hostname-based request paths.
+  version: 2.1.0
+  description: DNS-steers 58 HTTPDNS domains and rejects 59 gateway-visible
+    IP/CIDR routes plus seven hostname-based request paths.
 
 permissions:
   persistentStorage: false
 
 traffic:
   captureHosts:
+    - aedns.weixin.qq.com
     - api.weibo.cn
+    - apidns-js.kwd.inkuai.com
+    - apidns.kwd.inkuai.com
     - appconf.mail.163.com
     - cdn.wup.huya.com
+    - dns.iqiyi.com
+    - dns.jd.com
+    - dns.qiyipic.iqiyi.com
+    - dns.weibo.cn
+    - dns.weixin.qq.com
+    - dns.weixin.qq.com.cn
+    - dns2.q2cdn.com
+    - doh.iqiyi.com
+    - doh.ptqy.gitv.tv
+    - dotserver.douyucdn.cn
     - gslbali.ximalaya.com
+    - hd.xiaojukeji.com
+    - hdns.ksyun.com
+    - httpdns-api.aliyuncs.com
+    - httpdns-browser.platform.dbankcloud.cn
+    - httpdns-sc.aliyuncs.com
+    - httpdns-sdk.n.netease.com
+    - httpdns-v6.gslb.yy.com
+    - httpdns.alicdn.com
+    - httpdns.baidu.com
+    - httpdns.baidubce.com
+    - httpdns.bcelive.com
+    - httpdns.bilivideo.com
+    - httpdns.browser.miui.com
+    - httpdns.c.cdnhwc2.com
+    - httpdns.calorietech.com
+    - httpdns.cctv.com
+    - httpdns.danuoyi.tbcache.com
+    - httpdns.huaweicloud.com
+    - httpdns.kg.qq.com
+    - httpdns.kwd.inkuai.com
+    - httpdns.meituan.com
+    - httpdns.music.163.com
+    - httpdns.n.netease.com
+    - httpdns.n.shifen.com
+    - httpdns.ocloud.heytapmobi.com
+    - httpdns.ocloud.oppomobile.com
+    - httpdns.platform.dbankcloud.cn
+    - httpdns.platform.dbankcloud.com
+    - httpdns.push.heytapmobi.com
+    - httpdns.push.oppomobile.com
+    - httpdns.yunxindns.com
+    - httpdns.zybang.com
+    - httpdns1.cc.cdnhwc5.com
+    - httpdnsmultiapi.meituan.com
+    - httpdnsmultiapivip.meituan.com
+    - httpsdns.baidu.com
+    - kuaishou.httpdns.pro
+    - lofter.httpdns.c.163.com
     - msglb.91160.com
+    - music.httpdns.c.163.com
+    - resolver.msg.xiaomi.net
+    - serveraddr.service.kugou.com
+    - tp2p.kg.qq.com
+    - twns.p2ptun.qq.com
+    - union-httpdns.gslb.yy.com
     - xmc.ximalaya.com
+    - yyapp-httpdns.gslb.yy.com
   routingRules:
     - action: reject
       domain: yyapp-httpdns.gslb.yy.com
@@ -263,7 +321,7 @@ actions:
         - cdn.wup.huya.com
       schemes:
         - http
-      pathRegex: '^/launch/queryHttpDns'
+      pathRegex: ^/launch/queryHttpDns
     script:
       source: ./block.js
       bodyMode: none
@@ -277,7 +335,7 @@ actions:
       schemes:
         - http
         - https
-      pathRegex: '^/monitor/monitor\.jsp'
+      pathRegex: ^/monitor/monitor\.jsp
     script:
       source: ./block.js
       bodyMode: none
@@ -290,7 +348,7 @@ actions:
         - xmc.ximalaya.com
       schemes:
         - http
-      pathRegex: '^/xmlymain-login-web/login/'
+      pathRegex: ^/xmlymain-login-web/login/
     script:
       source: ./block.js
       bodyMode: none
@@ -303,7 +361,7 @@ actions:
         - api.weibo.cn
       schemes:
         - http
-      pathRegex: '^/(?:2/)?httpdns/config(?:\?.*)?$'
+      pathRegex: ^/(?:2/)?httpdns/config
     script:
       source: ./block.js
       bodyMode: none
@@ -317,7 +375,7 @@ actions:
       schemes:
         - http
         - https
-      pathRegex: '^/mailmaster/api/http/urlConfig\.do$'
+      pathRegex: ^/mailmaster/api/http/urlConfig\.do$
     script:
       source: ./block.js
       bodyMode: none
@@ -330,7 +388,7 @@ actions:
         - msglb.91160.com
       schemes:
         - https
-      pathRegex: '^/msg/outer/broker/get$'
+      pathRegex: ^/msg/outer/broker/get$
     script:
       source: ./block.js
       bodyMode: none
@@ -343,7 +401,7 @@ actions:
         - gslbali.ximalaya.com
       schemes:
         - https
-      pathRegex: '^/linkeye-cloud/httpdns/'
+      pathRegex: ^/linkeye-cloud/httpdns/
     script:
       source: ./block.js
       bodyMode: none

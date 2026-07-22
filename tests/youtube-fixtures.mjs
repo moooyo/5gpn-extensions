@@ -6,13 +6,14 @@ import { parse } from 'yaml'
 
 const root = path.resolve(import.meta.dirname, '..')
 const source = await readFile(path.join(root, 'youtube-cleaner', 'clean-player.js'), 'utf8')
-const blockSource = await readFile(path.join(root, 'youtube-cleaner', 'block-initplayback.js'), 'utf8')
+const requestSource = await readFile(path.join(root, 'youtube-cleaner', 'request-handler.js'), 'utf8')
 const manifest = parse(await readFile(path.join(root, 'youtube-cleaner', 'extension.yaml'), 'utf8'))
 
-assert.equal(manifest.metadata.version, '2.0.0')
+assert.equal(manifest.metadata.version, '3.0.0')
 assert.equal(manifest.permissions.persistentStorage, true)
-assert.deepEqual(manifest.permissions.network.origins, ['https://translate.google.com'])
+assert.deepEqual(manifest.permissions.network.origins, ['https://init-stream.maasea.workers.dev'])
 assert.deepEqual(manifest.traffic.captureHosts, ['*.googlevideo.com', 'youtubei.googleapis.com'])
+assert.equal(manifest.traffic.routingRules, undefined)
 assert.deepEqual(
   manifest.settings.map((setting) => [setting.key, setting.default]),
   [
@@ -20,7 +21,6 @@ assert.deepEqual(
     ['blockImmersive', true],
     ['blockShorts', false],
     ['captionLang', 'off'],
-    ['lyricLang', 'off'],
     ['debug', false],
   ],
 )
@@ -37,9 +37,19 @@ for (const endpoint of [
   '/youtubei/v1/guide',
   '/youtubei/v1/account/get_setting',
   '/youtubei/v1/get_watch',
+  '/youtubei/v1/config',
+  '/youtubei/v1/log_event',
 ]) {
   assert(new RegExp(responseAction.match.pathRegex).test(endpoint), `manifest does not match ${endpoint}`)
 }
+const initAction = manifest.actions.find((action) => action.id === 'prepare-onesie-initplayback')
+assert(initAction)
+assert.equal(initAction.script.bodyMode, 'binary')
+assert(new RegExp(initAction.match.pathRegex).test('/initplayback?a=1&ack=1'))
+assert(!new RegExp(initAction.match.pathRegex).test('/initplayback?a=1&oad=1'))
+const logEventAction = manifest.actions.find((action) => action.id === 'prepare-youtube-log-event')
+assert(logEventAction)
+assert.equal(logEventAction.script.bodyMode, 'none')
 
 function loadTransform(script) {
   const messages = []
@@ -71,7 +81,7 @@ function loadTransform(script) {
 }
 
 const { transform, messages } = loadTransform(source)
-const { transform: blockInitPlayback } = loadTransform(blockSource)
+const { transform: transformRequest } = loadTransform(requestSource)
 
 function concat(...parts) {
   const flat = parts.flatMap((part) => [...part])
@@ -175,7 +185,6 @@ function defaultSettings(overrides = {}) {
     blockImmersive: true,
     blockShorts: false,
     captionLang: 'off',
-    lyricLang: 'off',
     debug: false,
     ...overrides,
   }
@@ -206,12 +215,14 @@ function makeStorage(initial = {}) {
 
 function run(endpoint, body, options = {}) {
   const context = {
-    request: { url: `https://youtubei.googleapis.com/youtubei/v1/${endpoint}` },
+    request: {
+      url: `https://youtubei.googleapis.com/youtubei/v1/${endpoint}`,
+      headers: options.headers || {},
+    },
     response: { body: new Uint8Array(body) },
     settings: defaultSettings(options.settings),
   }
   if (options.storage) context.storage = options.storage.api
-  if (options.network) context.network = options.network
   return transform(context)
 }
 
@@ -230,17 +241,6 @@ function makeRichRenderer({ eml = '', videoContent = null } = {}) {
   const renderInfo = eml === null ? [] : b(2, b(183314536, s(1, eml)))
   const videoInfo = videoContent === null ? [] : b(1, b(168777401, b(5, videoContent)))
   return b(153515154, b(172660663, concat(videoInfo, renderInfo)))
-}
-
-function makeTimedBrowseContent(text, footer = 'Footer') {
-  const timed = b(465160965, b(4, concat(b(1, s(1, text)), s(2, footer))))
-  return makeBrowseContentWithItems([makeRichRenderer({ eml: '', videoContent: timed })])
-}
-
-function timedTextFromRichItem(item) {
-  const renderer = child(child(item.payload, 153515154), 172660663)
-  const timed = child(child(child(child(renderer, 1), 168777401), 5), 465160965)
-  return stringValue(child(child(timed, 4), 1), 1)
 }
 
 function makeItemSection(richItems) {
@@ -271,16 +271,125 @@ function richItemsFromBrowseContent(content) {
   return all(itemSection, 1)
 }
 
+// Request handling learns the same two platform slots as upstream, strips the
+// log_event negotiation headers, and rewrites only matching encrypted keys to
+// the reviewed Worker origin.
 {
-  const result = blockInitPlayback({
-    request: { url: 'https://r1.googlevideo.com/initplayback?a=1&oad=1' },
+  const clientKey = new Uint8Array([1, 2, 3, 4])
+  const encryptKey = new Uint8Array([9, 8, 7, 6])
+  const otherClientKey = new Uint8Array([5, 4, 3, 2])
+  const otherEncryptKey = new Uint8Array([6, 7, 8, 9])
+  const config = {
+    youtube: {
+      clientKey: Buffer.from(clientKey).toString('base64'),
+      encryptKey: Buffer.from(encryptKey).toString('base64'),
+    },
+    youtubeMusic: {
+      clientKey: Buffer.from(otherClientKey).toString('base64'),
+      encryptKey: Buffer.from(otherEncryptKey).toString('base64'),
+    },
+  }
+  const storage = makeStorage({ YouTubeConfig: JSON.stringify(config) })
+  const originalURL = 'https://r1.googlevideo.com/initplayback?a=one%20two&ack=1&token=secret'
+  const result = transformRequest({
+    request: {
+      url: originalURL,
+      headers: { 'User-Agent': 'com.google.ios.youtube/20.1' },
+      body: new Uint8Array(b(3, b(5, encryptKey))),
+    },
+    settings: defaultSettings({ captionLang: 'zh-Hans' }),
+    storage: storage.api,
   })
-  assert.equal(result.response.status, 200)
-  assert.equal(result.response.body, '')
-  assert.equal(
-    blockInitPlayback({ request: { url: 'https://nested.r1.googlevideo.com/initplayback?a=1&oad=1' } }),
-    null,
+  const rewritten = new URL(result.request.url)
+  assert.equal(rewritten.origin, 'https://init-stream.maasea.workers.dev')
+  assert.equal(rewritten.searchParams.get('ck'), config.youtube.clientKey)
+  assert.equal(rewritten.searchParams.get('target'), originalURL)
+  assert.equal(rewritten.searchParams.get('captionLang'), 'zh-Hans')
+  assert.equal(rewritten.searchParams.get('blockUpload'), 'true')
+  assert.equal(rewritten.searchParams.get('blockImmersive'), 'true')
+  assert.equal(rewritten.searchParams.get('blockShorts'), 'false')
+  assert.deepEqual(JSON.parse(storage.values.get('YouTubeConfig')), config)
+
+  const duplicateEnvelope = concat(
+    b(3, b(5, new Uint8Array([0]))),
+    b(3, b(5, encryptKey)),
   )
+  assert.equal(
+    new URL(transformRequest({
+      request: { url: originalURL, headers: {}, body: duplicateEnvelope },
+      settings: defaultSettings(),
+      storage: makeStorage({ YouTubeConfig: JSON.stringify(config) }).api,
+    }).request.url).origin,
+    'https://init-stream.maasea.workers.dev',
+  )
+
+  const mismatchStorage = makeStorage({ YouTubeConfig: JSON.stringify(config) })
+  const mismatch = transformRequest({
+    request: {
+      url: originalURL,
+      headers: { 'User-Agent': 'youtube music ios' },
+      body: new Uint8Array(b(3, b(5, [0, 0, 0, 0]))),
+    },
+    settings: defaultSettings(),
+    storage: mismatchStorage.api,
+  })
+  assert.equal(mismatch.response.status, 200)
+  assert.equal(mismatch.response.headers['Content-Type'], 'text/plain')
+  assert.deepEqual([...mismatch.response.body], [])
+  assert.deepEqual(JSON.parse(mismatchStorage.values.get('YouTubeConfig')), { youtube: config.youtube })
+
+  const coldStorage = makeStorage()
+  const cold = transformRequest({
+    request: { url: originalURL, headers: {}, body: new Uint8Array(b(3, b(5, encryptKey))) },
+    settings: defaultSettings(),
+    storage: coldStorage.api,
+  })
+  assert.equal(cold.response.status, 200)
+  assert.equal(coldStorage.values.has('YouTubeConfig'), false)
+  assert.equal(transformRequest({
+    request: {
+      url: 'https://nested.r1.googlevideo.com/initplayback?a=1&ack=1',
+      headers: {},
+      body: new Uint8Array(),
+    },
+    settings: defaultSettings(),
+  }), null)
+
+  assert.throws(
+    () => transformRequest({
+      request: { url: originalURL, headers: {}, body: new Uint8Array([0x1a, 0x05, 0x2a]) },
+      settings: defaultSettings(),
+      storage: makeStorage({ YouTubeConfig: JSON.stringify(config) }).api,
+    }),
+    /exceeds its message/,
+  )
+
+  const coldLog = transformRequest({
+    request: {
+      url: 'https://youtubei.googleapis.com/youtubei/v1/log_event?alt=proto',
+      headers: {
+        'Content-Encoding': 'gzip',
+        'X-YouTube-Hot-Hash-Data': 'cold-hash',
+        'X-Keep': 'yes',
+      },
+    },
+    settings: defaultSettings(),
+    storage: makeStorage().api,
+  })
+  assert.deepEqual({ ...coldLog.request.headers }, { 'X-Keep': 'yes' })
+
+  const warmLog = transformRequest({
+    request: {
+      url: 'https://youtubei.googleapis.com/youtubei/v1/log_event',
+      headers: {
+        'content-encoding': 'br',
+        'x-youtube-hot-hash-data': 'warm-hash',
+      },
+    },
+    settings: defaultSettings(),
+    storage: makeStorage({ YouTubeConfig: JSON.stringify(config) }).api,
+  })
+  assert.deepEqual({ ...warmLog.request.headers }, { 'x-youtube-hot-hash-data': 'warm-hash' })
 }
 
 // Player: ads, tracking, playback abilities, captions, audio defaults, and
@@ -463,6 +572,27 @@ function richItemsFromBrowseContent(content) {
   assert.equal(stringValue(child(child(renderer, 2), 183314536), 1), 'shorts_pivot_item.eml')
 }
 
+// Larger persisted caches use the same membership semantics through the
+// allocation-bounded indexed lookup path.
+{
+  const state = JSON.stringify({
+    version: '1.0',
+    whiteNo: [...Array.from({ length: 17 }, (_, index) => 1000 + index), 101],
+    blackNo: [...Array.from({ length: 17 }, (_, index) => 2000 + index), 102],
+    whiteEml: [],
+    blackEml: ['inline_injection_entrypoint_layout.eml'],
+  })
+  const storage = makeStorage({ YouTubeAdvertiseInfo: state })
+  const browse = b(9, makeBrowseContentWithItems([
+    makeRichUnknown(101, false, 8),
+    makeRichUnknown(102, false, 8),
+  ]))
+  const result = run('browse', browse, { storage })
+  const remaining = richItemsFromBrowseContent(child(result.response.body, 9))
+  assert.equal(remaining.length, 1)
+  assert.equal(parseFields(remaining[0].payload)[0].number, 101)
+}
+
 // A previously unseen EML is learned from an unknown VideoContent field.
 {
   const storage = makeStorage()
@@ -542,175 +672,20 @@ function richItemsFromBrowseContent(content) {
   assert.equal(all(child(continuedSection, 50195462), 1).length, 0)
 }
 
-// Token-free, exact-origin lyric translation is exercised with a description
-// response. The request must never contain the excluded upstream token.
+// Shorts removes only entries explicitly marked as advertisements. A missing
+// adClientParams message and an explicit false value are both retained.
 {
-  const param = concat(s(1, 'browse_id'), s(2, 'MPLYt_fixture'))
-  const responseContext = b(6, b(2, param))
-  const musicShelf = concat(b(3, makeLabel('你好')), b(10, makeLabel('Footer')))
-  const supported = b(221496734, musicShelf)
-  const content = b(49399797, b(1, supported))
-  const browse = concat(b(1, responseContext), b(9, content))
-  const storage = makeStorage()
-  let observed
-  const network = {
-    request(options) {
-      observed = options
-      return {
-        status: 200,
-        text: JSON.stringify([[['Hello', '你好', null, null, 10]], null, 'zh-CN']),
-      }
-    },
-  }
-  const result = run('browse', browse, {
-    storage,
-    network,
-    settings: { lyricLang: 'en' },
-  })
-  assert.equal(observed.method, 'GET')
-  assert(observed.url.startsWith('https://translate.google.com/translate_a/single?'))
-  assert(observed.url.includes('tl=en'))
-  assert(!observed.url.includes('tk='))
-  const outputShelf = child(child(child(result.response.body, 9), 49399797), 1)
-  const renderer = child(outputShelf, 221496734)
-  assert.equal(stringValue(child(child(renderer, 3), 1), 1), '你好Hello')
-  assert.equal(stringValue(child(child(renderer, 10), 1), 1), 'Footer & Translated by Google')
-
-  assert.throws(
-    () => run('browse', browse, { storage: makeStorage(), settings: { lyricLang: 'en' } }),
-    /network permission/,
-  )
-  assert.throws(
-    () => run('browse', browse, {
-      storage: makeStorage(),
-      network: { request() { return { status: 503, text: 'unavailable' } } },
-      settings: { lyricLang: 'en' },
-    }),
-    /unusable response/,
-  )
-  assert.throws(
-    () => run('browse', browse, {
-      storage: makeStorage(),
-      network: { request() { return { status: 200, text: '{bad json' } } },
-      settings: { lyricLang: 'en' },
-    }),
-    /JSON/,
-  )
-
-  const oversizedShelf = concat(b(3, makeLabel('你'.repeat(1500))), b(10, makeLabel('Footer')))
-  const oversizedBrowse = concat(
-    b(1, responseContext),
-    b(9, b(49399797, b(1, b(221496734, oversizedShelf)))),
-  )
-  assert.throws(
-    () => run('browse', oversizedBrowse, {
-      storage: makeStorage(),
-      network,
-      settings: { lyricLang: 'en' },
-    }),
-    /URL exceeds/,
-  )
-}
-
-// Timed lyrics preserve each original line, append its translation, and mark
-// the footer using the same exact-origin request path.
-{
-  const param = concat(s(1, 'browse_id'), s(2, 'MPLYt_timed'))
-  const responseContext = b(6, b(2, param))
-  const timed = concat(b(1, s(1, '一')), b(1, s(1, '二')), s(2, 'Lyrics'))
-  const videoContent = b(465160965, b(4, timed))
-  const content = makeBrowseContentWithItems([makeRichRenderer({ eml: '', videoContent })])
-  const network = {
-    request() {
-      return {
-        status: 200,
-        text: JSON.stringify([[['One', '一'], ['Two', '二']], null, 'zh-CN']),
-      }
-    },
-  }
-  const result = run('browse', concat(b(1, responseContext), b(9, content)), {
-    storage: makeStorage(),
-    network,
-    settings: { lyricLang: 'en' },
-  })
-  const rich = richItemsFromBrowseContent(child(result.response.body, 9))[0].payload
-  const renderer = child(child(rich, 153515154), 172660663)
-  const outputTimed = child(child(child(child(renderer, 1), 168777401), 5), 465160965)
-  const lyricContent = child(outputTimed, 4)
-  assert.deepEqual(
-    all(lyricContent, 1).map((field) => stringValue(field.payload, 1)),
-    ['一\nOne', '二\nTwo'],
-  )
-  assert.equal(stringValue(lyricContent, 2), 'Lyrics & Translated by Google')
-}
-
-// The pinned generic iterator pushes candidates in property/array order and
-// consumes them LIFO. The last browse_id and last lyrics candidate therefore
-// win when a response contains multiple candidates.
-{
-  const params = concat(
-    b(2, concat(s(1, 'browse_id'), s(2, 'NOT_MUSIC'))),
-    b(2, concat(s(1, 'browse_id'), s(2, 'MPLYt_lifo'))),
-  )
-  const responseContext = b(6, params)
-  const firstTimed = b(465160965, b(4, concat(b(1, s(1, 'first')), s(2, 'First footer'))))
-  const secondTimed = b(465160965, b(4, concat(b(1, s(1, 'second')), s(2, 'Second footer'))))
-  const content = makeBrowseContentWithItems([
-    makeRichRenderer({ eml: '', videoContent: firstTimed }),
-    makeRichRenderer({ eml: '', videoContent: secondTimed }),
-  ])
-  const network = {
-    request() {
-      return { status: 200, text: JSON.stringify([[['Last', 'second']], null, 'en']) }
-    },
-  }
-  const result = run('browse', concat(b(1, responseContext), b(9, content)), {
-    storage: makeStorage(),
-    network,
-    settings: { lyricLang: 'de' },
-  })
-  const items = richItemsFromBrowseContent(child(result.response.body, 9))
-  assert.equal(timedTextFromRichItem(items[0]), 'first')
-  assert.equal(timedTextFromRichItem(items[1]), 'second\nLast')
-}
-
-// Interleaved duplicate singular fields retain the property position of their
-// first occurrence. For #9 A, #10 B, #9 C, pinned Object.keys is #9 then #10,
-// so LIFO traversal selects B before the merged A/C value.
-{
-  const responseContext = b(6, b(2, concat(s(1, 'browse_id'), s(2, 'MPLYt_interleaved'))))
-  const contentA = makeTimedBrowseContent('A')
-  const contentB = makeTimedBrowseContent('B')
-  const contentC = makeTimedBrowseContent('C')
-  const browse = concat(
-    b(1, responseContext),
-    b(9, contentA),
-    b(10, contentB),
-    b(9, contentC),
-  )
-  const result = run('browse', browse, {
-    storage: makeStorage(),
-    network: {
-      request() {
-        return { status: 200, text: JSON.stringify([[['Translated B', 'B']], null, 'en']) }
-      },
-    },
-    settings: { lyricLang: 'de' },
-  })
-  const untouchedNine = all(result.response.body, 9)
-  assert.equal(untouchedNine.length, 2)
-  assert.deepEqual([...untouchedNine[0].payload], [...contentA])
-  assert.deepEqual([...untouchedNine[1].payload], [...contentC])
-  const selected = richItemsFromBrowseContent(child(result.response.body, 10))[0]
-  assert.equal(timedTextFromRichItem(selected), 'B\nTranslated B')
-}
-
-// Shorts retains an empty-but-present overlay and removes a missing overlay.
-{
-  const keep = b(1, b(139608561, b(8, [])))
-  const drop = b(1, b(139608561, []))
-  const result = run('reel/reel_watch_sequence', concat(b(2, keep), b(2, drop)))
-  assert.equal(all(result.response.body, 2).length, 1)
+  const ad = b(1, b(139608561, b(16, v(1, 1))))
+  const nonAd = b(1, b(139608561, b(16, [])))
+  const missingParams = b(1, b(139608561, []))
+  const legacyOverlay = b(1, b(139608561, b(8, [])))
+  const result = run('reel/reel_watch_sequence', concat(
+    b(2, ad),
+    b(2, nonAd),
+    b(2, missingParams),
+    b(2, legacyOverlay),
+  ))
+  assert.equal(all(result.response.body, 2).length, 3)
 }
 
 function makeGuideRenderer(browseID, useLabel = false) {
@@ -778,6 +753,73 @@ function makeGuideRenderer(browseID, useLabel = false) {
   const emptyResult = run('account/get_setting', new Uint8Array())
   assert.equal(all(emptyResult.response.body, 6).length, 1)
   assert(all(all(emptyResult.response.body, 6)[0].payload, 88478200).length === 1)
+}
+
+// config and log_event responses cache complete Onesie key pairs under the
+// platform selected by the request User-Agent without rewriting the body.
+{
+  const videoConfig = {
+    youtube: {
+      clientKey: Buffer.from([1]).toString('base64'),
+      encryptKey: Buffer.from([2]).toString('base64'),
+    },
+  }
+  const storage = makeStorage({ YouTubeConfig: JSON.stringify(videoConfig) })
+  const clientKey = new Uint8Array([10, 11, 12, 13])
+  const encryptKey = new Uint8Array([20, 21, 22, 23])
+  const onesie = concat(
+    b(1, clientKey),
+    b(2, encryptKey),
+    v(3, 3600),
+    v(30, 1),
+  )
+  const configBody = b(1, b(16, b(7, b(138536474, b(146311580, onesie)))))
+  assert.equal(run('config', configBody, {
+    storage,
+    headers: { 'user-agent': 'com.google.ios.youtubemusic/20.1' },
+    settings: { debug: true },
+  }), null)
+  assert.deepEqual(JSON.parse(storage.values.get('YouTubeConfig')), {
+    ...videoConfig,
+    youtubeMusic: {
+      clientKey: Buffer.from(clientKey).toString('base64'),
+      encryptKey: Buffer.from(encryptKey).toString('base64'),
+    },
+  })
+  assert(messages.some((entry) => entry[0] === 'info' && String(entry[1]).includes('YouTube config transform')))
+
+  const videoStorage = makeStorage()
+  const splitConfigBody = b(1, b(16, b(7, b(138536474, concat(
+    b(146311580, b(1, clientKey)),
+    b(146311580, b(2, encryptKey)),
+  )))))
+  assert.equal(run('log_event', splitConfigBody, {
+    storage: videoStorage,
+    headers: { 'User-Agent': 'com.google.ios.youtube/20.1' },
+  }), null)
+  assert.deepEqual(JSON.parse(videoStorage.values.get('YouTubeConfig')), {
+    youtube: {
+      clientKey: Buffer.from(clientKey).toString('base64'),
+      encryptKey: Buffer.from(encryptKey).toString('base64'),
+    },
+  })
+
+  const incomplete = b(1, b(16, b(7, b(138536474, b(146311580, b(1, clientKey))))))
+  const incompleteStorage = makeStorage()
+  assert.equal(run('config', incomplete, { storage: incompleteStorage }), null)
+  assert.equal(incompleteStorage.values.has('YouTubeConfig'), false)
+  assert(messages.some((entry) => entry[0] === 'warn' && String(entry[1]).includes('complete Onesie key')))
+
+  assert.throws(
+    () => run('config', configBody),
+    /persistent storage permission/,
+  )
+  assert.throws(
+    () => run('config', configBody, {
+      storage: makeStorage({ YouTubeConfig: '{bad json' }),
+    }),
+    /JSON/,
+  )
 }
 
 // get_watch transforms nested Player and Next and persists discoveries made by

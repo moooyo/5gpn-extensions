@@ -120,7 +120,7 @@
       "additionalProperties": false,
       "required": ["captureHostCount", "actionCount", "settingCount", "networkOrigins", "persistentStorage", "upstreamMappingCount", "routingRuleCount", "egressGroupRequired"],
       "properties": {
-        "captureHostCount": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "captureHostCount": { "type": "integer", "minimum": 1, "maximum": 512 },
         "actionCount": { "type": "integer", "minimum": 0, "maximum": 256 },
         "settingCount": { "type": "integer", "minimum": 0, "maximum": 256 },
         "networkOrigins": {

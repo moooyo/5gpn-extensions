@@ -110,6 +110,15 @@ export interface TFInfoReply {
      */
     tfPanelCustomized?: Uint8Array;
 }
+/**
+ * @generated from protobuf message bilibili.app.view.v1.RelatesFeedReply
+ */
+export interface RelatesFeedReply {
+    /**
+     * @generated from protobuf field: repeated bilibili.app.view.v1.Relate list = 1
+     */
+    list: Relate[];
+}
 // @generated message type with reflection information, may provide speed optimized methods
 class ViewReply$Type extends MessageType<ViewReply> {
     constructor() {
@@ -470,3 +479,50 @@ class TFInfoReply$Type extends MessageType<TFInfoReply> {
  * @generated MessageType for protobuf message bilibili.app.view.v1.TFInfoReply
  */
 export const TFInfoReply = /* @__PURE__ */ new TFInfoReply$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RelatesFeedReply$Type extends MessageType<RelatesFeedReply> {
+    constructor() {
+        super("bilibili.app.view.v1.RelatesFeedReply", [
+            { no: 1, name: "list", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Relate }
+        ]);
+    }
+    create(value?: PartialMessage<RelatesFeedReply>): RelatesFeedReply {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.list = [];
+        if (value !== undefined)
+            reflectionMergePartial<RelatesFeedReply>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RelatesFeedReply): RelatesFeedReply {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated bilibili.app.view.v1.Relate list */ 1:
+                    message.list.push(Relate.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RelatesFeedReply, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated bilibili.app.view.v1.Relate list = 1; */
+        for (let i = 0; i < message.list.length; i++)
+            Relate.internalBinaryWrite(message.list[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message bilibili.app.view.v1.RelatesFeedReply
+ */
+export const RelatesFeedReply = /* @__PURE__ */ new RelatesFeedReply$Type();
