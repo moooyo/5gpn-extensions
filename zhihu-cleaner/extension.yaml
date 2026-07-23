@@ -1,0 +1,106 @@
+apiVersion: 5gpn.io/v1
+kind: Extension
+
+metadata:
+  id: io.5gpn.zhihu-cleaner
+  name: Zhihu Cleaner
+  version: 1.0.0
+  description: Removes selected Zhihu transport overrides, advertisements, promotions,
+    and navigation entries.
+
+permissions:
+  persistentStorage: false
+
+traffic:
+  captureHosts:
+    - api.zhihu.com
+    - m-cloud.zhihu.com
+    - page-info.zhihu.com
+    - www.zhihu.com
+    - zhida.zhihu.com
+
+actions:
+  - id: mock-api-json
+    phase: request
+    match:
+      hosts:
+        - api.zhihu.com
+      schemes:
+        - https
+      pathRegex: '^/(?:commercial_api/.*|next-render\?id=\d+&type=answer.*|search/preset_words\?.*|search/related_queries/question/\d+|content-distribution-core/bubble/common/show|people/homepage_entry_v\d|kvip/right/my_card\?.*|unlimited/go/my_card/v\d\?.*)$'
+    script:
+      source: ./mock-json.js
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+
+  - id: mock-www-json
+    phase: request
+    match:
+      hosts:
+        - www.zhihu.com
+      schemes:
+        - https
+      pathRegex: '^/api/v\d/members/homepage_card$'
+    script:
+      source: ./mock-json.js
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+
+  - id: mock-zhida-json
+    phase: request
+    match:
+      hosts:
+        - zhida.zhihu.com
+      schemes:
+        - https
+      pathRegex: '^/ai_ingress/(?:knowledge/square/categories/feeds\?categoryId=1%7D|ai_chat/guidance)$'
+    script:
+      source: ./mock-json.js
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+
+  - id: clean-m-cloud-config
+    phase: response
+    match:
+      hosts:
+        - m-cloud.zhihu.com
+      schemes:
+        - https
+      pathRegex: '^/api/cloud/zhihu/config/all\?.*$'
+    script:
+      source: ./clean-json.js
+      bodyMode: text
+      timeoutMs: 1000
+      maxBodyBytes: 8388608
+
+  - id: clean-answer-responses
+    phase: response
+    match:
+      hosts:
+        - api.zhihu.com
+        - page-info.zhihu.com
+      schemes:
+        - https
+      pathRegex: '^/answers/v\d/\d+(?:\?.*)?$'
+    script:
+      source: ./clean-json.js
+      bodyMode: text
+      timeoutMs: 1000
+      maxBodyBytes: 8388608
+
+  - id: clean-api-responses
+    phase: response
+    match:
+      hosts:
+        - api.zhihu.com
+      schemes:
+        - https
+      pathRegex: '^/(?:root/tab/v\d(?:\?.+)?|topstory/recommend\?.*|questions/\d+/feeds\?.*|comment_v\d/(?:answers|pins)/\d+/root_comment\?.*|(?:articles|pins)/v\d/\d+\?.*|comment_v\d/answers/\d+/list-headers|podcasts/hub/v\d|search/recommend_query/v\d\?.*|search_v\d\?.*|search/tabs\?.*|people/self)$'
+    script:
+      source: ./clean-json.js
+      bodyMode: text
+      timeoutMs: 1000
+      maxBodyBytes: 8388608

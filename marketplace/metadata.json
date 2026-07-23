@@ -33,9 +33,19 @@
       "tags": ["apple", "region", "testflight"]
     },
     {
+      "directory": "weatherkit",
+      "licenseSpdx": "Apache-2.0",
+      "tags": ["apple", "weather", "weatherkit"]
+    },
+    {
       "directory": "youtube-cleaner",
       "licenseSpdx": "Apache-2.0",
       "tags": ["ads", "media", "youtube"]
+    },
+    {
+      "directory": "zhihu-cleaner",
+      "licenseSpdx": "CC-BY-NC-SA-4.0",
+      "tags": ["ads", "media", "zhihu"]
     }
   ]
 }

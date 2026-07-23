@@ -32,6 +32,11 @@ jobs:
           npx tsc --noEmit
           npm run verify:sources
           git diff --exit-code -- ../protobuf.js generated bundle-inputs.json
+      - name: Verify WeatherKit native bundle reproducibility
+        working-directory: weatherkit/source
+        run: |
+          npm ci --ignore-scripts
+          npm run build:check
       - name: Generate core integration marketplace
         run: npm run marketplace:build -- --revision "$GITHUB_SHA" --output "$RUNNER_TEMP/marketplace.json"
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd

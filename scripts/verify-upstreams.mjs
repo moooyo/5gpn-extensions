@@ -54,8 +54,11 @@ for (const directory of directories) {
       .map((match) => match[0].replace(/[.,;:]+$/, ''))
       .filter((url) => !url.includes('/moooyo/5gpn-extensions/')),
   )
+  for (const match of readme.matchAll(/https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/releases\/download\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.@-]+/g)) {
+    urls.add(match[0].replace(/[.,;:]+$/, ''))
+  }
   for (const url of urls) {
-    const response = await fetch(url, { redirect: 'error' })
+    const response = await fetch(url, { redirect: url.includes('/releases/download/') ? 'follow' : 'error' })
     if (!response.ok) throw new Error(`${directory.name}: upstream fetch returned ${response.status} for ${url}`)
     const body = new Uint8Array(await response.arrayBuffer())
     const digest = createHash('sha256').update(body).digest('hex')
@@ -67,5 +70,5 @@ for (const directory of directories) {
   }
 }
 
-if (verified === 0) throw new Error('no immutable upstream URLs were verified')
-console.log(`Verified ${verified} immutable upstream artifacts`)
+if (verified === 0) throw new Error('no pinned upstream URLs were verified')
+console.log(`Verified ${verified} pinned upstream artifacts`)

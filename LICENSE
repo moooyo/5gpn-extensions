@@ -18,11 +18,15 @@ owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.
   [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt), and BSD texts are in
   [`LICENSES/BSD-3-Clause.txt`](LICENSES/BSD-3-Clause.txt) and the owning
   extension's `source/licenses/` directory.
-- `youtube-cleaner` uses `Apache-2.0`. The complete text is in
-  [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
-- `ad-platform-blocker`, `httpdns-interceptor`, and
-  `testflight-region-unlock` are KeleeOne-derived adapted material under
-  `CC-BY-NC-SA-4.0`. The complete text is in
+- `weatherkit` and `youtube-cleaner` primarily use `Apache-2.0`. The generated
+  `weatherkit/weather.js` bundle is mapped as `Apache-2.0 AND MIT` because it
+  retains Rspack bootstrap code and esbuild-emitted helper code, together with
+  their ByteDance and Evan Wallace MIT notices. The complete Apache text is in
+  [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt), and the component MIT
+  texts are retained under `weatherkit/source/licenses/`.
+- `ad-platform-blocker`, `httpdns-interceptor`, `testflight-region-unlock`,
+  and the separately authorized `zhihu-cleaner` port are Kelee-derived adapted
+  material under `CC-BY-NC-SA-4.0`. The complete text is in
   [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt).
 
 One extension's license never overrides another extension's license. A

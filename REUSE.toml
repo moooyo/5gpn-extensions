@@ -183,6 +183,67 @@ SPDX-License-Identifier = "Apache-2.0 AND BSD-3-Clause"
 
 [[annotations]]
 path = [
+  "weatherkit/README.md",
+  "weatherkit/extension.yaml",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+  "weatherkit/availability.js",
+  "weatherkit/request.js",
+]
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "NSRingo WeatherKit contributors",
+  "2026 moooyo",
+]
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "weatherkit/weather.js"
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "NSRingo WeatherKit contributors",
+  "The FlatBuffers project",
+  "2022-present Bytedance Inc and its affiliates",
+  "2020 Evan Wallace",
+  "2026 moooyo",
+]
+SPDX-License-Identifier = "Apache-2.0 AND MIT"
+
+[[annotations]]
+path = [
+  "weatherkit/source/build.mjs",
+  "weatherkit/source/native-aq-entry.mjs",
+  "weatherkit/source/native-platform.mjs",
+  "weatherkit/source/native-runtime.mjs",
+  "weatherkit/source/package-lock.json",
+  "weatherkit/source/package.json",
+]
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "NSRingo WeatherKit contributors",
+  "2026 moooyo",
+]
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "weatherkit/source/licenses/rspack-MIT.txt"
+precedence = "override"
+SPDX-FileCopyrightText = "2022-present Bytedance Inc and its affiliates"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "weatherkit/source/licenses/esbuild-MIT.txt"
+precedence = "override"
+SPDX-FileCopyrightText = "2020 Evan Wallace"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [
   "youtube-cleaner/README.md",
   "youtube-cleaner/extension.yaml",
 ]
@@ -219,6 +280,12 @@ SPDX-License-Identifier = "CC-BY-NC-SA-4.0"
 
 [[annotations]]
 path = "testflight-region-unlock/*"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 moooyo"
+SPDX-License-Identifier = "CC-BY-NC-SA-4.0"
+
+[[annotations]]
+path = "zhihu-cleaner/*"
 precedence = "override"
 SPDX-FileCopyrightText = "2026 moooyo"
 SPDX-License-Identifier = "CC-BY-NC-SA-4.0"

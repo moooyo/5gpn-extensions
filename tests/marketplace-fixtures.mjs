@@ -20,7 +20,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const validate = ajv.compile(schema)
   const catalog = JSON.parse(await generateMarketplace({ revision }))
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
-  assert.equal(catalog.entries.length, 6)
+  assert.equal(catalog.entries.length, 8)
   const adPlatform = catalog.entries.find(entry => entry.id === 'io.5gpn.ad-platform-blocker')
   assert.deepEqual(
     [adPlatform.capabilities.captureHostCount, adPlatform.capabilities.actionCount, adPlatform.capabilities.routingRuleCount],
@@ -29,6 +29,24 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
   assert.equal(bilibili.capabilities.actionCount, 11)
   assert.equal(bilibili.resources.filter(resource => resource.path === 'protobuf.js').length, 1)
+  const weatherkit = catalog.entries.find(entry => entry.id === 'io.5gpn.weatherkit')
+  assert.deepEqual(weatherkit.capabilities, {
+    captureHostCount: 1,
+    actionCount: 3,
+    settingCount: 9,
+    networkOrigins: [],
+    persistentStorage: false,
+    upstreamMappingCount: 0,
+    routingRuleCount: 1,
+    egressGroupRequired: false,
+  })
+  assert.deepEqual(weatherkit.resources.map(resource => resource.path), ['availability.js', 'request.js', 'weather.js'])
+  const zhihu = catalog.entries.find(entry => entry.id === 'io.5gpn.zhihu-cleaner')
+  assert.deepEqual(
+    [zhihu.capabilities.captureHostCount, zhihu.capabilities.actionCount, zhihu.capabilities.routingRuleCount],
+    [5, 6, 0],
+  )
+  assert.deepEqual(zhihu.resources.map(resource => resource.path), ['clean-json.js', 'mock-json.js'])
   assert.equal(validate(catalog), true, ajv.errorsText(validate.errors))
   const boundary = structuredClone(catalog)
   boundary.entries[0].capabilities.captureHostCount = 512
@@ -47,7 +65,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   try {
     await execFileAsync(process.execPath, [script, '--revision', revision, '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 6)
+    assert.equal(JSON.parse(generated).entries.length, 8)
     await execFileAsync(process.execPath, [script, '--revision', revision, '--check', output], { cwd: repositoryRoot })
     await writeFile(output, generated.replace(/"sha256": "[0-9a-f]{64}"/, `"sha256": "${'0'.repeat(64)}"`))
     try {

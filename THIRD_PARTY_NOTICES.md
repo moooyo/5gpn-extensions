@@ -6,16 +6,17 @@ dates, modifications, deliberate exclusions, and verification steps.
 
 ## KeleeOne-derived CC BY-NC-SA ports
 
-Only these directories use adapted material under the pinned KeleeOne
-repository's CC BY-NC-SA 4.0 license:
+These directories use authorized Kelee-derived adapted material under
+CC BY-NC-SA 4.0:
 
 | Extension | Creator metadata retained from the source file |
 | --- | --- |
 | `ad-platform-blocker` | 可莉🅥 (`iKeLee`, linked to `luestr/ProxyResource`) |
 | `httpdns-interceptor` | 可莉🅥 (`iKeLee`) and VirgilClyne |
 | `testflight-region-unlock` | 可莉🅥 (`iKeLee`, linked to `luestr/ProxyResource`) |
+| `zhihu-cleaner` | 可莉🅥 (`iKeLee`, linked to `luestr/ProxyResource`) |
 
-The distribution snapshot is
+The distribution snapshot for the first three directories is
 `mihoyo-typ/KeleeOne@ab6c3182fb2b09bcc34456f496282ec0b8e9217b`.
 The `Loon` branch HEAD was revalidated on `2026-07-22`. For
 `Plugin/BlockAdvertisers.lpx`, the most recent file-changing commit is
@@ -25,6 +26,17 @@ Its root license is CC BY-NC-SA 4.0. The local legal text is
 [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt), and the exact
 scope and attribution requirements are described in
 [`KELEEONE-LICENSE.md`](KELEEONE-LICENSE.md).
+
+`zhihu-cleaner` uses the byte-identical immutable snapshot
+`ifflagged/Romeo@8d0e2791f531d4a02e1bd00d0f64427984bc999a`, path
+`Modules/Loon/Kelee/Official/Zhihu_remove_ads.lpx`. The selected source is
+4,300 bytes with SHA-256
+`8bd1ee2062bc6a04bbbfa742c352e072b82c5cc061d9440cdfeab3fd82523e3d`.
+The repository maintainer confirmed explicit authorization to adapt and
+publicly redistribute this snapshot; the extension's `AUTHORIZATION.md` and
+README record the authorization boundary and material changes. The mirror is
+used only as an immutable byte source and is not treated as the creator or
+licensing authority.
 
 ## Bilibili Cleaner
 
@@ -79,6 +91,49 @@ not embed the upstream generated runtimes. The external
 `init-stream.maasea.workers.dev` service is not distributed by this repository
 and its implementation is not present in the pinned upstream tree. The port
 retains Maasea attribution and the Apache-2.0 license.
+
+## WeatherKit native port
+
+`weatherkit` is a bounded native port of request-dataset filtering, JSON
+availability merging, FlatBuffer root overlay, and local air-quality behavior
+from the Apache-2.0 `NSRingo/WeatherKit` repository. Runtime behavior is pinned
+to commit `969c7c4e9725c81063384013a0e9e40355425361`. The compatible public schema
+object is pinned separately to commit
+`ecebd32432161571a39f2579ad3ab758f62e80de`. Neither upstream tree contains a
+`NOTICE` file. The port retains NSRingo WeatherKit contributor attribution and
+documents its material changes.
+
+The pinned package metadata credits VirgilClyne, WordlessEcho, and 001ProMax.
+The bundled source carries `AirQuality.Author = "Virgil Clyne & Wordless
+Echo"`, and its source comments state `Code by Claude` for the credited
+precision-related implementation. These strings are retained as creator
+attribution and are not promoted to unverified copyright claims.
+
+The current upstream FlatBuffer implementation imports the separately
+distributed GitHub Package `@nsringo/weatherkit@1.1.0`. That package could not
+be fetched with the reviewed credentials, its package-internal license and
+preferred generated source could not be verified, and the former
+`NSRingo/proto` submodule is no longer publicly accessible. The private 1.1.0
+package is not copied or used as the license basis. The distributed schema is
+instead derived from the earlier public Apache-2.0 object form; its wire API
+was independently compared with the `v3.2.0-beta1` response bundle and current
+main's static symbol usage, but byte identity with the private package is not
+claimed.
+
+The generated `weather.js` also contains the Apache-2.0 FlatBuffers 24.12.23
+JavaScript runtime. That release has no `NOTICE` file. Rspack 1.7.7 bootstrap
+code retained by the public schema bundle is MIT licensed, Copyright (c)
+2022-present Bytedance Inc and its affiliates. Its complete notice is embedded
+in `weather.js` and retained in
+`weatherkit/source/licenses/rspack-MIT.txt`. esbuild 0.25.8 also emits bounded
+bundle helper code under MIT, Copyright (c) 2020 Evan Wallace; its complete
+notice is embedded in `weather.js` and retained in
+`weatherkit/source/licenses/esbuild-MIT.txt`. The final bundle is therefore
+mapped as `Apache-2.0 AND MIT` in `REUSE.toml`.
+
+Third-party weather providers, cloud proxy adapters, mutable provider assets,
+and proxy-client compatibility runtimes remain excluded. This phase performs
+no external provider request and declares no network or storage permission.
 
 ## Apple WLOC response transformer
 

@@ -17,7 +17,9 @@ operator egress requirement before enabling it.
 | `bilibili-cleaner` | Remove selected Bilibili ads and promotions | GPL-3.0-only |
 | `httpdns-interceptor` | Acquire 58 HTTPDNS domains; reject 59 gateway-visible CIDR routes and seven request paths | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | Rewrite TestFlight storefront with operator-selected egress | CC BY-NC-SA 4.0 |
+| `weatherkit` | Control WeatherKit datasets, preserve availability, and normalize local air-quality data | Apache-2.0 |
 | `youtube-cleaner` | Clean YouTube responses and prepare the reviewed external Onesie playback path | Apache-2.0 |
+| `zhihu-cleaner` | Remove selected Zhihu transport configuration, advertisements, promotions, and navigation entries | CC BY-NC-SA 4.0 |
 
 ## Installation
 
@@ -34,7 +36,9 @@ public HTTPS origin; never embed repository credentials in an extension URL.
 | `bilibili-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml> |
 | `httpdns-interceptor` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/httpdns-interceptor/extension.yaml> |
 | `testflight-region-unlock` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-unlock/extension.yaml> |
+| `weatherkit` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/weatherkit/extension.yaml> |
 | `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
+| `zhihu-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/extension.yaml> |
 
 Every import starts disabled. Before enabling it, review the immutable
 snapshot digest, capture hosts, actions, settings, exact routing rules, network origins, execution

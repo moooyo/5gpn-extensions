@@ -71,6 +71,74 @@ function lengthField(field, bytes) {
 }
 
 {
+  const { transform } = await loadTransform('weatherkit/request.js')
+  const result = transform({
+    settings: { forecastNextHour: false, failClosed: true },
+    request: {
+      url: 'https://weatherkit.apple.com/api/v2/weather/en-US/1/2?dataSets=currentWeather,forecastNextHour,news',
+      headers: { 'If-None-Match': 'etag', Accept: 'application/vnd.apple.flatbuffer' },
+    },
+  })
+  assert.equal(result.request.headers.Accept, 'application/vnd.apple.flatbuffer')
+  assert.equal(result.request.headers['If-None-Match'], undefined)
+  assert.match(decodeURIComponent(result.request.url), /dataSets=currentWeather,news/)
+}
+
+{
+  const { transform } = await loadTransform('weatherkit/availability.js')
+  const result = transform({
+    settings: { failClosed: true },
+    response: {
+      body: '["currentWeather","futureAppleCapability"]',
+      headers: { 'Content-Type': 'application/json' },
+    },
+  })
+  const capabilities = JSON.parse(result.response.body)
+  assert(capabilities.includes('futureAppleCapability'))
+  assert(capabilities.includes('forecastNextHour'))
+}
+
+{
+  const { transform } = await loadTransform('weatherkit/weather.js')
+  const body = new Uint8Array(Buffer.from(
+    'DAAAAAAABgAIAAQABgAAABgAAAAUABgAFAATABAAAAAMAAsACgAEABQAAABwAAAAAAALAwwAAAAKAAABQAAAAAEAAAAQAAAAAAAKAA4ADQAIAAcACgAAAAAAAAEAAIA/AAsaACAAAAAcAAAAGAAUAAAAEAAMAAgAAAAHABoAAAAAAAABBAAAAAMAAAAgAAAAAAAAQAAAgD8BAAAACwAAAEVVLkVBUUkuMTIzAAgAAABRV2VhdGhlcgAAAAA=',
+    'base64',
+  ))
+  const result = transform({
+    phase: 'response',
+    request: {
+      method: 'GET',
+      url: 'https://weatherkit.apple.com/api/v2/weather/en-US/1/2?dataSets=airQuality',
+      headers: {},
+    },
+    response: {
+      status: 200,
+      headers: { 'Content-Type': 'application/vnd.apple.flatbuffer' },
+      body,
+    },
+    settings: { airQualityAlgorithm: 'None', failClosed: true },
+  })
+  assert(result.response.body instanceof Uint8Array)
+  assert.notDeepEqual([...result.response.body], [...body])
+}
+
+{
+  const { transform } = await loadTransform('zhihu-cleaner/mock-json.js')
+  const result = transform({ request: { url: 'https://api.zhihu.com/commercial_api/banner' } })
+  assert.equal(result.response.status, 200)
+  assert.deepEqual(JSON.parse(result.response.body), {})
+}
+
+{
+  const { transform } = await loadTransform('zhihu-cleaner/clean-json.js')
+  const result = transform({
+    request: { url: 'https://api.zhihu.com/questions/42/feeds?include=all' },
+    response: { body: JSON.stringify({ ad_info: {}, keep: true }) },
+  })
+  assert.deepEqual(JSON.parse(result.response.body), { keep: true })
+}
+
+{
   const { transform } = await loadTransform('youtube-cleaner/request-handler.js')
   const result = transform({
     request: {

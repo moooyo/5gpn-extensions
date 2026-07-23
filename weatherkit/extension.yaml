@@ -1,0 +1,141 @@
+apiVersion: 5gpn.io/v1
+kind: Extension
+
+metadata:
+  id: io.5gpn.weatherkit
+  name: WeatherKit Native Enhancer
+  version: 2.0.0
+  description: Controls WeatherKit datasets, preserves availability, and applies bounded local air-quality normalization.
+
+permissions:
+  persistentStorage: false
+
+traffic:
+  captureHosts:
+    - weatherkit.apple.com
+  routingRules:
+    - action: reject
+      domain: weatherkit.apple.com
+      network: udp
+      destinationPort: 443
+
+settings:
+  - key: airQuality
+    type: boolean
+    label: Request air quality
+    description: Keeps the airQuality dataset in WeatherKit v2 requests.
+    required: true
+    default: true
+  - key: currentWeather
+    type: boolean
+    label: Request current weather
+    description: Keeps the currentWeather dataset in WeatherKit v2 requests.
+    required: true
+    default: true
+  - key: forecastDaily
+    type: boolean
+    label: Request daily forecasts
+    description: Keeps the forecastDaily dataset in WeatherKit v2 requests.
+    required: true
+    default: true
+  - key: forecastHourly
+    type: boolean
+    label: Request hourly forecasts
+    description: Keeps the forecastHourly dataset in WeatherKit v2 requests.
+    required: true
+    default: true
+  - key: forecastNextHour
+    type: boolean
+    label: Request next-hour forecasts
+    description: Keeps the forecastNextHour dataset in WeatherKit v2 requests.
+    required: true
+    default: true
+  - key: airQualityAlgorithm
+    type: select
+    label: Local air-quality algorithm
+    description: Recalculates an existing HJ6332012 index from its pollutants, or only normalizes the Apple scale when set to None.
+    required: true
+    options:
+      - None
+      - UBA
+      - EU_EAQI
+      - WAQI_InstantCast_US
+      - WAQI_InstantCast_CN
+      - WAQI_InstantCast_CN_25_DRAFT
+    default: None
+  - key: forceCNPrimaryPollutant
+    type: boolean
+    label: Force Chinese primary pollutant
+    description: Keeps the highest calculated pollutant as primary even when a Chinese AQI is at or below 50.
+    required: true
+    default: true
+  - key: allowAirQualityOverRange
+    type: boolean
+    label: Allow over-range air-quality index
+    description: Allows supported local calculations to exceed their standard maximum index.
+    required: true
+    default: true
+  - key: failClosed
+    type: boolean
+    label: Block on script validation failure
+    description: Blocks malformed input rejected by a script; core body, timeout, and result checks always remain fail closed.
+    required: true
+    default: true
+
+actions:
+  - id: filter-weather-datasets
+    phase: request
+    match:
+      hosts:
+        - weatherkit.apple.com
+      schemes:
+        - http
+        - https
+      methods:
+        - DELETE
+        - GET
+        - HEAD
+        - OPTIONS
+        - PATCH
+        - POST
+        - PUT
+      pathRegex: '^/api/v2/weather/'
+    script:
+      source: ./request.js
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+  - id: merge-weather-availability
+    phase: response
+    match:
+      hosts:
+        - weatherkit.apple.com
+      schemes:
+        - http
+        - https
+      pathRegex: '^/api/v1/availability/'
+      statusCodes:
+        - 200
+    script:
+      source: ./availability.js
+      bodyMode: text
+      timeoutMs: 500
+      maxBodyBytes: 65536
+  - id: transform-weather-air-quality
+    phase: response
+    match:
+      hosts:
+        - weatherkit.apple.com
+      schemes:
+        - http
+        - https
+      methods:
+        - GET
+      pathRegex: '^/api/v2/weather/'
+      statusCodes:
+        - 200
+    script:
+      source: ./weather.js
+      bodyMode: binary
+      timeoutMs: 3000
+      maxBodyBytes: 16777216

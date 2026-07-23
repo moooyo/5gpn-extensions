@@ -34,7 +34,9 @@ const expectedExtensions = new Map([
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '12e89d6d93d72d39eb283ef81d2b58eb204cdb58', licenseDigest: '8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b' }],
   ['httpdns-interceptor', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
+  ['weatherkit', { license: 'Apache-2.0', pin: '969c7c4e9725c81063384013a0e9e40355425361', licenseDigest: 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525', licenseDigest: 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4' }],
+  ['zhihu-cleaner', { license: 'CC-BY-NC-SA-4.0', pin: '8d0e2791f531d4a02e1bd00d0f64427984bc999a', licenseDigest: '600ca4e25fe11762b75a97e714707fab48bb778374e92d24c6ca068791661c11' }],
 ])
 const entries = await readdir(root, { withFileTypes: true })
 const extensionNames = []
@@ -271,6 +273,9 @@ for (const entry of entries) {
   assert(reuseAnnotations.length > 0, `${entry.name}: missing from REUSE.toml`)
   if (entry.name === 'bilibili-cleaner') {
     assert(reuseAnnotations.some((annotation) => annotation.includes('SPDX-License-Identifier = "GPL-3.0-only"')), 'bilibili-cleaner: GPL aggregate mapping is missing')
+  } else if (entry.name === 'weatherkit') {
+    assert(reuseAnnotations.some((annotation) => annotation.includes('SPDX-License-Identifier = "Apache-2.0"')), 'weatherkit: Apache mapping is missing')
+    assert(reuseAnnotations.some((annotation) => annotation.includes('SPDX-License-Identifier = "Apache-2.0 AND MIT"')), 'weatherkit: compound bundle mapping is missing')
   } else {
     assert(reuseAnnotations.every((annotation) => annotation.includes(`SPDX-License-Identifier = "${expected.license}"`)), `${entry.name}: REUSE.toml license mismatch`)
   }
@@ -341,6 +346,24 @@ for (const entry of entries) {
   }
   if (entry.name === 'youtube-cleaner') {
     assert(actions.length === 3 && manifest.settings?.length === 5 && manifest.permissions.persistentStorage && manifest.permissions.network?.origins?.length === 1 && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')
+  }
+  if (entry.name === 'weatherkit') {
+    assert(actions.length === 3 && manifest.settings?.length === 9 && !manifest.permissions.persistentStorage && manifest.permissions.network === undefined && routingRules.length === 1, 'weatherkit: reviewed native capability set is incomplete')
+    const weatherBundle = await readFile(path.join(directory, 'weather.js'), 'utf8')
+    assert(weatherBundle.startsWith('/*!\n * SPDX-License-Identifier: Apache-2.0 AND MIT\n'), 'weatherkit: generated bundle SPDX expression is incomplete')
+    assert(weatherBundle.includes('Copyright (c) 2022-present Bytedance Inc and its affiliates.'), 'weatherkit: Rspack MIT notice is missing')
+    assert(weatherBundle.includes('Copyright (c) 2020 Evan Wallace'), 'weatherkit: esbuild MIT notice is missing')
+    const weatherBundleBody = Buffer.from(weatherBundle)
+    const weatherBundleDigest = createHash('sha256').update(weatherBundleBody).digest('hex')
+    assert(weatherBundleBody.length <= 1048576, 'weatherkit: generated bundle exceeds the core script limit')
+    assert(readme.includes(`${weatherBundleBody.length.toLocaleString('en-US')} bytes`) && readme.includes(weatherBundleDigest), 'weatherkit: README generated bundle record differs from local bytes')
+    assert(reuseParagraphFor('weatherkit/weather.js', 'Apache-2.0 AND MIT'), 'weatherkit: generated bundle compound mapping is missing')
+    assert((await stat(path.join(directory, 'source', 'package-lock.json'))).isFile(), 'weatherkit: deterministic build lockfile is missing')
+  }
+  if (entry.name === 'zhihu-cleaner') {
+    assert(captureHosts.length === 5, 'zhihu-cleaner: reviewed capture hosts are incomplete')
+    assert(actions.length === 6 && actions.filter((action) => action.phase === 'request').length === 3 && actions.filter((action) => action.phase === 'response').length === 3, 'zhihu-cleaner: reviewed action set is incomplete')
+    assert((manifest.settings?.length ?? 0) === 0 && !manifest.permissions.persistentStorage && (manifest.permissions.network?.origins?.length ?? 0) === 0 && routingRules.length === 0 && mappings.length === 0 && manifest.requirements?.egressGroup?.required !== true, 'zhihu-cleaner: unexpected permission or routing expansion')
   }
   assert(rootReadme.includes(`\`${entry.name}\``), `${entry.name}: missing from root catalog table`)
 }
