@@ -210,15 +210,24 @@ traffic:
 5. 添加正向、无操作、格式错误输入和边界测试样例。保留无关字段，并在部分转换不安全时以拒绝方式失败（fail closed）。
 6. 运行目录验证器和当前核心解析器门禁：
 
-   ```sh
+   ```powershell
    npm ci
+   if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
    npm test
+   if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+   npm run routing:check
+   if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
    npm run verify:upstreams
+   if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
    ```
+
+   随后运行 [`MIGRATION.md`](MIGRATION.md) 中的当前核心解析器集成命令。
 
 7. 在禁用状态下安装候选项，检查其快照摘要和权限摘要，配置必需设置和出口，然后仅在已授权的测试设备上启用它，且该设备已信任共享拦截根证书。
 
 更新必须保持 `metadata.id`，当不可变运行时字节变更时提升 `metadata.version`，刷新溯源信息和测试样例，并在替换后保持禁用。请勿引入自动更新、可变的运行时脚本获取或兼容性垫片。
+
+上游版本的选择刻意保持为人工流程。每次源码迁移、已安装版本发布和回滚都必须遵循可复用的 [`MIGRATION.md`](MIGRATION.md) 手册。该手册要求记录基线与候选版本、比较能力和许可证、明确状态策略、以禁用状态应用更新、完成聚焦测试与核心解析验证，并准备由安装源发布者管理、可演练的前滚式回退；同时说明不控制该 URL 的运营者仅有的有限应急选项。该手册不会发现或自动选择上游版本。
 
 ## 许可证
 
@@ -229,12 +238,19 @@ traffic:
 
 ## 验证
 
-```sh
+```powershell
 npm ci
+if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
 npm test
+if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+npm run routing:check
+if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run verify:upstreams
+if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --output marketplace.json
+if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --check marketplace.json
+if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTEXITCODE" }
 ```
 
 验证门禁检查清单结构、本地脚本引用、捕获主机所有权、JavaScript 语法、禁止的兼容性全局对象、上游溯源文档及每个扩展的行为测试样例。独立的上游命令会下载 README 中记录的每个不可变源 URL，并验证其实际 SHA-256 是否出现在同一文档中；它有意要求网络访问。

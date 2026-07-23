@@ -134,28 +134,81 @@ attribution, telemetry, or application behaviour.
 2. Record its commit, raw URL, SHA-256, upstream file date, and review date in
    the **Pinned upstream** table.
 3. Diff `[Rule]`, `[Rewrite]`, and `[MitM]` against the pinned snapshot.
-4. Run `node scripts/sync-routing-rules.mjs` after updating its immutable URL
-   and digest, then review every normalized exact, suffix, keyword, composite,
-   CIDR, and `DIRECT` result. Keep every action matcher within its own
-   `captureHosts` list.
+4. Update the `ad-platform-blocker` URL, digest, and version in
+   `scripts/sync-routing-rules.mjs`, run that generator, then review every
+   normalized exact, suffix, keyword, composite, CIDR, and `DIRECT` result.
+   Keep every action matcher within its own `captureHosts` list.
 5. Translate a URL reject only when its host is explicit and its URL predicate
    can be represented safely by an anchored RE2 `pathRegex`. Do not turn a
    URL path into a host-wide block.
 6. Exclude only behavior that cannot be expressed faithfully, retain the
    `<=512` capture-host and `<=256` routing-rule limits, and update the coverage
    text when the review changes.
-7. Test the manifest locally and install the reviewed raw manifest as disabled
-   before enabling it on production traffic.
+7. Run the migration and verification commands below, then install the reviewed
+   raw manifest as disabled before enabling it on production traffic.
+
+## Migration and rollback
+
+Follow the shared [`MIGRATION.md`](../MIGRATION.md) playbook for every selected
+upstream revision. Upstream selection remains a manual review decision.
+
+### Migration contract
+
+| Surface | Contract |
+| --- | --- |
+| Identity | Keep `io.5gpn.ad-platform-blocker`; bump `metadata.version` for every immutable manifest or script change. |
+| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=0`; `captureHosts=277`; `actions=3`; `routingRules=201`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| State class | Stateless. `persistentStorage` is false and there are no extension settings. |
+| Reviewed capability baseline | 277 capture hosts, 201 typed routing rules (194 `REJECT` and seven `DIRECT`), three request actions, no network origins or upstream mappings, and no required egress binding. The `DIRECT` rules deliberately bypass the ordinary operator target and capture path for their narrow matches. |
+| Operator state | A normal same-ID update retains `capture_dns` and execution position. Record both before rollout. |
+| Ordering | The upstream profile requires this blocker to run first. Confirm the first Console execution position before every enable and review every overlap with its domains or `DIRECT` exceptions. |
+| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No data conversion is required. |
+
+### Repeatable migration
+
+1. Complete the playbook's baseline/candidate record, including the exact rule,
+   capture-host, and action additions and removals.
+2. Update the generator's immutable URL, SHA-256, and version together. Run the
+   generator without `--check`, inspect the manifest diff, then run
+   `npm run routing:check`.
+3. Re-audit `[Rule]`, `[Rewrite]`, `[MitM]`, the top-of-order requirement,
+   capture acquisition, all `DIRECT` exceptions, and every excluded selector.
+4. Synchronize this README, `scripts/validate.mjs`, licenses, notices,
+   `REUSE.toml`, fixtures, and `metadata.version` in the same change.
+5. Apply the candidate only while the installed extension is disabled. Confirm
+   the retained `capture_dns`, move it to the first execution position if
+   necessary, review the expanded or reduced routing transaction, and enable
+   first on an authorized test device.
+
+### Rollback
+
+The publisher prepares a revert-forward manifest before rollout. It must retain the same ID,
+restore the reviewed routing, capture-host, and action sets, use a new version
+incremented above the failing candidate, and pass the same generator and fixture
+gates. Disable the failing candidate, apply the exact rollback digest through
+the normal update path, confirm its first execution position, and enable it
+only after the baseline counts and focused blocking checks pass. Emergency
+reinstall from an old immutable manifest is
+safe for extension data because this extension is stateless, but it loses
+operator state such as `capture_dns` and execution position.
 
 ## Verification
 
-From the repository root, validate the native manifest and script through the
-existing Go tests:
+From the repository root, run:
 
-```bash
-(cd cmd/5gpn-dns && go test ./...)
-(cd cmd/5gpn-intercept && go test ./...)
+```powershell
+node tests/ad-platform-fixtures.mjs
+if ($LASTEXITCODE -ne 0) { throw "ad-platform fixtures failed with exit code $LASTEXITCODE" }
+npm test
+if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+npm run routing:check
+if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
+npm run verify:upstreams
+if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
+
+For runtime-facing changes, also run the current core parser gate from the
+shared migration playbook.
 
 For a focused review, confirm that `extension.yaml` has 277 capture-host
 entries, 201 typed routing rules, and three path-specific request actions. Every

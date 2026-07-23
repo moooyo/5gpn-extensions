@@ -282,11 +282,19 @@ or otherwise unsafe addresses.
    unrelated fields and fail closed where a partial transformation is unsafe.
 6. Run the catalog validators and the current core parser gate:
 
-   ```sh
+   ```powershell
    npm ci
+   if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
    npm test
+   if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+   npm run routing:check
+   if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
    npm run verify:upstreams
+   if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
    ```
+
+   Then run the current core parser integration command in
+   [`MIGRATION.md`](MIGRATION.md).
 
 7. Install the candidate disabled, inspect its snapshot digest and permission
    summary, configure required settings and egress, then enable it only on an
@@ -296,6 +304,15 @@ An update must keep `metadata.id`, bump `metadata.version` when immutable
 runtime bytes change, refresh provenance and fixtures, and remain disabled
 after replacement. Do not introduce automatic updates, mutable runtime script
 fetches, or compatibility shims.
+
+Upstream selection is deliberately manual. Every source migration, installed
+rollout, and rollback must follow the reusable
+[`MIGRATION.md`](MIGRATION.md) playbook. It requires a baseline/candidate
+record, a capability and license diff, an explicit state strategy, disabled
+application, focused and core verification, and a rehearsable revert-forward
+rollback managed by the installed source's publisher. It also documents the
+limited emergency options available to operators who do not control that URL.
+The playbook does not discover or automatically select upstream revisions.
 
 ## Licenses
 
@@ -309,12 +326,19 @@ machine-readable mapping in [`REUSE.toml`](REUSE.toml),
 
 ## Validation
 
-```sh
+```powershell
 npm ci
+if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
 npm test
+if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+npm run routing:check
+if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run verify:upstreams
+if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --output marketplace.json
+if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --check marketplace.json
+if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTEXITCODE" }
 ```
 
 The validation gate checks manifest structure, local script references,

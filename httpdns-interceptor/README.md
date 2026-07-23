@@ -138,26 +138,80 @@ behavior.
 
 1. Fetch the fixed source and verify its bytes before reviewing a change:
 
-   ~~~bash
-   curl -fsSLo Block_HTTPDNS.lpx \
-     https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/Block_HTTPDNS.lpx
-   sha256sum Block_HTTPDNS.lpx
+   ~~~powershell
+   $sourceUrl = 'https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/Block_HTTPDNS.lpx'
+   $sourcePath = Join-Path $env:TEMP ("Block_HTTPDNS-" + [guid]::NewGuid().ToString('N') + '.lpx')
+   try {
+     Invoke-WebRequest -UseBasicParsing -ErrorAction Stop -Uri $sourceUrl -OutFile $sourcePath
+     $sourceInfo = Get-Item -LiteralPath $sourcePath
+     $sourceHash = Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256
+     if ($sourceInfo.Length -ne 9257 -or $sourceHash.Hash -ne '08429c4f1c677d79e87eb3cd41e880868f7a71381dc1d6c81b393734fd5df21a') {
+       throw 'Block_HTTPDNS.lpx size or SHA-256 mismatch'
+     }
+     $sourceInfo | Select-Object Length
+     $sourceHash
+   } finally {
+     [System.IO.File]::Delete($sourcePath)
+   }
    ~~~
 
 2. If updating to another upstream commit, record its immutable commit, raw
    URL, SHA-256, upstream-declared date, and review date in this README before
    changing the manifest.
-3. Run `node scripts/sync-routing-rules.mjs` after updating its immutable URL,
-   digest, and expected source counts. The generator reviews every normalized
-   domain, IPv4, and IPv6 routing rule; verifies each known hostname path source;
-   counts excluded IP-address-form and inert path lines; and derives
-   `captureHosts` from all exact-domain routes plus action hosts.
+3. Update the `httpdns-interceptor` URL, digest, version, and expected source
+   counts in `scripts/sync-routing-rules.mjs`, then run that generator. It
+   reviews every normalized domain, IPv4, and IPv6 routing rule; verifies each
+   known hostname path source; counts excluded IP-address-form and inert path
+   lines; and derives `captureHosts` from all exact-domain routes plus action
+   hosts.
 4. Review any newly rejected source line instead of weakening the generator.
    Preserve its scheme and path-prefix or end-anchor behavior. Do not turn a
    path-specific IP rule into a host-wide reject, and keep `captureHosts` at or
    below the current 512-entry native contract limit.
-5. Bump metadata.version, validate the strict manifest, and review the snapshot
-   digest in the Console before applying the disabled update.
+5. Validate the strict manifest and review the snapshot digest in the Console
+   before applying the disabled update. The generator owns `metadata.version`,
+   so do not edit only the generated manifest.
+
+## Migration and rollback
+
+Follow the shared [`MIGRATION.md`](../MIGRATION.md) playbook for every selected
+upstream revision. Upstream selection remains a manual review decision.
+
+### Migration contract
+
+| Surface | Contract |
+| --- | --- |
+| Identity | Keep `io.5gpn.httpdns-interceptor`; update the generator-owned `metadata.version` for every immutable manifest or script change. |
+| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=0`; `captureHosts=64`; `actions=7`; `routingRules=117`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| State class | Stateless. `persistentStorage` is false and there are no extension settings. |
+| Reviewed capability baseline | 64 capture hosts, 117 typed routing rules, seven request actions, no network origins or upstream mappings, and no required egress binding. |
+| Operator state | A normal same-ID update retains `capture_dns` and execution position. Record both before rollout. |
+| Exclusion boundary | IP-address-form path rules and inert source lines remain excluded unless the native traffic-acquisition contract can represent them without widening behavior. |
+| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No data conversion is required. |
+
+### Repeatable migration
+
+1. Complete the playbook's record with exact domain, CIDR, hostname-path,
+   excluded-IP-path, inert-line, capture-host, and action diffs.
+2. Update every generator source field together, regenerate the manifest, and
+   inspect all normalized CIDRs and merged path predicates before running
+   `npm run routing:check`.
+3. Synchronize this README, `scripts/validate.mjs`, licenses, notices,
+   `REUSE.toml`, fixtures, and generator counts in the same change.
+4. Run the common and focused gates, apply the exact candidate digest while
+   disabled, confirm `capture_dns` and order, and review every route removal or
+   addition before enabling on an authorized test device.
+
+### Rollback
+
+The publisher prepares a same-ID revert-forward candidate that restores the reviewed 64-host,
+117-rule, and seven-action behavior or the newly recorded baseline counts. It
+must use a new version incremented above the failing candidate and pass
+regeneration, `routing:check`, fixtures, and the core parser gate. Apply it
+while disabled and confirm the old acquisition and
+exclusion boundaries before enabling. Emergency reinstall from an old
+immutable manifest is data-safe because this extension is stateless, but it
+does not retain `capture_dns`, execution position, or installed source identity.
 
 ## Verification
 
@@ -177,3 +231,19 @@ behavior.
    traverses mihomo.
 6. Disable the extension and verify that both its capture-host overlay and all
    117 routing rules disappear transactionally.
+
+Run the repeatable local gates from the repository root:
+
+```powershell
+node tests/httpdns-fixtures.mjs
+if ($LASTEXITCODE -ne 0) { throw "HTTPDNS fixtures failed with exit code $LASTEXITCODE" }
+npm test
+if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+npm run routing:check
+if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
+npm run verify:upstreams
+if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
+```
+
+For runtime-facing changes, also run the current core parser gate from the
+shared migration playbook.

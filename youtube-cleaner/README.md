@@ -175,8 +175,9 @@ extension boundary.
 
 ## Pinned upstream
 
-The reviewed branch head and immutable commit were independently rechecked on
-`2026-07-22`. All distributed provenance is bound to immutable raw URLs:
+The artifact set was fetched, and the reviewed branch head and immutable commit
+were independently rechecked, on `2026-07-22`. All distributed provenance is
+bound to immutable raw URLs:
 
 | Artifact | Immutable source | Size | SHA-256 |
 | --- | --- | ---: | --- |
@@ -245,27 +246,82 @@ network capability; these scripts use only the rewrite path.
    `metadata.version`, and review all changed capabilities while the extension
    remains disabled.
 
+## Migration and rollback
+
+Follow the shared [`MIGRATION.md`](../MIGRATION.md) playbook for every selected
+upstream revision. Upstream selection remains a manual review decision.
+
+### Migration contract
+
+| Surface | Contract |
+| --- | --- |
+| Identity | Keep `io.5gpn.youtube-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
+| Current manifest | `version=3.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=2`; `actions=3`; `routingRules=0`; `networkOrigins=1`; `upstreamMappings=0`; `egressRequired=false`. |
+| Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
+| State class | Stateful. Keep `persistentStorage: true` during normal migration and rollback. |
+| Advertisement cache | `YouTubeAdvertiseInfo` is a non-authoritative version `1.0` cache. An incompatible schema may reset and relearn only when that behavior is documented and tested. |
+| Key configuration | `YouTubeConfig` contains sensitive YouTube and YouTube Music `clientKey`/`encryptKey` pairs. Never copy values into migration records or logs. An incompatible format requires an additive versioned key and dual-read strategy. |
+| Reviewed capability baseline | Two capture-host patterns, three actions, five settings, one exact Worker origin, no routing rules, and no required egress binding. |
+| Operator state | A normal same-ID update retains valid settings, `capture_dns`, execution position, and the ID-scoped storage bucket while storage permission remains enabled. |
+| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. The baseline must remain able to read retained state or safely relearn it. |
+
+### Repeatable migration
+
+1. Complete the playbook record for both upstream bundles, all ten response
+   endpoints, both request paths, five settings, two storage schemas, the
+   Worker URL and disclosure, capture hosts, protobuf paths, and exclusions.
+2. Keep `YouTubeAdvertiseInfo` schema-compatible, or write an additive new key
+   while retaining the rollback-readable `1.0` value. If reset-and-relearn is
+   chosen, test first-run, rollback, malformed, oversized, and concurrent
+   cache-update behavior.
+3. Do not repurpose `YouTubeConfig` in place. A format change must use a new
+   versioned key, read the old key during the transition, validate complete key
+   pairs, and leave the old value untouched for rollback. Never expose key
+   material in fixtures, console output, or review evidence.
+4. Re-audit the Worker origin, query data, forwarded headers, permission scope,
+   failure response, and live-service limitation whenever request behavior
+   changes. A JavaScript pin does not pin the external Worker deployment.
+5. Synchronize all raw artifacts, sizes, digests, fetch date, licenses, notices,
+   `REUSE.toml`, validator pins, storage documentation, fixtures, and version in
+   the same change.
+6. Apply the candidate while disabled without uninstalling the extension or
+   removing storage permission. Confirm retained settings and state behavior,
+   review the Worker permission again, then exercise cache learning and both
+   platforms before enable.
+
+### Rollback
+
+The publisher prepares a same-ID revert-forward candidate that restores the baseline request,
+response, settings, storage-reader, Worker, and permission behavior with a new
+version incremented above the failing candidate. Before rollout, prove that it
+can read the candidate's retained state
+or safely reset and relearn only the non-authoritative cache. Disable the
+failing candidate, apply the exact rollback digest, verify both platform slots,
+cache learning, mismatch failover, and Worker URL construction, then enable
+only after focused tests pass. Do not use uninstall/reinstall as routine
+rollback: it loses installed control-plane values and can make extension state
+unavailable or prune it. If state loss is ever intended, review and test that
+as a separate migration. A public-catalog operator has no immediate safe
+rollback when no publisher candidate is available; disable the extension and
+preserve its installation and storage permission until one is reviewed.
+
 ## Verification
 
 Run the repository checks and the dedicated behavior suite:
 
 ```powershell
-npm test
 node tests/youtube-fixtures.mjs
+if ($LASTEXITCODE -ne 0) { throw "YouTube fixtures failed with exit code $LASTEXITCODE" }
+npm test
+if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+npm run routing:check
+if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run verify:upstreams
+if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
-Validate the manifest with the current 5gpn core parser integration gate:
-
-```powershell
-$env:FIVEGPN_EXTENSIONS_ROOT = 'D:\Code\5gpn-extensions'
-Push-Location D:\Code\5gpn\cmd\5gpn-dns
-try {
-  go test ./... -run TestExternalMaintainedExtensionsAreInstallableFromURL -count=1
-} finally {
-  Pop-Location
-}
-```
+Validate runtime-facing changes with the current 5gpn core parser integration
+gate in the shared migration playbook.
 
 The dedicated fixtures cover all ten response endpoints, both request actions,
 platform key learning, cache match/mismatch behavior, Worker URL encoding,

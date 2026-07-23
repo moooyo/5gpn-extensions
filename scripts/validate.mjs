@@ -8,6 +8,8 @@ import { parseDocument } from 'yaml'
 const root = path.resolve(import.meta.dirname, '..')
 const maxCaptureHosts = 512
 const rootReadme = await readFile(path.join(root, 'README.md'), 'utf8')
+const rootReadmeZh = await readFile(path.join(root, 'README.zh-CN.md'), 'utf8')
+const migrationPlaybook = await readFile(path.join(root, 'MIGRATION.md'), 'utf8')
 const licenseSummary = await readFile(path.join(root, 'LICENSE'), 'utf8')
 const reusePolicy = await readFile(path.join(root, 'REUSE.toml'), 'utf8')
 const thirdPartyNotices = await readFile(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8')
@@ -230,7 +232,36 @@ for (const entry of entries) {
   assert(expected !== undefined, `${entry.name}: no reviewed license policy`)
   assert(/SHA-256/i.test(readme), `${entry.name}: README has no SHA-256 provenance`)
   assert(/## (Updating|Maintenance and updates)/.test(readme), `${entry.name}: README has no update procedure`)
-  assert(/## (Verification|Validation)/.test(readme), `${entry.name}: README has no verification procedure`)
+  const migrationHeadings = readme.match(/^## Migration and rollback$/gm) ?? []
+  assert(migrationHeadings.length === 1, `${entry.name}: README must have exactly one migration and rollback procedure`)
+  const migrationStart = readme.indexOf('## Migration and rollback')
+  const migrationEnd = readme.indexOf('\n## ', migrationStart + 1)
+  const migrationSection = readme.slice(migrationStart, migrationEnd < 0 ? readme.length : migrationEnd)
+  assert((migrationSection.match(/^### Migration contract$/gm) ?? []).length === 1, `${entry.name}: README must have exactly one migration contract`)
+  assert((migrationSection.match(/^### Repeatable migration$/gm) ?? []).length === 1, `${entry.name}: README must have exactly one repeatable migration procedure`)
+  assert((migrationSection.match(/^### Rollback$/gm) ?? []).length === 1, `${entry.name}: README must have exactly one rollback procedure`)
+  assert(migrationSection.includes('../MIGRATION.md'), `${entry.name}: README migration procedure does not reference the shared playbook`)
+  assert(migrationSection.includes(manifest.metadata.id), `${entry.name}: migration contract does not bind metadata.id`)
+  assert(migrationSection.includes('metadata.version'), `${entry.name}: migration contract does not define version handling`)
+  assert(migrationSection.includes('persistentStorage'), `${entry.name}: migration contract does not classify persistent state`)
+  const stateClass = manifest.permissions.persistentStorage ? 'Stateful' : 'Stateless'
+  assert(migrationSection.includes(`| State class | ${stateClass}.`), `${entry.name}: migration state class differs from extension.yaml`)
+  assert(/publisher-managed revert-forward/i.test(migrationSection), `${entry.name}: migration contract does not define the publisher rollback boundary`)
+  assert(/manual review/i.test(migrationSection), `${entry.name}: migration contract does not require manual upstream selection`)
+  assert(/disabled/i.test(migrationSection), `${entry.name}: migration contract does not require disabled replacement`)
+  const manifestContract = [
+    `version=${manifest.metadata.version}`,
+    `persistentStorage=${manifest.permissions.persistentStorage}`,
+    `settings=${manifest.settings?.length ?? 0}`,
+    `captureHosts=${captureHosts.length}`,
+    `actions=${actions.length}`,
+    `routingRules=${routingRules.length}`,
+    `networkOrigins=${manifest.permissions.network?.origins?.length ?? 0}`,
+    `upstreamMappings=${mappings.length}`,
+    `egressRequired=${manifest.requirements?.egressGroup?.required === true}`,
+  ].map((value) => `\`${value}\``).join('; ')
+  assert(migrationSection.includes(`| Current manifest | ${manifestContract}. |`), `${entry.name}: migration manifest baseline differs from extension.yaml`)
+  assert((readme.match(/^## Verification$/gm) ?? []).length === 1, `${entry.name}: README must have exactly one verification procedure`)
   assert(readme.includes(`License: [\`${expected.license}\`]`), `${entry.name}: README has no exact license banner`)
   assert(readme.includes(expected.pin), `${entry.name}: README has no reviewed upstream pin`)
   assert(readme.includes(expected.licenseDigest), `${entry.name}: README has no governing upstream license digest`)
@@ -248,6 +279,7 @@ for (const entry of entries) {
     assert(/CC BY-NC-SA 4\.0/.test(readme), `${entry.name}: README has no adapted-material license`)
   }
   if (entry.name === 'bilibili-cleaner') {
+    assert(migrationSection.includes('| License review gate |'), 'bilibili-cleaner: migration contract has no aggregate-license review gate')
     assert(actions.length === 11 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3 && manifest.requirements?.egressGroup?.required === true, 'bilibili-cleaner: pinned LPX capability set is incomplete')
     const sourceRoot = path.join(directory, 'source')
     const finalBundle = await readFile(path.join(directory, 'protobuf.js'), 'utf8')
@@ -322,6 +354,37 @@ assert(thirdPartyNotices.includes('Copyright 2008 Google Inc.'), 'Google BSD not
 assert(thirdPartyNotices.includes('goog-varint.js'), 'retained Google BSD bundle scope is undocumented')
 assert(thirdPartyNotices.includes('tree-shakes'), 'Bilibili BSD tree-shaking scope is not documented')
 assert(licenseSummary.includes('LICENSES/BSD-3-Clause.txt'), 'root LICENSE does not describe the BSD component boundary')
+assert(rootReadme.includes('MIGRATION.md'), 'root README does not reference the migration playbook')
+assert(rootReadmeZh.includes('MIGRATION.md'), 'Chinese root README does not reference the migration playbook')
+assert(migrationPlaybook.includes('| Candidate selection | `manual-only` |'), 'migration playbook does not require manual-only selection')
+assert(migrationPlaybook.includes('| Automatic discovery | `forbidden` |'), 'migration playbook does not forbid automatic discovery')
+assert(migrationPlaybook.includes('| Installed update | `explicit-only` |'), 'migration playbook does not require explicit updates')
+assert(migrationPlaybook.includes('| Post-update state | `disabled` |'), 'migration playbook does not require disabled replacements')
+assert(migrationPlaybook.includes('## Required migration record'), 'migration playbook has no required record template')
+assert(migrationPlaybook.includes('| Surface | Baseline | Candidate | Decision and evidence |'), 'migration playbook has no migration record table')
+for (const surface of [
+  'Extension repository revision',
+  '5gpn core verification revision',
+  '`metadata.version`',
+  'Upstream repository and revision',
+  'Relevant upstream files, sizes, and SHA-256',
+  'Fetch and review date',
+  'Settings keys, types, options, and defaults',
+  'Persistent-storage keys and schemas',
+  'Capture hosts and actions',
+  'Network origins and data disclosure',
+  'Upstream mappings and routing rules',
+  'Required egress and execution order',
+  'Licenses, notices, and preferred source',
+  'Deliberate exclusions and limitations',
+  'Rollback candidate and state compatibility',
+  'Focused fixtures and end-to-end evidence',
+]) {
+  assert(migrationPlaybook.includes(`| ${surface} | | | |`), `migration playbook record is missing ${surface}`)
+}
+assert(migrationPlaybook.includes('## Repeatable port migration'), 'migration playbook has no repeatable port procedure')
+assert(migrationPlaybook.includes('## Repeatable installed rollout'), 'migration playbook has no installed rollout procedure')
+assert(migrationPlaybook.includes('## Repeatable rollback'), 'migration playbook has no rollback procedure')
 assert((await stat(path.join(root, 'bilibili-cleaner', 'protobuf.js'))).isFile(), 'bilibili-cleaner: deterministic protobuf bundle is missing')
 assert((await stat(path.join(root, 'bilibili-cleaner', 'source', 'package-lock.json'))).isFile(), 'bilibili-cleaner: corresponding GPL build inputs are missing')
 console.log(`Validated ${extensionNames.length} extensions: ${extensionNames.join(', ')}`)

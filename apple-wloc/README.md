@@ -168,15 +168,8 @@ Refresh the revision and SHA-256 values with PowerShell:
 
 ```powershell
 git rev-parse HEAD
-Get-FileHash apple-wloc/extension.yaml -Algorithm SHA256
-Get-FileHash apple-wloc/wloc.js -Algorithm SHA256
-```
-
-On systems with GNU coreutils, the equivalent is:
-
-```sh
-git rev-parse HEAD
-sha256sum apple-wloc/extension.yaml apple-wloc/wloc.js
+Get-FileHash -LiteralPath apple-wloc/extension.yaml -Algorithm SHA256
+Get-FileHash -LiteralPath apple-wloc/wloc.js -Algorithm SHA256
 ```
 
 To independently refresh the pinned upstream-script digest without checking
@@ -185,20 +178,87 @@ out its repository:
 ```powershell
 $ref = 'edee9b955f673cc8c4a52eb0a9c687a2e25dde4a'
 $url = "https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/$ref/proxypin_wloc_compat_v2.js"
-$bytes = (Invoke-WebRequest -UseBasicParsing -Uri $url).Content
-$hash = [Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($bytes))
--join ($hash | ForEach-Object { $_.ToString('x2') })
+$path = Join-Path $env:TEMP ("proxypin_wloc_compat_v2-" + [guid]::NewGuid().ToString('N') + '.js')
+try {
+  Invoke-WebRequest -UseBasicParsing -ErrorAction Stop -Uri $url -OutFile $path
+  $sourceInfo = Get-Item -LiteralPath $path
+  $sourceHash = Get-FileHash -LiteralPath $path -Algorithm SHA256
+  if ($sourceInfo.Length -ne 45072 -or $sourceHash.Hash -ne 'd8ae57eb8696af05413e3fbbf0bd57513a4f649407a1d0a7bb891916482fca70') {
+    throw 'proxypin_wloc_compat_v2.js size or SHA-256 mismatch'
+  }
+  $sourceInfo | Select-Object Length
+  $sourceHash
+} finally {
+  [System.IO.File]::Delete($path)
+}
 ```
+
+## Migration and rollback
+
+Follow the shared [`MIGRATION.md`](../MIGRATION.md) playbook for every selected
+upstream revision. Upstream selection remains a manual review decision.
+
+### Migration contract
+
+| Surface | Contract |
+| --- | --- |
+| Identity | Keep `io.5gpn.apple-wloc`; bump `metadata.version` for every immutable manifest or script change. |
+| Current manifest | `version=1.1.1`; `persistentStorage=false`; `settings=2`; `captureHosts=2`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| State class | Stateless. `persistentStorage` is false. |
+| Settings | Keep `location` as a required `location` value and `failClosed` as a required boolean whenever possible. Valid same-key, same-type values survive a normal update. |
+| Sensitive values | Record whether `location` is complete, but never copy its coordinates into a migration record, issue, or log. |
+| Reviewed capability baseline | Two capture hosts, one response action, no network origins, routing rules, upstream mappings, or required egress binding. |
+| Current migration baseline | Version `1.1.1` changed repeated Wi-Fi identifier field 1 to use the last declaration, matching upstream singular-field behavior; the previous `1.1.0` used the first declaration. |
+| Operator state | A normal same-ID update retains valid settings, `capture_dns`, and execution position. There is no egress binding. Record presence, not sensitive coordinates. |
+| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
+
+### Repeatable migration
+
+1. Complete the playbook record for the transformer, ProxyPin import manifest,
+   license, both settings, two hosts, action matcher, body limits, and native
+   safety differences.
+2. Diff binary framing, protobuf field traversal, coordinate encoding, partial
+   malformed-entry behavior, and gzip/runtime assumptions independently. Do
+   not import the upstream picker, session state, ProxyPin APIs, or bundled
+   dependencies.
+3. Refresh all three upstream artifacts, local manifest and script digests,
+   source attribution, `THIRD_PARTY_NOTICES.md`, `REUSE.toml`, validator pins,
+   fixtures, and `metadata.version` together.
+4. If a setting key or type changes, or a retained value no longer passes the
+   candidate validation boundary, document that the operator must re-enter the
+   value before enable. A new install or emergency reinstall always requires a
+   new location selection.
+5. Apply the candidate while disabled, confirm the retained setting presence,
+   review the exact two-host boundary, and test authorized WLOC traffic before
+   enabling it more broadly. Use a disposable non-sensitive test location and
+   redact coordinates from response excerpts, screenshots, and packet captures.
+
+### Rollback
+
+The publisher prepares a same-ID revert-forward candidate that restores the baseline framing,
+field mapping, settings contract, host boundary, and failure behavior with a
+new incremented version higher than the failing candidate. Apply it while
+disabled and confirm that both settings remain
+valid before running the baseline positive, malformed, signed-coordinate, and
+no-op fixtures. Emergency reinstall from an old immutable manifest is safe for
+extension data because this extension is stateless, but it loses the configured
+location, `failClosed`, `capture_dns`, execution position, and source identity;
+reconfigure them before enable.
 
 ## Verification
 
 Run the focused native-extension checks after a documentation or implementation
 update:
 
-```sh
+```powershell
 node tests/apple-testflight-fixtures.mjs
+if ($LASTEXITCODE -ne 0) { throw "Apple and TestFlight fixtures failed with exit code $LASTEXITCODE" }
 npm test
+if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+npm run routing:check
+if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run verify:upstreams
+if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
 The focused fixture runs the script only through `transform(context)` and
@@ -209,7 +269,7 @@ malformed-entry skips, exact offset-zero framing, and both `failClosed` modes.
 For a runtime change, also run the complete core repository gates required by
 its `AGENTS.md` and perform authorised end-to-end validation following the
 Apple WLOC checklist in
-[`tests/integration-smoke.md`](../../tests/integration-smoke.md).
+[`tests/integration-smoke.md`](https://github.com/moooyo/5gpn/blob/beta/tests/integration-smoke.md).
 
 ## Limitations
 

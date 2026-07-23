@@ -131,6 +131,8 @@ https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58
 | `tsconfig.json` | 583 bytes | `3f4b2deb2588884226e41d75ecfb79aef4c2292c85caa10c17fa907f97681f23` |
 
 The schema inputs were fetched from the same Sparkle commit on `2026-07-22`:
+`source/proto/SHA256SUMS` binds the local copies to the same digests and the
+source verifier rejects missing, extra, or changed schema files.
 
 | Immutable schema source | Size | SHA-256 |
 | --- | ---: | --- |
@@ -335,21 +337,98 @@ process, timer, or module-loader access. It declares no persistent storage.
 7. Keep actions inside capture hosts, declare every origin exactly, and require
    fresh review for network, egress, routing, and execution-order changes.
 
-## Validation
+## Migration and rollback
+
+Follow the shared [`MIGRATION.md`](../MIGRATION.md) playbook for every selected
+Sparkle, Chronos, or embedded-component revision. Upstream selection remains a
+manual review decision.
+
+### Migration contract
+
+| Surface | Contract |
+| --- | --- |
+| Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
+| Current manifest | `version=2.0.0`; `persistentStorage=false`; `settings=5`; `captureHosts=6`; `actions=11`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
+| State class | Stateless. `persistentStorage` is false. |
+| Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
+| Reviewed capability baseline | Six capture hosts, five routing rules, eleven actions, three network origins, five settings, and a required egress binding. |
+| Operator state | A normal same-ID update retains valid settings, egress binding, `capture_dns`, and execution position. Review all of them before enable. |
+| Source boundary | A changed GPL bundle must ship with complete corresponding preferred source and deterministic build inputs in the same revision. |
+| External artifacts | Chronos URLs may change only to reviewed immutable revisions; archives without corresponding preferred source remain referenced rather than redistributed. |
+| License review gate | Before any candidate or rollback publication, independently reconcile the aggregate SPDX expression and standalone-install notices with every Apache, MIT, BSD, and GPL bundle input; do not carry the existing expression forward by assumption. |
+| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
+
+### Repeatable migration
+
+1. Complete the playbook record separately for the LPX orchestration, JQ and
+   dist behavior, all schemas and preferred source, Chronos artifacts, embedded
+   npm components, settings, mocks, routes, origins, and outbound disclosure.
+2. Update every immutable pin and inventory together. Regenerate schemas,
+   rebuild `protobuf.js`, and compare the generated files,
+   `bundle-inputs.json`, dependency lock, vendored archives, and preferred
+   source byte-for-byte. `npm run verify:sources` must refetch every pinned
+   source and npm archive, compare it with the local copy, and reject inventory
+   drift before the build is accepted.
+3. Before publishing either a forward candidate or rollback, reconcile the
+   bundle's aggregate SPDX expression and retained component notices with the
+   actual inputs, even when the input set appears unchanged. A reproducible
+   build does not by itself prove that Apache, MIT, BSD, and GPL boundaries are
+   synchronized.
+4. Preserve setting keys and types when behavior allows. If an option or
+   validation rule changes, list the affected value and required operator
+   action in the migration record.
+5. Compare every capture host, routing rule, action, network origin, egress
+   requirement, and execution-order effect. Any origin or disclosure change
+   requires a fresh permission review.
+6. Run the common gates and the complete source rebuild below. Apply the exact
+   candidate digest while disabled, confirm the five settings and egress
+   binding, then exercise every request, response, mock, webpage, and network
+   failure branch before enable.
+
+### Rollback
+
+The publisher prepares a same-ID revert-forward candidate containing the complete baseline
+manifest, runtime behavior, corresponding preferred source, lockfile, vendored
+archives, license mapping, and notices under a new version. Rebuild it from
+source with that version incremented above the failing candidate and run every
+Bilibili and core gate before publication. Disable the
+failing candidate, apply the exact rollback digest, confirm all retained
+settings and the egress binding, and test remote replay and SponsorBlock failure
+paths before enable. Emergency reinstall from an old immutable manifest is
+data-safe because the extension is stateless, but it loses settings, egress,
+`capture_dns`, execution position, and installed source identity.
+
+## Verification
 
 Run:
 
 ```powershell
-npm test
 node tests/bilibili-fixtures.mjs
+if ($LASTEXITCODE -ne 0) { throw "Bilibili fixtures failed with exit code $LASTEXITCODE" }
+npm test
+if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+npm run routing:check
+if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run verify:upstreams
+if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 
-Set-Location bilibili-cleaner/source
-npm ci
-npm run generate
-npm run build
-npx tsc --noEmit
-npm run verify:sources
+Push-Location bilibili-cleaner/source
+try {
+  npm ci
+  if ($LASTEXITCODE -ne 0) { throw "Bilibili npm ci failed with exit code $LASTEXITCODE" }
+  npm run generate
+  if ($LASTEXITCODE -ne 0) { throw "Bilibili generation failed with exit code $LASTEXITCODE" }
+  npm run build
+  if ($LASTEXITCODE -ne 0) { throw "Bilibili build failed with exit code $LASTEXITCODE" }
+  npx tsc --noEmit
+  if ($LASTEXITCODE -ne 0) { throw "Bilibili type check failed with exit code $LASTEXITCODE" }
+  npm run verify:sources
+  if ($LASTEXITCODE -ne 0) { throw "Bilibili source verification failed with exit code $LASTEXITCODE" }
+  git diff --exit-code -- ../protobuf.js generated bundle-inputs.json
+  if ($LASTEXITCODE -ne 0) { throw 'Bilibili generated artifacts differ from the reviewed source' }
+} finally {
+  Pop-Location
+}
 ```
 
 Then confirm six capture hosts, five routing rules, eleven actions, five

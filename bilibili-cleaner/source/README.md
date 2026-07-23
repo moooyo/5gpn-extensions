@@ -6,7 +6,8 @@ transformer. The native work is derived from `kokoryh/Sparkle` commit
 component source and notices retain their independent Apache-2.0, MIT, and
 BSD-3-Clause boundaries as mapped in the repository `REUSE.toml`.
 
-The checked-in `proto/` files are the pinned schema inputs. The checked-in
+The checked-in `proto/` files are the pinned schema inputs and
+`proto/SHA256SUMS` binds their exact local and upstream bytes. The checked-in
 `generated/` files are the corresponding `protobuf-ts` 2.11.1 output, kept so
 the distributed bundle can be rebuilt without first regenerating schemas.
 `native-protobuf.ts` is the 5gpn adapter and preferred source for the behavior
@@ -21,6 +22,11 @@ base documented in the extension README.
 embedded npm components. `SOURCE_MANIFEST.tsv` records every file, byte size,
 and digest. The component commit and raw URL bases are documented in the
 extension README.
+
+`npm run verify:sources` refetches every Sparkle, schema, vendor-source, and
+embedded npm archive pin; compares its size and digest with the distributed
+local copy; and rejects missing or extra inventory members. It also binds the
+local package manifest and lockfile used by the deterministic build.
 
 Rebuild on a supported Node.js host:
 

@@ -159,11 +159,23 @@ standard extension sandbox.
    section's commit, URL, digest, date, mapping, limitations, and validation
    evidence in the same change.
 
-To verify the upstream bytes on a POSIX host:
+To verify the upstream bytes with PowerShell:
 
-```sh
-url='https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/TestFlightRegionUnlock.lpx'
-curl -fsSL "$url" | sha256sum
+```powershell
+$sourceUrl = 'https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/TestFlightRegionUnlock.lpx'
+$sourcePath = Join-Path $env:TEMP ("TestFlightRegionUnlock-" + [guid]::NewGuid().ToString('N') + '.lpx')
+try {
+  Invoke-WebRequest -UseBasicParsing -ErrorAction Stop -Uri $sourceUrl -OutFile $sourcePath
+  $sourceInfo = Get-Item -LiteralPath $sourcePath
+  $sourceHash = Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256
+  if ($sourceInfo.Length -ne 778 -or $sourceHash.Hash -ne 'a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e') {
+    throw 'TestFlightRegionUnlock.lpx size or SHA-256 mismatch'
+  }
+  $sourceInfo | Select-Object Length
+  $sourceHash
+} finally {
+  [System.IO.File]::Delete($sourcePath)
+}
 ```
 
 The expected digest is:
@@ -179,12 +191,59 @@ Get-FileHash testflight-region-unlock/extension.yaml -Algorithm SHA256
 Get-FileHash testflight-region-unlock/rewrite-storefront.js -Algorithm SHA256
 ```
 
-## Validation
+## Migration and rollback
+
+Follow the shared [`MIGRATION.md`](../MIGRATION.md) playbook for every selected
+upstream revision. Upstream selection remains a manual review decision.
+
+### Migration contract
+
+| Surface | Contract |
+| --- | --- |
+| Identity | Keep `io.5gpn.testflight-region-unlock`; bump `metadata.version` for every immutable manifest or script change. |
+| Current manifest | `version=1.1.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=true`. |
+| State class | Stateless. `persistentStorage` is false. |
+| Settings | Preserve `storefront` as a `select` setting. A same-ID update retains its value only while the selected option remains valid. |
+| Reviewed capability baseline | One capture host, one request action, no network origins, upstream mappings, or routing rules, and a required operator egress binding. |
+| Operator state | A normal update retains the valid storefront, egress binding, `capture_dns`, and execution position; all must still be reviewed before enable. |
+| Ordering | Review every other extension that captures `testflight.apple.com`; the first bound extension owns egress and request actions execute in configured order. |
+| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
+
+### Repeatable migration
+
+1. Complete the playbook record with the LPX matcher, exact replacement syntax,
+   storefront options, capture host, action, and egress requirement.
+2. Diff `[Rule]`, `[Rewrite]`, and `[MitM]` separately. Recheck every non-US
+   storefront value because those values are native extensions rather than LPX
+   provenance.
+3. Keep the `storefront` key and type stable when possible. If an option is
+   removed or renamed, record that the old value will not be retained, verify
+   the candidate default, and require explicit reselection when needed.
+4. Synchronize the upstream and local digests, provenance, fixtures, notices,
+   `REUSE.toml`, limitations, and `metadata.version` in the same change.
+5. Apply the candidate while disabled, confirm the retained setting and egress
+   binding, review the exact matcher, and exercise every storefront before
+   enabling on an authorized test device.
+
+### Rollback
+
+The publisher prepares a same-ID revert-forward candidate that restores the baseline matcher,
+replacement syntax, storefront options, and egress requirement with a new
+version incremented above the failing candidate. Apply it while disabled,
+confirm that the selected storefront is still
+valid, verify the egress binding and execution position, and rerun the exact and
+fallback body fixtures before enable. Emergency reinstall from an old
+immutable manifest is data-safe because this extension is stateless, but it
+loses the storefront value, egress binding, `capture_dns`, execution position,
+and installed source identity.
+
+## Verification
 
 For each update:
 
-1. Import `extension.yaml` through **Install from URL** and confirm it is
-   accepted as a disabled native extension.
+1. For a fresh installation, import `extension.yaml` through **Install from
+   URL**. For an installed extension, use update check/apply with the exact
+   reviewed digest. Confirm that either path finishes disabled.
 2. Confirm the normalized capture-host list contains exactly
    `testflight.apple.com`, the network-origin list is empty, and the extension
    is not ready until an egress group is bound.
@@ -201,8 +260,13 @@ For each update:
 
 The repository-local independent gates are:
 
-```sh
+```powershell
 node tests/apple-testflight-fixtures.mjs
+if ($LASTEXITCODE -ne 0) { throw "Apple and TestFlight fixtures failed with exit code $LASTEXITCODE" }
 npm test
+if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
+npm run routing:check
+if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run verify:upstreams
+if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
