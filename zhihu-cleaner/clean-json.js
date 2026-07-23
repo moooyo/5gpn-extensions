@@ -24,17 +24,39 @@ const SEARCH_TAB_TYPES = new Set([
   'column',
   'favlist',
   'general',
+  'km_general',
   'people',
   'pin',
   'podcast',
+  'publication',
   'recent',
   'ring',
+  'scholar',
   'topic',
   'zvideo',
+])
+const BLOCKED_TOPSTORY_TYPES = new Set([
+  'ad',
+  'adcard',
+  'advertisement',
+  'commercial',
+  'commercialcard',
+  'market_card',
+  'marketcard',
+  'promotion',
+  'promotioncard',
 ])
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function hasPromotionMarker(value) {
+  if (value === true) return true
+  if (typeof value === 'string') return value !== ''
+  if (typeof value === 'number') return value !== 0
+  if (Array.isArray(value)) return value.length > 0
+  return isObject(value) && Object.keys(value).length > 0
 }
 
 function requestLocation(value) {
@@ -116,14 +138,27 @@ function cleanAnswer(document, includeGeneralFields) {
 }
 
 function cleanTopstory(document) {
-  let changed = filterProperty(
-    document,
-    'data',
-    (item) => isObject(item) && item.type === 'ComponentCard',
-  )
   if (!Array.isArray(document.data)) {
-    return changed
+    return false
   }
+  let changed = filterProperty(document, 'data', (item) => {
+    if (!isObject(item)) return true
+    const itemType = typeof item.type === 'string' ? item.type.toLowerCase() : ''
+    const cardType = typeof item.card_type === 'string' ? item.card_type.toLowerCase() : ''
+    const targetType = isObject(item.target) && typeof item.target.type === 'string'
+      ? item.target.type.toLowerCase()
+      : ''
+    return !(
+      hasPromotionMarker(item.ad_info) ||
+      hasPromotionMarker(item.commercial_info) ||
+      hasPromotionMarker(item.promotion_info) ||
+      item.is_ad === true ||
+      item.is_commercial === true ||
+      BLOCKED_TOPSTORY_TYPES.has(itemType) ||
+      BLOCKED_TOPSTORY_TYPES.has(cardType) ||
+      BLOCKED_TOPSTORY_TYPES.has(targetType)
+    )
+  })
   for (const item of document.data) {
     if (!isObject(item)) {
       continue
@@ -152,7 +187,7 @@ function cleanPeople(document) {
 function cleanApi(path, document) {
   let changed = false
 
-  if (/^\/root\/tab\/v\d(?:\?.+)?$/.test(path)) {
+  if (/^\/root\/tab(?:\/v\d+)?(?:\?.*)?$/.test(path)) {
     return filterProperty(
       document,
       'tab_list',
@@ -160,35 +195,35 @@ function cleanApi(path, document) {
     )
   }
 
-  if (/^\/topstory\/recommend\?/.test(path)) {
+  if (/^\/topstory\/recommend(?:\?.*)?$/.test(path)) {
     return cleanTopstory(document)
   }
 
-  if (/^\/questions\/\d+\/feeds\?/.test(path)) {
+  if (/^\/questions\/\d+\/feeds(?:\?.*)?$/.test(path)) {
     return deleteKeys(document, ['ad_info'])
   }
 
-  if (/^\/comment_v\d\/(answers|pins)\/\d+\/root_comment\?/.test(path)) {
+  if (/^\/comment_v\d+\/(answers|pins)\/\d+\/root_comment(?:\?.*)?$/.test(path)) {
     return deleteKeys(document, ['atmosphere_voting_config'])
   }
 
-  if (/^\/answers\/v\d\/\d+(?:\?.*)?$/.test(path)) {
-    return cleanAnswer(document, /^\/answers\/v\d\/\d+\?/.test(path))
+  if (/^\/answers\/v\d+\/\d+(?:\?.*)?$/.test(path)) {
+    return cleanAnswer(document, true)
   }
 
-  if (/^\/(articles|pins)\/v\d\/\d+\?/.test(path)) {
+  if (/^\/(articles|pins)\/v\d+\/\d+(?:\?.*)?$/.test(path)) {
     return deleteKeys(document, ['third_business', 'ring_info', 'interaction_bar_plugins'])
   }
 
-  if (/^\/comment_v\d\/answers\/\d+\/list-headers$/.test(path)) {
+  if (/^\/comment_v\d+\/answers\/\d+\/list-headers(?:\?.*)?$/.test(path)) {
     return deleteKeys(document, ['continuous_consumption_module'])
   }
 
-  if (/^\/podcasts\/hub\/v\d$/.test(path)) {
+  if (/^\/podcasts\/hub\/v\d+(?:\?.*)?$/.test(path)) {
     return deleteKeys(document, ['banners'])
   }
 
-  if (/^\/search\/recommend_query\/v\d\?/.test(path)) {
+  if (/^\/search\/recommend_query\/v\d+(?:\?.*)?$/.test(path)) {
     if (isObject(document.recommend_queries)) {
       changed = filterProperty(
         document.recommend_queries,
@@ -199,11 +234,11 @@ function cleanApi(path, document) {
     return changed
   }
 
-  if (/^\/search_v\d\?/.test(path)) {
+  if (/^\/search_v\d+(?:\?.*)?$/.test(path)) {
     return deleteKeys(document, ['pendant'])
   }
 
-  if (/^\/search\/tabs\?/.test(path)) {
+  if (/^\/search\/tabs(?:\?.*)?$/.test(path)) {
     return filterProperty(
       document,
       'data',
@@ -211,7 +246,7 @@ function cleanApi(path, document) {
     )
   }
 
-  if (path === '/people/self') {
+  if (/^\/people\/self(?:\?.*)?$/.test(path)) {
     return cleanPeople(document)
   }
 
@@ -241,14 +276,14 @@ function transform(context) {
   let changed = false
   if (
     location.hostname === 'm-cloud.zhihu.com' &&
-    /^\/api\/cloud\/zhihu\/config\/all\?/.test(location.path)
+    /^\/api\/cloud\/zhihu\/config\/all(?:\?.*)?$/.test(location.path)
   ) {
     changed = cleanTransportConfig(document)
   } else if (location.hostname === 'api.zhihu.com') {
     changed = cleanApi(location.path, document)
   } else if (
     location.hostname === 'page-info.zhihu.com' &&
-    /^\/answers\/v\d\/\d+(?:\?.*)?$/.test(location.path)
+    /^\/answers\/v\d+\/\d+(?:\?.*)?$/.test(location.path)
   ) {
     changed = cleanAnswer(document, false)
   }

@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.zhihu-cleaner
   name: Zhihu Cleaner
-  version: 1.0.0
+  version: 1.1.0
   description: Removes selected Zhihu transport overrides, advertisements, promotions,
     and navigation entries.
 
@@ -18,6 +18,27 @@ traffic:
     - page-info.zhihu.com
     - www.zhihu.com
     - zhida.zhihu.com
+  routingRules:
+    - action: reject
+      domain: api.zhihu.com
+      network: udp
+      destinationPort: 443
+    - action: reject
+      domain: m-cloud.zhihu.com
+      network: udp
+      destinationPort: 443
+    - action: reject
+      domain: page-info.zhihu.com
+      network: udp
+      destinationPort: 443
+    - action: reject
+      domain: www.zhihu.com
+      network: udp
+      destinationPort: 443
+    - action: reject
+      domain: zhida.zhihu.com
+      network: udp
+      destinationPort: 443
 
 actions:
   - id: mock-api-json
@@ -27,7 +48,7 @@ actions:
         - api.zhihu.com
       schemes:
         - https
-      pathRegex: '^/(?:commercial_api/.*|next-render\?id=\d+&type=answer.*|search/preset_words\?.*|search/related_queries/question/\d+|content-distribution-core/bubble/common/show|people/homepage_entry_v\d|kvip/right/my_card\?.*|unlimited/go/my_card/v\d\?.*)$'
+      pathRegex: '^/(?:commercial_api(?:/.*)?|next-render(?:\?.*)?|search/preset_words(?:\?.*)?|search/related_queries/question/\d+(?:\?.*)?|content-distribution-core/bubble/common/show(?:\?.*)?|people/homepage_entry_v\d+(?:\?.*)?|kvip/right/my_card(?:\?.*)?|unlimited/go/my_card/v\d+(?:\?.*)?)$'
     script:
       source: ./mock-json.js
       bodyMode: none
@@ -41,7 +62,7 @@ actions:
         - www.zhihu.com
       schemes:
         - https
-      pathRegex: '^/api/v\d/members/homepage_card$'
+      pathRegex: '^/api/v\d+/members/homepage_card(?:\?.*)?$'
     script:
       source: ./mock-json.js
       bodyMode: none
@@ -55,7 +76,7 @@ actions:
         - zhida.zhihu.com
       schemes:
         - https
-      pathRegex: '^/ai_ingress/(?:knowledge/square/categories/feeds\?categoryId=1%7D|ai_chat/guidance)$'
+      pathRegex: '^/ai_ingress/(?:knowledge/square/categories/feeds(?:\?.*)?|ai_chat/guidance(?:\?.*)?)$'
     script:
       source: ./mock-json.js
       bodyMode: none
@@ -69,7 +90,7 @@ actions:
         - m-cloud.zhihu.com
       schemes:
         - https
-      pathRegex: '^/api/cloud/zhihu/config/all\?.*$'
+      pathRegex: '^/api/cloud/zhihu/config/all(?:\?.*)?$'
     script:
       source: ./clean-json.js
       bodyMode: text
@@ -84,7 +105,7 @@ actions:
         - page-info.zhihu.com
       schemes:
         - https
-      pathRegex: '^/answers/v\d/\d+(?:\?.*)?$'
+      pathRegex: '^/answers/v\d+/\d+(?:\?.*)?$'
     script:
       source: ./clean-json.js
       bodyMode: text
@@ -98,7 +119,7 @@ actions:
         - api.zhihu.com
       schemes:
         - https
-      pathRegex: '^/(?:root/tab/v\d(?:\?.+)?|topstory/recommend\?.*|questions/\d+/feeds\?.*|comment_v\d/(?:answers|pins)/\d+/root_comment\?.*|(?:articles|pins)/v\d/\d+\?.*|comment_v\d/answers/\d+/list-headers|podcasts/hub/v\d|search/recommend_query/v\d\?.*|search_v\d\?.*|search/tabs\?.*|people/self)$'
+      pathRegex: '^/(?:root/tab(?:/v\d+)?(?:\?.*)?|topstory/recommend(?:\?.*)?|questions/\d+/feeds(?:\?.*)?|comment_v\d+/(?:answers|pins)/\d+/root_comment(?:\?.*)?|(?:articles|pins)/v\d+/\d+(?:\?.*)?|comment_v\d+/answers/\d+/list-headers(?:\?.*)?|podcasts/hub/v\d+(?:\?.*)?|search/recommend_query/v\d+(?:\?.*)?|search_v\d+(?:\?.*)?|search/tabs(?:\?.*)?|people/self(?:\?.*)?)$'
     script:
       source: ./clean-json.js
       bodyMode: text

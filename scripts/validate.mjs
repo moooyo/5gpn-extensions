@@ -363,7 +363,8 @@ for (const entry of entries) {
   if (entry.name === 'zhihu-cleaner') {
     assert(captureHosts.length === 5, 'zhihu-cleaner: reviewed capture hosts are incomplete')
     assert(actions.length === 6 && actions.filter((action) => action.phase === 'request').length === 3 && actions.filter((action) => action.phase === 'response').length === 3, 'zhihu-cleaner: reviewed action set is incomplete')
-    assert((manifest.settings?.length ?? 0) === 0 && !manifest.permissions.persistentStorage && (manifest.permissions.network?.origins?.length ?? 0) === 0 && routingRules.length === 0 && mappings.length === 0 && manifest.requirements?.egressGroup?.required !== true, 'zhihu-cleaner: unexpected permission or routing expansion')
+    assert((manifest.settings?.length ?? 0) === 0 && !manifest.permissions.persistentStorage && (manifest.permissions.network?.origins?.length ?? 0) === 0 && routingRules.length === 5 && mappings.length === 0 && manifest.requirements?.egressGroup?.required !== true, 'zhihu-cleaner: unexpected permission or routing expansion')
+    assert(routingRules.every((rule) => rule.action === 'reject' && rule.network === 'udp' && rule.destinationPort === 443 && captureSet.has(rule.domain)), 'zhihu-cleaner: UDP/443 fallback rules are incomplete')
   }
   assert(rootReadme.includes(`\`${entry.name}\``), `${entry.name}: missing from root catalog table`)
 }

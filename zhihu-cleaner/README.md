@@ -16,8 +16,8 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/exte
 This public raw URL is directly installable. For a private fork, use the
 Console's local-add/upload flow or an operator-controlled public HTTPS mirror;
 never embed repository credentials in an extension URL. Review the immutable
-snapshot digest, five capture hosts, six actions, and interception boundary
-before enabling it.
+snapshot digest, five capture hosts, six actions, five UDP/443 fallback rules,
+and interception boundary before enabling it.
 
 ## Pinned upstream
 
@@ -54,9 +54,9 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `e4a27aeaed3477dab4f930322a65fdbb0704a6474a48c086d5071f57aacca0df` |
-| JSON response transform | `zhihu-cleaner/clean-json.js` — SHA-256 `af001245eae104d16cb29c034d13b6710cbeaa5156fd4ddb4d02639b09f096f6` |
-| Synthetic JSON response transform | `zhihu-cleaner/mock-json.js` — SHA-256 `5726d785e4e3eb4b5af29a42d5bc108b1f9d34f561c0cb328d3b746907451cb5` |
+| Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `e3a5d07eed06a393df831a9d9d5ca109ee9935f2d88ed54b61a5812bd089b772` |
+| JSON response transform | `zhihu-cleaner/clean-json.js` — SHA-256 `c4b6d3b4970e4eedd929495bffa0ae56936fa5d20215f9272b3605aacb7fdd08` |
+| Synthetic JSON response transform | `zhihu-cleaner/mock-json.js` — SHA-256 `f78bf169cee8028ee8286d1fe6b2ffe1e43176178e536e49503364227c42ef10` |
 | Authorization record | `zhihu-cleaner/AUTHORIZATION.md` — SHA-256 `e1d5d51f898539dfcc96b698adebbf84efbdf7d584b6cf3e1a3e26dd6ff2dc22` |
 
 ## Authorization, license, and attribution
@@ -87,21 +87,46 @@ them into six structured actions without expanding the capture boundary.
 
 | Upstream behavior | Native 5gpn mapping |
 | --- | --- |
-| `[MitM]` hosts `api.zhihu.com`, `m-cloud.zhihu.com`, `page-info.zhihu.com`, `www.zhihu.com`, and `zhida.zhihu.com` | The same five exact names are the complete `traffic.captureHosts` list. No wildcard or accidental `api.com`/`page-info.com` alternative is acquired. |
-| Eleven `reject-dict` directives | Three request actions group the exact API, web, and Zhida path sets. `mock-json.js` verifies the host and path again, then returns status 200, `Content-Type: application/json`, and body `{}`. The duplicated token on the upstream `commercial_api` line is normalized to one synthetic response. |
+| `[MitM]` hosts `api.zhihu.com`, `m-cloud.zhihu.com`, `page-info.zhihu.com`, `www.zhihu.com`, and `zhida.zhihu.com` | The same five exact names are the complete `traffic.captureHosts` list. No wildcard or accidental `api.com`/`page-info.com` alternative is acquired. Five host-scoped UDP/443 reject rules additionally force QUIC fallback on preserved/custom gateway configurations. |
+| Eleven `reject-dict` directives | Three request actions group the API, web, and Zhida path sets. `mock-json.js` verifies the host, normalized path, multi-digit versions, and order-independent query values before returning status 200, `Content-Type: application/json`, and body `{}`. The duplicated token on the upstream `commercial_api` line is normalized to one synthetic response. |
 | `m-cloud` configuration `drop_keys` JQ program | `clean-m-cloud-config` removes the same 17 HTTPDNS/QUIC config keys and removes `delayHttpdns`, `dnsParser`, and `HTTPDNS` only from retained object-valued configs. Arrays, scalars, and unrelated fields remain unchanged. |
-| Root-tab whitelist | `clean-json.js` keeps only `follow`, `recommend`, `hot`, and `ring_tab`, preserving their order and unrelated response fields. |
-| Two `topstory/recommend` JQ directives | One ordered native branch first keeps only `ComponentCard` entries, then removes `children` entries whose `id` is `ring`. |
+| Root-tab whitelist | `clean-json.js` handles both current `/root/tab` and versioned `/root/tab/vN` paths, then keeps only `follow`, `recommend`, `hot`, and `ring_tab`, preserving their order and unrelated response fields. |
+| Two `topstory/recommend` JQ directives | The current API returns normal `type=feed` objects rather than only `ComponentCard`. The hardened branch therefore preserves unknown/normal items, removes only explicit ad/commercial markers, and still removes `children` entries whose `id` is `ring`. |
 | Question feeds and comment roots | Exact response branches remove root-level `ad_info` or `atmosphere_voting_config`; identically named nested fields are preserved. |
-| Answer detail directives on API and page-info hosts | `clean-answer-responses` removes `third_business` and `float_search_word`, then removes `card` segments. API answer URLs with a query also receive the generic content-field removals, preserving the upstream overlap. |
-| Queried article/answer/pin detail directive | The API branch removes root-level `third_business`, `ring_info`, and `interaction_bar_plugins`; answer handling is combined with the answer-specific directives above. |
+| Answer detail directives on API and page-info hosts | `clean-answer-responses` removes `third_business` and `float_search_word`, then removes `card` segments. API answer URLs with or without a query also receive the generic content-field removals; page-info remains limited to the answer-specific fields. |
+| Article/answer/pin detail directive | The API branch accepts queryless and queried multi-digit versions, then removes root-level `third_business`, `ring_info`, and `interaction_bar_plugins`; answer handling is combined with the answer-specific directives above. |
 | Comment header and podcast directives | Exact response branches remove `continuous_consumption_module` or `banners`. |
-| Search recommendation, result, and tab directives | The native response branch keeps only `normal` recommended queries, removes root-level `pendant`, and keeps the same 11 reviewed tab identifiers. |
+| Search recommendation, result, and tab directives | The native response branch keeps only `normal` recommended queries, removes root-level `pendant`, and uses a deliberate compatibility allowlist that adds `km_general`, `scholar`, and `publication` to the reviewed identifiers. |
 | `people/self` directive | The native response branch removes only `vip_info.entrance_new.right_button` and `vip_info.entrance_v2`, preserving sibling values. |
 | Loon metadata | Name and purpose become native metadata. Creator, version-date caveat, immutable bytes, authorization, and update provenance remain in this README. |
 
 The upstream has no external `[Script]` dependency. Both native transforms are
 immutable local files and expose only `transform(context)`.
+
+## Current API compatibility hardening
+
+The original `1.0.0` port proved semantic parity only against synthetic URL
+and JSON fixtures. It did not establish live-app parity. A direct public API
+review on `2026-07-24` found two deterministic drifts:
+
+- `https://api.zhihu.com/root/tab` returns the active root tabs without a
+  `/vN` suffix, while the pinned LPX matcher required `/root/tab/v\d`.
+- `https://api.zhihu.com/topstory/recommend?limit=20` returns normal
+  `type=feed` entries, while the pinned JQ whitelist expected
+  `ComponentCard`. Reusing that whitelist would remove the complete current
+  feed rather than only advertisements.
+
+Version `1.1.0` accepts unversioned or multi-digit current paths, optional and
+reordered query parameters, lowercase encoded braces, and queryless variants
+where the script can still verify semantics. Topstory cleanup is deliberately
+conservative: it removes only explicit ad/commercial fields and type markers,
+preserving unknown feed structures. Five UDP/443 rules address the bootstrap
+case where cached QUIC configuration can bypass the response action that would
+otherwise disable QUIC/HTTPDNS.
+
+These observations are compatibility evidence, not an authenticated iOS app
+capture. A future change must still record actual device host/path/body shapes
+before adding a new destructive response filter.
 
 ## Deliberately not ported and limitations
 
@@ -110,9 +135,9 @@ immutable local files and expose only `transform(context)`.
 - The upstream URL alternation can spell `api.com` and `page-info.com`, but
   those names are outside its `[MitM]` list. This port intentionally acquires
   only the five declared Zhihu hosts.
-- The literal `%7D`, one-digit version matchers, query delimiters, parameter
-  order, and end anchors are preserved even where they appear unusual. Future
-  upstream API changes can therefore stop a rule from matching.
+- Matchers accept current unversioned/multi-digit paths and common query
+  variation, but they remain bounded to reviewed endpoint families. New hosts,
+  renamed paths, encrypted payloads, and moved response fields remain no-ops.
 - A matched malformed JSON response is logged without body content and left
   unchanged. Structural mismatches and already-clean responses are no-ops.
 - Text response actions accept at most 8 MiB. Larger bodies fail the native
@@ -121,7 +146,9 @@ immutable local files and expose only `transform(context)`.
   a different status or response schema may behave differently after an API
   change.
 - The extension requests no storage, origin-scoped network access, upstream
-  mapping, routing rule, setting, or operator egress binding.
+  mapping, setting, or operator egress binding. Its only routing effects are
+  five exact-domain UDP/443 rejects. They cannot acquire a direct connection
+  to a hard-coded HTTPDNS address that never carries a domain association.
 - Interception still requires the global MITM master and an authorized test
   device that trusts the interception root. Certificate pinning, encrypted
   application payloads, protocol changes, or traffic outside ports 80 and 443
@@ -185,10 +212,10 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.zhihu-cleaner`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=1.0.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=6`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=1.1.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=6`; `routingRules=5`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | None. A same-ID update has no extension setting values to migrate. |
-| Reviewed capability baseline | Five exact capture hosts, three request actions, three response actions, two local scripts, and no network origins, mappings, routing rules, or egress requirement. |
+| Reviewed capability baseline | Five exact capture hosts, three request actions, three response actions, five host-scoped UDP/443 reject rules, two local scripts, and no network origins, mappings, or egress requirement. |
 | Operator state | A normal update retains `capture_dns` and execution position; both still require review before enable. |
 | Ordering | Review every other extension that captures a listed Zhihu host. Request and response actions execute in configured extension order. |
 | Authorization gate | Confirm the retained upstream permission covers the candidate bytes and documented public redistribution terms before implementation or publication. |
@@ -197,7 +224,8 @@ decision.
 ### Repeatable migration
 
 1. Complete the shared playbook record with the exact LPX bytes, authorization,
-   rewrite counts, five capture hosts, six actions, and stateless contract.
+   rewrite counts, five capture hosts, six actions, five routing rules, and
+   stateless contract.
 2. Diff every synthetic response, matcher, JQ expression, deletion path, and
    MITM hostname. Treat removals as explicit decisions.
 3. Synchronize immutable source and local digests, authorization scope,
@@ -212,7 +240,7 @@ decision.
 ### Rollback
 
 The publisher prepares a same-ID revert-forward candidate that restores the
-reviewed five-host, six-action baseline with a version incremented above the
+reviewed five-host, six-action, five-routing-rule baseline with a version incremented above the
 failing candidate. Apply it while disabled, review ordering and `capture_dns`,
 then rerun every synthetic-response and JSON fixture before enable. Emergency
 reinstall from an old immutable manifest is data-safe because the extension is
@@ -227,14 +255,20 @@ For each update:
    SHA-256 digests.
 2. Import the candidate through **Install from URL** or the explicit update
    flow and confirm it remains disabled.
-3. Confirm exactly five capture hosts, six actions, zero settings, zero network
-   origins, zero mappings, zero routing rules, and no egress requirement.
+3. Confirm exactly five capture hosts, six actions, five routing rules, zero
+   settings, zero network origins, zero mappings, and no egress requirement.
 4. Exercise all 11 synthetic response endpoints and all 15 JSON directives,
-   including the overlapping answer and topstory cases.
-5. Exercise wrong hosts, version-width mismatches, query-order changes,
-   lowercase `%7d`, malformed JSON, absent fields, non-object values, and a
-   large bounded response.
-6. Run the repository and current core parser gates before publication.
+   including unversioned root tabs, multi-digit versions, reordered queries,
+   overlapping answers, current `type=feed`, and explicit ad markers.
+5. Exercise wrong hosts, invalid query semantics, malformed JSON, absent
+   fields, non-object values, repeated transforms, and a large bounded
+   response.
+6. On the authorized device, request
+   `https://api.zhihu.com/commercial_api/5gpn-probe`; a working interception
+   chain returns the synthetic body `{}` from `mock-api-json`.
+7. Confirm the five UDP/443 rules are active, clear cached Zhihu HTTPDNS/QUIC
+   state, and verify at least one real `action completed` log.
+8. Run the repository and current core parser gates before publication.
 
 The repository-local gates are:
 
