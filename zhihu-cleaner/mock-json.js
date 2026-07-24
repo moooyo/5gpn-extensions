@@ -48,6 +48,7 @@ function shouldMock(location) {
   if (location.hostname === 'api.zhihu.com') {
     return (
       /^\/commercial_api(?:\/|$)/.test(route.pathname) ||
+      route.pathname === '/root/window' ||
       (route.pathname === '/next-render' && /^\d+$/.test(queryValue(route.query, 'id') || '') && queryValue(route.query, 'type') === 'answer') ||
       route.pathname === '/search/preset_words' ||
       /^\/search\/related_queries\/question\/\d+$/.test(route.pathname) ||

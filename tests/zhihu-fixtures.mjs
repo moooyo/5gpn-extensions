@@ -59,7 +59,7 @@ function clean(transform, url, document) {
 }
 
 assert.equal(manifest.metadata.id, 'io.5gpn.zhihu-cleaner')
-assert.equal(manifest.metadata.version, '1.1.0')
+assert.equal(manifest.metadata.version, '1.2.0')
 assert.deepEqual(manifest.permissions, { persistentStorage: false })
 assert.equal(manifest.settings, undefined)
 assert.equal(manifest.requirements, undefined)
@@ -94,6 +94,7 @@ const pathCases = new Map([
     matches: [
       '/commercial_api',
       '/commercial_api/banner',
+      '/root/window?source=ios',
       '/next-render?id=1&type=answer',
       '/next-render?id=1&type=answer&next=2',
       '/next-render?type=answer&next=2&id=1',
@@ -112,6 +113,7 @@ const pathCases = new Map([
     ],
     misses: [
       '/other-render?type=answer&id=1',
+      '/root/windows',
       '/search/related_queries/question/id',
       '/people/homepage_entry_version',
       '/unlimited/go/my_card/latest',
@@ -180,6 +182,7 @@ for (const action of manifest.actions) {
 const { transform: mockTransform } = await loadTransform('mock-json.js')
 const mockURLs = [
   'https://api.zhihu.com/commercial_api/banner',
+  'https://api.zhihu.com/root/window?source=ios',
   'https://api.zhihu.com/next-render?type=answer&source=ios&id=1',
   'https://api.zhihu.com/search/preset_words?source=ios',
   'https://api.zhihu.com/search/related_queries/question/42?source=ios',
@@ -230,8 +233,16 @@ const { transform: cleanTransform, messages } = await loadTransform('clean-json.
 }
 
 {
-  const result = clean(cleanTransform, 'https://api.zhihu.com/root/tab', {
+  const rootTabURL = 'https://api.zhihu.com/root/tab/v2?source=ios'
+  const result = clean(cleanTransform, rootTabURL, {
     marker: 'keep',
+    ring_list: [{ id: 'ring-1' }],
+    tab_ext: {
+      is_show_ring: true,
+      ring_title: 'keep',
+      ring_link: 'zhihu://rings',
+      future: { keep: true },
+    },
     tab_list: [
       { tab_type: 'activity', id: 0 },
       { tab_type: 'follow', id: 1 },
@@ -242,7 +253,20 @@ const { transform: cleanTransform, messages } = await loadTransform('clean-json.
     ],
   })
   assert.equal(result.marker, 'keep')
-  assert.deepEqual(result.tab_list.map((item) => item.id), [1, 2, 3, 5])
+  assert.deepEqual(result.tab_list.map((item) => item.id), [1, 2, 3])
+  assert.deepEqual(result.ring_list, [])
+  assert.deepEqual(result.tab_ext, {
+    is_show_ring: false,
+    ring_title: 'keep',
+    ring_link: 'zhihu://rings',
+    future: { keep: true },
+  })
+  assert.equal(clean(cleanTransform, rootTabURL, result), null)
+  assert.equal(clean(cleanTransform, rootTabURL, {
+    tab_list: 'keep',
+    ring_list: 'keep',
+    tab_ext: 'keep',
+  }), null)
 }
 
 {

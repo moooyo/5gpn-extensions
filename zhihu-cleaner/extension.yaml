@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.zhihu-cleaner
   name: Zhihu Cleaner
-  version: 1.1.0
+  version: 1.2.0
   description: Removes selected Zhihu transport overrides, advertisements, promotions,
     and navigation entries.
 
@@ -48,7 +48,7 @@ actions:
         - api.zhihu.com
       schemes:
         - https
-      pathRegex: '^/(?:commercial_api(?:/.*)?|next-render(?:\?.*)?|search/preset_words(?:\?.*)?|search/related_queries/question/\d+(?:\?.*)?|content-distribution-core/bubble/common/show(?:\?.*)?|people/homepage_entry_v\d+(?:\?.*)?|kvip/right/my_card(?:\?.*)?|unlimited/go/my_card/v\d+(?:\?.*)?)$'
+      pathRegex: '^/(?:commercial_api(?:/.*)?|root/window(?:\?.*)?|next-render(?:\?.*)?|search/preset_words(?:\?.*)?|search/related_queries/question/\d+(?:\?.*)?|content-distribution-core/bubble/common/show(?:\?.*)?|people/homepage_entry_v\d+(?:\?.*)?|kvip/right/my_card(?:\?.*)?|unlimited/go/my_card/v\d+(?:\?.*)?)$'
     script:
       source: ./mock-json.js
       bodyMode: none

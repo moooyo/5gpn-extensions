@@ -42,7 +42,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   })
   assert.deepEqual(weatherkit.resources.map(resource => resource.path), ['availability.js', 'request.js', 'weather.js'])
   const zhihu = catalog.entries.find(entry => entry.id === 'io.5gpn.zhihu-cleaner')
-  assert.equal(zhihu.version, '1.1.0')
+  assert.equal(zhihu.version, '1.2.0')
   assert.deepEqual(
     [zhihu.capabilities.captureHostCount, zhihu.capabilities.actionCount, zhihu.capabilities.routingRuleCount],
     [5, 6, 5],

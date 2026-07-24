@@ -54,9 +54,9 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `e3a5d07eed06a393df831a9d9d5ca109ee9935f2d88ed54b61a5812bd089b772` |
-| JSON response transform | `zhihu-cleaner/clean-json.js` — SHA-256 `c4b6d3b4970e4eedd929495bffa0ae56936fa5d20215f9272b3605aacb7fdd08` |
-| Synthetic JSON response transform | `zhihu-cleaner/mock-json.js` — SHA-256 `f78bf169cee8028ee8286d1fe6b2ffe1e43176178e536e49503364227c42ef10` |
+| Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `9cd01abfefd0d494385f95cd424ac66eab0b05b26e4f6b1ea671377a557aad87` |
+| JSON response transform | `zhihu-cleaner/clean-json.js` — SHA-256 `944b9e0d0ed607e439285b0a26b2788793248eb3a31f656742aa3cd98f7dfe9a` |
+| Synthetic JSON response transform | `zhihu-cleaner/mock-json.js` — SHA-256 `ee60aea99548c5b466cbe0beaeaac554284082503239e3890d8d66c81095b352` |
 | Authorization record | `zhihu-cleaner/AUTHORIZATION.md` — SHA-256 `e1d5d51f898539dfcc96b698adebbf84efbdf7d584b6cf3e1a3e26dd6ff2dc22` |
 
 ## Authorization, license, and attribution
@@ -88,9 +88,9 @@ them into six structured actions without expanding the capture boundary.
 | Upstream behavior | Native 5gpn mapping |
 | --- | --- |
 | `[MitM]` hosts `api.zhihu.com`, `m-cloud.zhihu.com`, `page-info.zhihu.com`, `www.zhihu.com`, and `zhida.zhihu.com` | The same five exact names are the complete `traffic.captureHosts` list. No wildcard or accidental `api.com`/`page-info.com` alternative is acquired. Five host-scoped UDP/443 reject rules additionally force QUIC fallback on preserved/custom gateway configurations. |
-| Eleven `reject-dict` directives | Three request actions group the API, web, and Zhida path sets. `mock-json.js` verifies the host, normalized path, multi-digit versions, and order-independent query values before returning status 200, `Content-Type: application/json`, and body `{}`. The duplicated token on the upstream `commercial_api` line is normalized to one synthetic response. |
+| Eleven upstream `reject-dict` directives plus the current `/root/window` navigation entry | Three request actions group the API, web, and Zhida path sets. `mock-json.js` verifies the host, normalized path, multi-digit versions, and order-independent query values before returning status 200, `Content-Type: application/json`, and body `{}`. The duplicated token on the upstream `commercial_api` line is normalized to one synthetic response; `/root/window` is an explicit compatibility addition requested to remove the Kanshan entry. |
 | `m-cloud` configuration `drop_keys` JQ program | `clean-m-cloud-config` removes the same 17 HTTPDNS/QUIC config keys and removes `delayHttpdns`, `dnsParser`, and `HTTPDNS` only from retained object-valued configs. Arrays, scalars, and unrelated fields remain unchanged. |
-| Root-tab whitelist | `clean-json.js` handles both current `/root/tab` and versioned `/root/tab/vN` paths, then keeps only `follow`, `recommend`, `hot`, and `ring_tab`, preserving their order and unrelated response fields. |
+| Root-tab whitelist | The pinned upstream whitelist retained `ring_tab`. As a deliberate 1.2 compatibility change, `clean-json.js` handles both current `/root/tab` and versioned `/root/tab/vN` paths, keeps only `follow`, `recommend`, and `hot`, clears `ring_list`, and sets an existing `tab_ext.is_show_ring` flag to `false`. This removes the top Rings entry while preserving tab order and unrelated response fields. |
 | Two `topstory/recommend` JQ directives | The current API returns normal `type=feed` objects rather than only `ComponentCard`. The hardened branch therefore preserves unknown/normal items, removes only explicit ad/commercial markers, and still removes `children` entries whose `id` is `ring`. |
 | Question feeds and comment roots | Exact response branches remove root-level `ad_info` or `atmosphere_voting_config`; identically named nested fields are preserved. |
 | Answer detail directives on API and page-info hosts | `clean-answer-responses` removes `third_business` and `float_search_word`, then removes `card` segments. API answer URLs with or without a query also receive the generic content-field removals; page-info remains limited to the answer-specific fields. |
@@ -107,7 +107,7 @@ immutable local files and expose only `transform(context)`.
 
 The original `1.0.0` port proved semantic parity only against synthetic URL
 and JSON fixtures. It did not establish live-app parity. A direct public API
-review on `2026-07-24` found two deterministic drifts:
+review on `2026-07-24` found current API drifts and navigation surfaces:
 
 - `https://api.zhihu.com/root/tab` returns the active root tabs without a
   `/vN` suffix, while the pinned LPX matcher required `/root/tab/v\d`.
@@ -115,8 +115,14 @@ review on `2026-07-24` found two deterministic drifts:
   `type=feed` entries, while the pinned JQ whitelist expected
   `ComponentCard`. Reusing that whitelist would remove the complete current
   feed rather than only advertisements.
+- `https://api.zhihu.com/root/window` returns an OGV guide with
+  `module_id=homepage_ogv_entry`, icon assets, and a long-content route. The
+  native synthetic response removes this remotely configured Kanshan entry.
+- Current root-tab responses can expose Rings through `ring_tab`,
+  `ring_list`, and `tab_ext.is_show_ring`. The native response transform
+  removes or disables all three surfaces without deleting unrelated tabs.
 
-Version `1.1.0` accepts unversioned or multi-digit current paths, optional and
+Version `1.2.0` accepts unversioned or multi-digit current paths, optional and
 reordered query parameters, lowercase encoded braces, and queryless variants
 where the script can still verify semantics. Topstory cleanup is deliberately
 conservative: it removes only explicit ad/commercial fields and type markers,
@@ -212,7 +218,7 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.zhihu-cleaner`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=1.1.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=6`; `routingRules=5`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=1.2.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=6`; `routingRules=5`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | None. A same-ID update has no extension setting values to migrate. |
 | Reviewed capability baseline | Five exact capture hosts, three request actions, three response actions, five host-scoped UDP/443 reject rules, two local scripts, and no network origins, mappings, or egress requirement. |
@@ -257,9 +263,11 @@ For each update:
    flow and confirm it remains disabled.
 3. Confirm exactly five capture hosts, six actions, five routing rules, zero
    settings, zero network origins, zero mappings, and no egress requirement.
-4. Exercise all 11 synthetic response endpoints and all 15 JSON directives,
-   including unversioned root tabs, multi-digit versions, reordered queries,
-   overlapping answers, current `type=feed`, and explicit ad markers.
+4. Exercise all 11 upstream synthetic-response directives, the additional
+   `/root/window` response, and all 15 upstream JSON directives, including
+   unversioned root tabs, multi-digit versions, reordered queries, overlapping
+   answers, current `type=feed`, explicit ad markers, and the separate removal
+   of root-tab `ring_tab`, `ring_list`, and `tab_ext.is_show_ring` surfaces.
 5. Exercise wrong hosts, invalid query semantics, malformed JSON, absent
    fields, non-object values, repeated transforms, and a large bounded
    response.

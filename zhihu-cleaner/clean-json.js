@@ -18,7 +18,7 @@ const BLOCKED_CONFIG_KEYS = new Set([
   'tquic_configuration',
   'zaSetExtraRequestHeader',
 ])
-const ROOT_TAB_TYPES = new Set(['follow', 'hot', 'recommend', 'ring_tab'])
+const ROOT_TAB_TYPES = new Set(['follow', 'hot', 'recommend'])
 const SEARCH_TAB_TYPES = new Set([
   'ai_zhida',
   'column',
@@ -188,11 +188,24 @@ function cleanApi(path, document) {
   let changed = false
 
   if (/^\/root\/tab(?:\/v\d+)?(?:\?.*)?$/.test(path)) {
-    return filterProperty(
+    changed = filterProperty(
       document,
       'tab_list',
       (item) => isObject(item) && ROOT_TAB_TYPES.has(item.tab_type),
     )
+    if (Array.isArray(document.ring_list) && document.ring_list.length > 0) {
+      document.ring_list = []
+      changed = true
+    }
+    if (
+      isObject(document.tab_ext) &&
+      Object.prototype.hasOwnProperty.call(document.tab_ext, 'is_show_ring') &&
+      document.tab_ext.is_show_ring !== false
+    ) {
+      document.tab_ext.is_show_ring = false
+      changed = true
+    }
+    return changed
   }
 
   if (/^\/topstory\/recommend(?:\?.*)?$/.test(path)) {
