@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/pro
 import { isIP } from 'node:net'
 import path from 'node:path'
 import { isAlias, isMap, isSeq, parseDocument } from 'yaml'
+import { compileManifestPolicy, policyDigest } from './typed-policy.mjs'
 
 const repositoryRoot = path.resolve(import.meta.dirname, '..')
 const rawBase = 'https://raw.githubusercontent.com/moooyo/5gpn-extensions/main'
@@ -258,6 +259,29 @@ async function buildResources(root, directory, actions) {
   return resources
 }
 
+// The typed runtime-overlay projection this extension compiles to.
+//
+// Published rather than merely checked because the gateway compiles the same
+// manifest independently, in Go. Carrying the digest here turns that second
+// implementation into something verifiable: the gateway compares what it is
+// about to enforce against what was reviewed and published, and a divergence
+// is caught before a generation is committed instead of showing up as traffic
+// behaving differently from the reviewed policy.
+function policyProjection(manifest, directory) {
+  let projection
+  try {
+    projection = compileManifestPolicy(manifest)
+  } catch (error) {
+    throw new Error(`${directory}: ${error.message}`)
+  }
+  return {
+    clientRules: projection.rules.length,
+    policyRules: projection.policyRules,
+    captureRules: projection.captureRules,
+    digest: policyDigest(projection, createHash),
+  }
+}
+
 export async function generateMarketplace({ root = repositoryRoot, revision }) {
   assert(revisionPattern.test(revision), 'revision must be a lowercase 40-character Git commit')
   const metadataBody = await readFile(path.join(root, 'marketplace', 'metadata.json'), 'utf8')
@@ -310,6 +334,7 @@ export async function generateMarketplace({ root = repositoryRoot, revision }) {
         routingRuleCount: (manifest.traffic.routingRules ?? []).length,
         egressGroupRequired: manifest.requirements?.egressGroup?.required ?? false,
       },
+      policy: policyProjection(manifest, directory),
     })
   }
   entries.sort((left, right) => compareText(left.id, right.id))

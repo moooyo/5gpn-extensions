@@ -8,10 +8,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node scripts/validate.mjs && node tests/runtime-fixtures.mjs && node tests/ad-platform-fixtures.mjs && node tests/httpdns-fixtures.mjs && node tests/apple-testflight-fixtures.mjs && node tests/youtube-fixtures.mjs && node tests/bilibili-fixtures.mjs && node tests/weatherkit-fixtures.mjs && node tests/zhihu-fixtures.mjs && node tests/marketplace-fixtures.mjs",
+    "test": "node scripts/validate.mjs && node tests/typed-policy-fixtures.mjs && node tests/runtime-fixtures.mjs && node tests/ad-platform-fixtures.mjs && node tests/httpdns-fixtures.mjs && node tests/apple-testflight-fixtures.mjs && node tests/youtube-fixtures.mjs && node tests/bilibili-fixtures.mjs && node tests/weatherkit-fixtures.mjs && node tests/zhihu-fixtures.mjs && node tests/marketplace-fixtures.mjs",
     "marketplace:build": "node scripts/generate-marketplace.mjs",
     "routing:check": "node scripts/sync-routing-rules.mjs --check",
-    "verify:upstreams": "node scripts/verify-upstreams.mjs"
+    "verify:upstreams": "node scripts/verify-upstreams.mjs",
+    "policy:check": "node tests/typed-policy-fixtures.mjs"
   },
   "devDependencies": {
     "ajv": "8.20.0",

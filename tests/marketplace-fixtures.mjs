@@ -26,6 +26,19 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     [adPlatform.capabilities.captureHostCount, adPlatform.capabilities.actionCount, adPlatform.capabilities.routingRuleCount],
     [277, 3, 201],
   )
+  // The published projection is what the gateway checks its own Go compile
+  // against, so a drift in either compiler has to be visible here.
+  assert.deepEqual(adPlatform.policy, {
+    clientRules: 553,
+    policyRules: 201,
+    captureRules: 352,
+    digest: 'a65ccac63b95fd5b8395770118ca3941dffbc17105c4ac7ec56deb996bb0a936',
+  })
+  for (const entry of catalog.entries) {
+    assert.equal(entry.policy.clientRules, entry.policy.policyRules + entry.policy.captureRules)
+    assert.equal(entry.policy.policyRules, entry.capabilities.routingRuleCount,
+      `${entry.id}: a reviewed routing rule did not survive into the typed projection`)
+  }
   const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
   assert.equal(bilibili.capabilities.actionCount, 11)
   assert.equal(bilibili.resources.filter(resource => resource.path === 'protobuf.js').length, 1)

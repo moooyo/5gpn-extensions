@@ -54,7 +54,7 @@
     "entry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "version", "description", "tags", "license", "documentationUrl", "manifest", "resources", "capabilities"],
+      "required": ["id", "name", "version", "description", "tags", "license", "documentationUrl", "manifest", "resources", "capabilities", "policy"],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9.-]{1,38}[a-z0-9])$" },
         "name": { "type": "string", "minLength": 1, "maxLength": 128 },
@@ -83,7 +83,8 @@
           "maxItems": 256,
           "items": { "$ref": "#/$defs/resource" }
         },
-        "capabilities": { "$ref": "#/$defs/capabilities" }
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "policy": { "$ref": "#/$defs/policy" }
       }
     },
     "artifact": {
@@ -133,6 +134,17 @@
         "upstreamMappingCount": { "type": "integer", "minimum": 0, "maximum": 256 },
         "routingRuleCount": { "type": "integer", "minimum": 0, "maximum": 256 },
         "egressGroupRequired": { "type": "boolean" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clientRules", "policyRules", "captureRules", "digest"],
+      "properties": {
+        "clientRules": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "policyRules": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "captureRules": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       }
     }
   }
