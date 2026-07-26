@@ -18,7 +18,42 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const ajv = new Ajv2020({ allErrors: true, strict: true })
   addFormats(ajv)
   const validate = ajv.compile(schema)
-  const catalog = JSON.parse(await generateMarketplace({ revision }))
+  const stableBody = await generateMarketplace({ revision, profile: 'v1' })
+  const betaBody = await generateMarketplace({ revision, profile: 'v1beta' })
+  const stable = JSON.parse(stableBody)
+  const catalog = JSON.parse(betaBody)
+
+  // The stable core parses the index with DisallowUnknownFields, so `policy`
+  // reaching the v1 document costs every gateway that has not learned the field
+  // its whole extension catalogue. Assert its absence directly rather than
+  // trusting the profile plumbing to keep being right.
+  for (const entry of stable.entries) {
+    assert.equal(
+      Object.hasOwn(entry, 'policy'),
+      false,
+      `${entry.id}: the v1 profile published a policy projection the stable core would refuse`,
+    )
+  }
+  for (const entry of catalog.entries) {
+    assert.equal(
+      Object.hasOwn(entry, 'policy'),
+      true,
+      `${entry.id}: the v1beta profile dropped the policy projection`,
+    )
+  }
+
+  // The two profiles are one document differing by one key. Stripping it has to
+  // reproduce the other exactly — otherwise the split has quietly become a
+  // second way of describing the catalogue, and the v1 readers would be the
+  // last to find out.
+  const strippedBeta = structuredClone(catalog)
+  for (const entry of strippedBeta.entries) delete entry.policy
+  assert.deepEqual(
+    strippedBeta,
+    stable,
+    'the profiles differ by more than the policy projection',
+  )
+
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
   assert.equal(catalog.entries.length, 8)
   const adPlatform = catalog.entries.find(entry => entry.id === 'io.5gpn.ad-platform-blocker')
@@ -26,6 +61,19 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     [adPlatform.capabilities.captureHostCount, adPlatform.capabilities.actionCount, adPlatform.capabilities.routingRuleCount],
     [277, 3, 201],
   )
+  // The published projection is what the gateway checks its own Go compile
+  // against, so a drift in either compiler has to be visible here.
+  assert.deepEqual(adPlatform.policy, {
+    clientRules: 553,
+    policyRules: 201,
+    captureRules: 352,
+    digest: 'a65ccac63b95fd5b8395770118ca3941dffbc17105c4ac7ec56deb996bb0a936',
+  })
+  for (const entry of catalog.entries) {
+    assert.equal(entry.policy.clientRules, entry.policy.policyRules + entry.policy.captureRules)
+    assert.equal(entry.policy.policyRules, entry.capabilities.routingRuleCount,
+      `${entry.id}: a reviewed routing rule did not survive into the typed projection`)
+  }
   const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
   assert.equal(bilibili.capabilities.actionCount, 11)
   assert.equal(bilibili.resources.filter(resource => resource.path === 'protobuf.js').length, 1)
@@ -49,6 +97,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   )
   assert.deepEqual(zhihu.resources.map(resource => resource.path), ['clean-json.js', 'mock-json.js'])
   assert.equal(validate(catalog), true, ajv.errorsText(validate.errors))
+  assert.equal(validate(stable), true, ajv.errorsText(validate.errors))
   const boundary = structuredClone(catalog)
   boundary.entries[0].capabilities.captureHostCount = 512
   assert.equal(validate(boundary), true, ajv.errorsText(validate.errors))
@@ -64,16 +113,41 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const output = path.join(temporaryRoot, 'missing', 'parents', 'index.json')
   const script = path.join(repositoryRoot, 'scripts', 'generate-marketplace.mjs')
   try {
-    await execFileAsync(process.execPath, [script, '--revision', revision, '--output', output], { cwd: repositoryRoot })
+    await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
     assert.equal(JSON.parse(generated).entries.length, 8)
-    await execFileAsync(process.execPath, [script, '--revision', revision, '--check', output], { cwd: repositoryRoot })
+    await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--check', output], { cwd: repositoryRoot })
+
+    // --check is profile-aware: the same path checked against the other profile
+    // has to fail, or a mislabelled publish step would verify itself green.
+    try {
+      await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1beta', '--check', output], { cwd: repositoryRoot })
+      assert.fail('--check accepted a v1 document as v1beta output')
+    } catch (error) {
+      assert.match(error.stderr, /not the deterministic v1beta marketplace output/)
+    }
+
+    // The profile is required rather than defaulted, because the default would
+    // decide what gets served to every deployed gateway.
+    try {
+      await execFileAsync(process.execPath, [script, '--revision', revision, '--output', output], { cwd: repositoryRoot })
+      assert.fail('the CLI generated an index without being told which profile')
+    } catch (error) {
+      assert.match(error.stderr, /--profile is required/)
+    }
+    try {
+      await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v2', '--output', output], { cwd: repositoryRoot })
+      assert.fail('the CLI accepted an unknown profile')
+    } catch (error) {
+      assert.match(error.stderr, /profile must be one of v1, v1beta/)
+    }
+
     await writeFile(output, generated.replace(/"sha256": "[0-9a-f]{64}"/, `"sha256": "${'0'.repeat(64)}"`))
     try {
-      await execFileAsync(process.execPath, [script, '--revision', revision, '--check', output], { cwd: repositoryRoot })
+      await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--check', output], { cwd: repositoryRoot })
       assert.fail('--check accepted a modified marketplace digest')
     } catch (error) {
-      assert.match(error.stderr, /not the deterministic marketplace output/)
+      assert.match(error.stderr, /not the deterministic v1 marketplace output/)
     }
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true })
@@ -177,6 +251,12 @@ async function expectFailure(options, pattern) {
     const first = await generateMarketplace({ root, revision })
     const second = await generateMarketplace({ root, revision })
     assert.equal(first, second)
+    // Determinism is the property `--check` rests on, and it has to hold for
+    // the profile that publishes the digest as much as for the one that does not.
+    assert.equal(
+      await generateMarketplace({ root, revision, profile: 'v1beta' }),
+      await generateMarketplace({ root, revision, profile: 'v1beta' }),
+    )
     const catalog = JSON.parse(first)
     assert.equal(catalog.apiVersion, '5gpn.io/marketplace/v1')
     assert.equal(catalog.kind, 'ExtensionMarketplace')

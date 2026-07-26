@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/pro
 import { isIP } from 'node:net'
 import path from 'node:path'
 import { isAlias, isMap, isSeq, parseDocument } from 'yaml'
+import { compileManifestPolicy, policyDigest } from './typed-policy.mjs'
 
 const repositoryRoot = path.resolve(import.meta.dirname, '..')
 const rawBase = 'https://raw.githubusercontent.com/moooyo/5gpn-extensions/main'
@@ -12,6 +13,27 @@ const directoryPattern = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/
 const tagPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const spdxPattern = /^[A-Za-z0-9][A-Za-z0-9.+-]*$/
 const maxCaptureHosts = 512
+
+// The published index exists in two profiles, served from two paths.
+//
+// The index is a wire contract with every deployed gateway and the core parses
+// it with DisallowUnknownFields, so a field added to it is not additive: a core
+// that does not know the field refuses the whole document and loses its
+// extension catalogue. `v1` is therefore frozen at what the stable core
+// accepts, and `v1beta` carries the typed policy projection for cores that have
+// learned to read it. One build emits both; neither is a branch.
+const PROFILES = {
+  v1: { policy: false },
+  v1beta: { policy: true },
+}
+
+function assertProfile(profile) {
+  assert(
+    Object.hasOwn(PROFILES, profile),
+    `profile must be one of ${Object.keys(PROFILES).join(', ')}`,
+  )
+  return PROFILES[profile]
+}
 
 function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0
@@ -258,7 +280,31 @@ async function buildResources(root, directory, actions) {
   return resources
 }
 
-export async function generateMarketplace({ root = repositoryRoot, revision }) {
+// The typed runtime-overlay projection this extension compiles to.
+//
+// Published rather than merely checked because the gateway compiles the same
+// manifest independently, in Go. Carrying the digest here turns that second
+// implementation into something verifiable: the gateway compares what it is
+// about to enforce against what was reviewed and published, and a divergence
+// is caught before a generation is committed instead of showing up as traffic
+// behaving differently from the reviewed policy.
+function policyProjection(manifest, directory) {
+  let projection
+  try {
+    projection = compileManifestPolicy(manifest)
+  } catch (error) {
+    throw new Error(`${directory}: ${error.message}`)
+  }
+  return {
+    clientRules: projection.rules.length,
+    policyRules: projection.policyRules,
+    captureRules: projection.captureRules,
+    digest: policyDigest(projection, createHash),
+  }
+}
+
+export async function generateMarketplace({ root = repositoryRoot, revision, profile = 'v1' }) {
+  const { policy: publishesPolicy } = assertProfile(profile)
   assert(revisionPattern.test(revision), 'revision must be a lowercase 40-character Git commit')
   const metadataBody = await readFile(path.join(root, 'marketplace', 'metadata.json'), 'utf8')
   const metadata = JSON.parse(metadataBody)
@@ -283,6 +329,11 @@ export async function generateMarketplace({ root = repositoryRoot, revision }) {
     const documentationInfo = await stat(path.join(root, directory, 'README.md'))
     assert(documentationInfo.isFile(), `${directory}: README.md is missing`)
     const resources = await buildResources(root, directory, manifest.actions ?? [])
+    // Compiled for every profile, published by only one. The compile is the
+    // review-time gate that refuses a rule the typed overlay cannot carry, and
+    // a gate that only runs for the profile that publishes its result would let
+    // an unrepresentable rule through a `v1` build unremarked.
+    const policy = policyProjection(manifest, directory)
     entries.push({
       id: manifest.metadata.id,
       name: manifest.metadata.name.trim(),
@@ -310,6 +361,9 @@ export async function generateMarketplace({ root = repositoryRoot, revision }) {
         routingRuleCount: (manifest.traffic.routingRules ?? []).length,
         egressGroupRequired: manifest.requirements?.egressGroup?.required ?? false,
       },
+      // Last, and only for the profile that publishes it: appending keeps the
+      // `v1` document byte-identical to what it was before this profile split.
+      ...(publishesPolicy ? { policy } : {}),
     })
   }
   entries.sort((left, right) => compareText(left.id, right.id))
@@ -334,18 +388,26 @@ function parseArguments(argv) {
     const option = argv[index]
     const value = argv[index + 1]
     assert(value !== undefined, `${option} requires a value`)
-    assert(['--revision', '--output', '--check'].includes(option), `unknown option ${option}`)
+    assert(['--revision', '--output', '--check', '--profile'].includes(option), `unknown option ${option}`)
     assert(options[option] === undefined, `duplicate option ${option}`)
     options[option] = value
   }
   assert(options['--revision'], '--revision is required')
+  // Required rather than defaulted. A default here is a silent choice about
+  // which bytes get published to a path every deployed gateway reads, and the
+  // two profiles are not interchangeable in either direction.
+  assert(options['--profile'], '--profile is required')
+  assertProfile(options['--profile'])
   assert(Boolean(options['--output']) !== Boolean(options['--check']), 'exactly one of --output or --check is required')
   return options
 }
 
 export async function runCLI(argv) {
   const options = parseArguments(argv)
-  const generated = await generateMarketplace({ revision: options['--revision'] })
+  const generated = await generateMarketplace({
+    revision: options['--revision'],
+    profile: options['--profile'],
+  })
   if (options['--output']) {
     const output = path.resolve(options['--output'])
     await mkdir(path.dirname(output), { recursive: true })
@@ -353,7 +415,7 @@ export async function runCLI(argv) {
     return
   }
   const existing = await readFile(path.resolve(options['--check']), 'utf8')
-  assert(existing === generated, `${options['--check']} is not the deterministic marketplace output for ${options['--revision']}`)
+  assert(existing === generated, `${options['--check']} is not the deterministic ${options['--profile']} marketplace output for ${options['--revision']}`)
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {

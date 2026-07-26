@@ -83,7 +83,8 @@
           "maxItems": 256,
           "items": { "$ref": "#/$defs/resource" }
         },
-        "capabilities": { "$ref": "#/$defs/capabilities" }
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "policy": { "$ref": "#/$defs/policy" }
       }
     },
     "artifact": {
@@ -133,6 +134,18 @@
         "upstreamMappingCount": { "type": "integer", "minimum": 0, "maximum": 256 },
         "routingRuleCount": { "type": "integer", "minimum": 0, "maximum": 256 },
         "egressGroupRequired": { "type": "boolean" }
+      }
+    },
+    "policy": {
+      "description": "The typed runtime-overlay projection this extension compiles to. Present only in the v1beta profile: the stable core parses the index with DisallowUnknownFields and refuses a document carrying a field it does not know, so the v1 profile omits it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clientRules", "policyRules", "captureRules", "digest"],
+      "properties": {
+        "clientRules": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "policyRules": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "captureRules": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       }
     }
   }
