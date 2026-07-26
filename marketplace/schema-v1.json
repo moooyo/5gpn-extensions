@@ -54,7 +54,7 @@
     "entry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "version", "description", "tags", "license", "documentationUrl", "manifest", "resources", "capabilities", "policy"],
+      "required": ["id", "name", "version", "description", "tags", "license", "documentationUrl", "manifest", "resources", "capabilities"],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9.-]{1,38}[a-z0-9])$" },
         "name": { "type": "string", "minLength": 1, "maxLength": 128 },
@@ -137,6 +137,7 @@
       }
     },
     "policy": {
+      "description": "The typed runtime-overlay projection this extension compiles to. Present only in the v1beta profile: the stable core parses the index with DisallowUnknownFields and refuses a document carrying a field it does not know, so the v1 profile omits it.",
       "type": "object",
       "additionalProperties": false,
       "required": ["clientRules", "policyRules", "captureRules", "digest"],

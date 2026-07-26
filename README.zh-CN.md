@@ -251,12 +251,16 @@ npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run verify:upstreams
 if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
-npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --output marketplace.json
+npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --output marketplace.json
 if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
-npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --check marketplace.json
+npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --check marketplace.json
 if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTEXITCODE" }
 ```
 
 验证门禁检查清单结构、本地脚本引用、捕获主机所有权、JavaScript 语法、禁止的兼容性全局对象、上游溯源文档及每个扩展的行为测试样例。独立的上游命令会下载 README 中记录的每个不可变源 URL，并验证其实际 SHA-256 是否出现在同一文档中；它有意要求网络访问。
 
-Marketplace 生成器只读取 `marketplace/metadata.json` 中经审查的市场元数据；名称、版本、描述、资源、摘要、大小和能力摘要均从严格扩展 manifest 与本地文件派生。对于同一个 revision，输出是确定的。生成器会创建不存在的 `--output` 父目录，`--check` 则要求逐字节完全一致。fixture 测试会编译公开的 Draft 2020-12 schema，并使用它校验真实生成的目录。Pages 工作流会重新运行所有校验和上游检查，从已检出的 `GITHUB_SHA` 生成列表、复核生成字节，并且只部署静态 marketplace 与 schema。验证工作流还会把生成的索引和所有维护中的扩展目录交给当前 5gpn `beta` 的 Go 测试，因此 marketplace 或原生 manifest 契约漂移会在交付前失败。
+Marketplace 生成器只读取 `marketplace/metadata.json` 中经审查的市场元数据；名称、版本、描述、资源、摘要、大小和能力摘要均从严格扩展 manifest 与本地文件派生。对于同一个 revision，输出是确定的。生成器会创建不存在的 `--output` 父目录，`--check` 则要求逐字节完全一致。fixture 测试会编译公开的 Draft 2020-12 schema，并使用它校验真实生成的目录。Pages 工作流会重新运行所有校验和上游检查，从已检出的 `GITHUB_SHA` 生成列表、复核生成字节，并且只部署静态 marketplace 与 schema。
+
+索引由同一次构建产出两个 profile。`v1` 冻结在稳定版核心能接受的形态：它用 `DisallowUnknownFields` 解析索引，因此往里加字段并非向后兼容的增量——不认识该字段的核心会拒绝整个文档，连带丢掉整个扩展目录。`v1beta` 则携带类型化 policy 投影，供已经学会读它的核心使用。`--profile` 是必填而非有默认值的，因为默认值等于替所有已部署网关默默决定了它们会收到哪些字节。
+
+验证工作流把每个 profile 交给真正消费它的那个核心：`v1` 交给 5gpn `main`，`v1beta` 交给 5gpn `beta`。只对 `beta` 验证会恰好看不见这道门存在的意义——只有 `beta` 认识的字段在那里能通过，却会弄坏每一个稳定版网关。

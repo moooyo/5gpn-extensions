@@ -208,7 +208,7 @@ $previousMarketplaceIndex = $env:FIVEGPN_MARKETPLACE_INDEX
 Write-Output "5gpn core revision: $coreRevision"
 
 try {
-  npm run marketplace:build -- --revision $testRevision --output $marketplacePath
+  npm run marketplace:build -- --revision $testRevision --profile v1 --output $marketplacePath
   if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
 
   $env:FIVEGPN_EXTENSIONS_ROOT = $extensionsRoot

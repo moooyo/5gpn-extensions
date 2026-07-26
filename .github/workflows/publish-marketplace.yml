@@ -27,10 +27,23 @@ jobs:
       - run: npm run verify:upstreams
       - name: Generate deterministic marketplace
         run: |
-          mkdir -p _site/marketplace/v1
-          npm run marketplace:build -- --revision "$GITHUB_SHA" --output _site/marketplace/v1/index.json
-          cp marketplace/schema-v1.json _site/marketplace/v1/schema.json
-          npm run marketplace:build -- --revision "$GITHUB_SHA" --check _site/marketplace/v1/index.json
+          # Two profiles, one build. `v1` is frozen at what the stable core
+          # accepts — it parses with DisallowUnknownFields, so a field added
+          # there costs every gateway that does not know it the whole
+          # catalogue. `v1beta` carries the typed policy projection for the
+          # cores that have learned to read it. Publishing both from the same
+          # commit is what keeps them describing the same extensions; a second
+          # branch would not.
+          for profile in v1 v1beta; do
+            mkdir -p "_site/marketplace/${profile}"
+            npm run marketplace:build -- \
+              --revision "$GITHUB_SHA" --profile "$profile" \
+              --output "_site/marketplace/${profile}/index.json"
+            cp marketplace/schema-v1.json "_site/marketplace/${profile}/schema.json"
+            npm run marketplace:build -- \
+              --revision "$GITHUB_SHA" --profile "$profile" \
+              --check "_site/marketplace/${profile}/index.json"
+          done
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: _site

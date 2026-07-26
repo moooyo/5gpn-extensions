@@ -38,21 +38,54 @@ jobs:
           npm ci --ignore-scripts
           npm run build:check
       - name: Generate core integration marketplace
-        run: npm run marketplace:build -- --revision "$GITHUB_SHA" --output "$RUNNER_TEMP/marketplace.json"
+        run: |
+          for profile in v1 v1beta; do
+            npm run marketplace:build -- \
+              --revision "$GITHUB_SHA" --profile "$profile" \
+              --output "$RUNNER_TEMP/marketplace-${profile}.json"
+          done
+
+      # Each artifact is checked against the core that actually consumes it.
+      #
+      # This step used to check out `beta` alone, which made it blind to the
+      # failure it exists to prevent: the stable core parses the index with
+      # DisallowUnknownFields, so a field that only `beta` knows would sail
+      # through here and then cost every stable gateway its whole catalogue.
+      # Verifying `v1` against `main` is the half that was missing.
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          repository: moooyo/5gpn
+          ref: main
+          path: 5gpn-core-stable
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           repository: moooyo/5gpn
           ref: beta
-          path: 5gpn-core
+          path: 5gpn-core-beta
+
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
-          go-version-file: 5gpn-core/cmd/5gpn-dns/go.mod
-          cache-dependency-path: 5gpn-core/cmd/*/go.sum
-      - name: Validate with the core parser
-        working-directory: 5gpn-core/cmd/5gpn-dns
+          go-version-file: 5gpn-core-stable/cmd/5gpn-dns/go.mod
+          cache-dependency-path: 5gpn-core-stable/cmd/*/go.sum
+      - name: Validate v1 with the stable core parser
+        working-directory: 5gpn-core-stable/cmd/5gpn-dns
         env:
           FIVEGPN_EXTENSIONS_ROOT: ${{ github.workspace }}
-          FIVEGPN_MARKETPLACE_INDEX: ${{ runner.temp }}/marketplace.json
+          FIVEGPN_MARKETPLACE_INDEX: ${{ runner.temp }}/marketplace-v1.json
+        run: |
+          grep -Fq 'func TestExternalMaintainedExtensionsAreInstallableFromURL' intercept_module_parser_test.go
+          grep -Fq 'func TestExternalMaintainedMarketplaceMatchesCoreContract' extension_marketplace_test.go
+          go test ./... -count=1 -run '^(TestExternalMaintainedExtensionsAreInstallableFromURL|TestExternalMaintainedMarketplaceMatchesCoreContract)$'
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: 5gpn-core-beta/cmd/5gpn-dns/go.mod
+          cache-dependency-path: 5gpn-core-beta/cmd/*/go.sum
+      - name: Validate v1beta with the beta core parser
+        working-directory: 5gpn-core-beta/cmd/5gpn-dns
+        env:
+          FIVEGPN_EXTENSIONS_ROOT: ${{ github.workspace }}
+          FIVEGPN_MARKETPLACE_INDEX: ${{ runner.temp }}/marketplace-v1beta.json
         run: |
           grep -Fq 'func TestExternalMaintainedExtensionsAreInstallableFromURL' intercept_module_parser_test.go
           grep -Fq 'func TestExternalMaintainedMarketplaceMatchesCoreContract' extension_marketplace_test.go
