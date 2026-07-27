@@ -184,10 +184,7 @@ function transformWeatherKitAirQuality(context) {
 
   if (JSON.stringify(encodedProjection(airQuality)) === before) return null
 
-  const builder = new flatbuffers.Builder()
-  const root = WeatherKit2.encodeRootOverlay(builder, source, new Set(['airQuality']), { airQuality })
-  builder.finish(root)
-  return { response: { body: builder.asUint8Array() } }
+  return { response: { body: WeatherKit2.encode(source, { airQuality }) } }
 }
 
 function transform(context) {

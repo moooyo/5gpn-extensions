@@ -95,9 +95,10 @@ retains Maasea attribution and the Apache-2.0 license.
 ## WeatherKit native port
 
 `weatherkit` is a bounded native port of request-dataset filtering, JSON
-availability merging, FlatBuffer root overlay, and local air-quality behavior
-from the Apache-2.0 `NSRingo/WeatherKit` repository. Runtime behavior is pinned
-to commit `969c7c4e9725c81063384013a0e9e40355425361`. The compatible public schema
+availability merging, FlatBuffer root-slot processing, and local air-quality
+behavior from the Apache-2.0 `NSRingo/WeatherKit` repository. Runtime behavior
+is pinned to release `v3.2.0-beta2`, commit
+`1a2f64883d866a6974a9a5369a82191c49413617`. The compatible public schema
 object is pinned separately to commit
 `ecebd32432161571a39f2579ad3ab758f62e80de`. Neither upstream tree contains a
 `NOTICE` file. The port retains NSRingo WeatherKit contributor attribution and
@@ -110,15 +111,21 @@ precision-related implementation. These strings are retained as creator
 attribution and are not promoted to unverified copyright claims.
 
 The current upstream FlatBuffer implementation imports the separately
-distributed GitHub Package `@nsringo/weatherkit@1.1.0`. That package could not
+distributed GitHub Package `@nsringo/weatherkit@1.1.2`. That package could not
 be fetched with the reviewed credentials, its package-internal license and
 preferred generated source could not be verified, and the former
-`NSRingo/proto` submodule is no longer publicly accessible. The private 1.1.0
+`NSRingo/proto` submodule is no longer publicly accessible. The private 1.1.2
 package is not copied or used as the license basis. The distributed schema is
 instead derived from the earlier public Apache-2.0 object form; its wire API
-was independently compared with the `v3.2.0-beta1` response bundle and current
-main's static symbol usage, but byte identity with the private package is not
-claimed.
+was independently compared with the `v3.2.0-beta2` response bundle and the
+pinned release's static symbol usage, but byte identity with the private
+package is not claimed.
+
+`v3.2.0-beta2` moved the generic root-table logic into the in-repository
+workspace package `@nsringo/flatbuffer-root`. That package is marked private
+and is absent from the public npm registry, but its preferred source form is
+committed in the Apache-2.0 upstream tree and is pinned and compiled from
+immutable raw URLs rather than resolved as a package.
 
 The generated `weather.js` also contains the Apache-2.0 FlatBuffers 24.12.23
 JavaScript runtime. That release has no `NOTICE` file. Rspack 1.7.7 bootstrap

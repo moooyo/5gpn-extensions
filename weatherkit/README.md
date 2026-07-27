@@ -20,33 +20,36 @@ settings, capture host, actions, and routing rule have been reviewed.
 
 ## Pinned upstream
 
-Runtime behavior is pinned to `NSRingo/WeatherKit` current-main commit
-[`969c7c4e9725c81063384013a0e9e40355425361`](https://github.com/NSRingo/WeatherKit/tree/969c7c4e9725c81063384013a0e9e40355425361),
-reviewed on `2026-07-23`. The compatible public schema object is pinned
+Runtime behavior is pinned to `NSRingo/WeatherKit` release `v3.2.0-beta2`,
+which resolves through annotated tag object
+`ccad336e3c042dd90157eb79e759a920b466eace` to commit
+[`1a2f64883d866a6974a9a5369a82191c49413617`](https://github.com/NSRingo/WeatherKit/tree/1a2f64883d866a6974a9a5369a82191c49413617),
+reviewed on `2026-07-28`. The compatible public schema object is pinned
 separately to historical commit
 [`ecebd32432161571a39f2579ad3ab758f62e80de`](https://github.com/NSRingo/WeatherKit/tree/ecebd32432161571a39f2579ad3ab758f62e80de).
 Every repository file, release asset, license, and npm archive recorded below
-was fetched and verified on `2026-07-23`. All referenced repository files use
+was fetched and verified on `2026-07-28`. All referenced repository files use
 immutable raw URLs:
 
 | Artifact and purpose | Immutable raw URL | Bytes | SHA-256 |
 | --- | --- | ---: | --- |
-| Main license | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/LICENSE` | 11,357 bytes | `c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4` |
-| Main package metadata | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/package.json` | 2,883 bytes | `9175dc9e0e347d19b5ed39aa78831bc16c9d467f68ad8b562dab7a531f50eecf` |
-| Main dependency lock | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/package-lock.json` | 391,719 bytes | `f83bcaeba5285e29d563f7c8641ae1ff885de4dbc6cde298d201883af6a62952` |
-| Request processor | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/process/Request.mjs` | 5,582 bytes | `a5b202fcb659e3b7e3876b9c825ab59e646655a8c2640215424659d116ecd367` |
-| Response processor | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/process/Response.mjs` | 33,167 bytes | `3746c844aa041e981aa9107f44493b1be8ea9fd24e93f6a6bba6c1aeb60510db` |
-| Request bundle entry | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/request.js` | 1,739 bytes | `e28ada4797e3b38c99886ff9e60c2fcc584a43a49fc2cea6f6ad8f5d915cc8eb` |
-| Published hook configuration | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/sgmodule-tools.config.ts` | 1,295 bytes | `7a1760eb12b3f57b1b1d2f7f5a2026e122f4ccc0c61fafb97d712fb795aead26` |
-| Surge routing and hook template | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/template/surge.handlebars` | 1,368 bytes | `f610ee11aae4835196521e3a5159d263a097053087d3b694c5a977ba988244b3` |
-| Request/availability tests | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/tests/requestAvailabilityContracts.test.mjs` | 2,993 bytes | `7910a68b341f7502ddc3913a5d528b3d79fb77cc342b8f83d8bf6f9e375ecd91` |
-| Defaults and availability list | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/function/database.mjs` | 6,904 bytes | `5ada781ad6404974233e77da4381825f644e7b8a25a5efd491534fa2d17d97e3` |
-| Dataset filter helper | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/function/filterWeatherKitDataSets.mjs` | 436 bytes | `a05e3a1c1b4bc4b2d44bb5fbe5123a244761f63f9ee51e66bdfb0f55a613e824` |
-| Availability union helper | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/function/mergeWeatherKitAvailability.mjs` | 347 bytes | `237189d9d7b421fd3d72db246c836dd93ef3975e6e36d51d77f767e2b6e3e823` |
-| Air-quality implementation | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/class/AirQuality.mjs` | 107,716 bytes | `d612c7154290982900fbf525dea81f4888c3f823ded723c115255095a394e46a` |
-| Precision helper | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/class/SimplePrecisionMath.mjs` | 2,687 bytes | `5a95761beaa6423f0925ad67d2dba9e5eb08ee03564f739b323686d22478284e` |
-| WeatherKit FlatBuffer codec | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/class/WeatherKit2.mjs` | 81,047 bytes | `5e38900a0c854cafcc2471e93379e9a527508fcc417ded864a4e068d53a209e9` |
-| Root overlay helper | `https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/function/flatBufferRootOverlay.mjs` | 5,804 bytes | `bd4b99d5b39e9ed36da773c27aaff00d438346bc848cc986f4bc5eff4b68f8ac` |
+| Main license | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/LICENSE` | 11,357 bytes | `c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4` |
+| Main package metadata | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/package.json` | 2,904 bytes | `5bf7548975e1a211b94dcc955143eac43c2c1f0de74bd1a91e44ab7fd0677035` |
+| Main dependency lock | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/package-lock.json` | 251,856 bytes | `5b7d84810afa77fea347a1923140d630bd49d3bbc447996886e4be3f65efb9c2` |
+| Request processor | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/process/Request.mjs` | 5,517 bytes | `3dc641adfdcb74d0064405cc9f601923bbf8abf11a7d2431a08f09fab2f6d663` |
+| Response processor | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/process/Response.mjs` | 30,881 bytes | `90d269084478f0b1a51b751e650c70e6d6e94c78ce333d4488f5a10c15c14d8c` |
+| Request bundle entry | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/request.js` | 1,739 bytes | `e28ada4797e3b38c99886ff9e60c2fcc584a43a49fc2cea6f6ad8f5d915cc8eb` |
+| Published hook configuration | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/sgmodule-tools.config.ts` | 1,295 bytes | `7a1760eb12b3f57b1b1d2f7f5a2026e122f4ccc0c61fafb97d712fb795aead26` |
+| Surge routing and hook template | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/template/surge.handlebars` | 1,368 bytes | `f610ee11aae4835196521e3a5159d263a097053087d3b694c5a977ba988244b3` |
+| Request/availability tests | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/tests/requestAvailabilityContracts.test.mjs` | 2,993 bytes | `7910a68b341f7502ddc3913a5d528b3d79fb77cc342b8f83d8bf6f9e375ecd91` |
+| Defaults, availability list, and configurable root names | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/function/database.mjs` | 6,904 bytes | `5ada781ad6404974233e77da4381825f644e7b8a25a5efd491534fa2d17d97e3` |
+| Availability union helper | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/function/mergeWeatherKitAvailability.mjs` | 347 bytes | `237189d9d7b421fd3d72db246c836dd93ef3975e6e36d51d77f767e2b6e3e823` |
+| Air-quality implementation | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/class/AirQuality.mjs` | 107,716 bytes | `d612c7154290982900fbf525dea81f4888c3f823ded723c115255095a394e46a` |
+| Precision helper | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/class/SimplePrecisionMath.mjs` | 2,687 bytes | `5a95761beaa6423f0925ad67d2dba9e5eb08ee03564f739b323686d22478284e` |
+| WeatherKit root model and product codecs | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/class/WeatherKit2.mjs` | 63,108 bytes | `829ce76b07196c31726d75cf97a2c839cfafc50595962ff95ded280aef491b44` |
+| Root-processor package metadata | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/packages/flatbuffer-root/package.json` | 816 bytes | `695e5fae70dadd38f51f7d425797f7611f8d1e6d7046558f683022e69a88e6db` |
+| Root-processor package entry | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/packages/flatbuffer-root/src/index.mjs` | 82 bytes | `f5173ffc57b50b486a7ea7a880fb287525a5e3985021d5b6995309fc3f024967` |
+| Generic FlatBuffer root processor | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/packages/flatbuffer-root/src/FlatBufferRootProcessor.mjs` | 25,129 bytes | `c1b7caaf5d968e5b43af4a6f48a09ce542ec245a826623f19509622415afa187` |
 | Public schema object | `https://raw.githubusercontent.com/NSRingo/WeatherKit/ecebd32432161571a39f2579ad3ab758f62e80de/src/output/proto.bundle.js` | 79,169 bytes | `cfaac94a89d3b7b17e71e89ba3791e6149fa7e9beadf3b1bbe0b2a0b8b2f9818` |
 | Schema-snapshot license | `https://raw.githubusercontent.com/NSRingo/WeatherKit/ecebd32432161571a39f2579ad3ab758f62e80de/LICENSE` | 11,357 bytes | `c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4` |
 | Schema package metadata | `https://raw.githubusercontent.com/NSRingo/WeatherKit/ecebd32432161571a39f2579ad3ab758f62e80de/package.json` | 2,883 bytes | `686cd107cb3c9281df4e033dd366992fd8f625b497b268f23587c97739aeeca9` |
@@ -58,15 +61,15 @@ immutable raw URLs:
 
 The nested lockfile pins `flatbuffers@24.12.23` and `esbuild@0.25.8`.
 The schema compatibility review also used the hash-pinned
-`v3.2.0-beta1/response.bundle.js` release asset at
-`https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta1/response.bundle.js`:
-242,167 bytes, SHA-256
-`da6a705a072ea484ad718f414bbfd72f34fe24209cee3cb8e75cff73ac47e600`.
+`v3.2.0-beta2/response.bundle.js` release asset at
+`https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js`:
+251,617 bytes, SHA-256
+`4d368808a17c42eef18135f04d1bc9f01cbf7878d227006521ef0a6598941ff2`.
 The tag resolves to commit
-`1893e1b0082e0ba462e509b93cb22811efa61ca7`. GitHub release assets are
+`1a2f64883d866a6974a9a5369a82191c49413617`. GitHub release assets are
 publisher-replaceable rather than immutable; the repository verifier therefore
 downloads this URL and enforces its recorded size and digest on every run.
-GitHub identifies this as release `355997919`, asset `481050114`, and reports
+GitHub identifies this as release `359700126`, asset `489254394`, and reports
 `immutable: false` for the release.
 The corresponding npm archives are:
 
@@ -114,18 +117,28 @@ actions plus one host-scoped transport rule:
    When an operator selects a local algorithm and the input scale is
    `HJ6332012`, it recalculates the existing pollutants without contacting an
    external provider. Original metadata and `previousDayComparison` are kept.
-4. The FlatBuffer copy-on-write root overlay replaces only slot 0 when bytes
-   actually change. Other known and future root product tables remain opaque
-   and byte-preserved. A repeated transform of an already canonical AQ table
-   is a no-op.
+4. The generic FlatBuffer root processor decodes only the `airQuality` root
+   slot, recompiles it into its own arena, and reassembles the root table with
+   every other present slot carried over as raw bytes. Other known and future
+   root product tables remain opaque and byte-preserved. A root slot that fails
+   its boundary checks is isolated rather than failing the whole response, but
+   it is dropped from the rewritten body; that path is reachable only for a
+   response Apple already served malformed.
+   Upstream `v3.2.0-beta2` dropped its own change detection and re-encodes every
+   requested dataset; this port keeps a local projection comparison, so a
+   repeated transform of an already canonical AQ table is still a no-op that
+   returns the original bytes untouched.
 5. The routing rule rejects UDP destination port 443 only for
    `weatherkit.apple.com`, encouraging fallback to interceptable TCP. It is a
    narrower approximation of the upstream ASN-plus-QUIC rule.
 
 The request action intentionally activates reviewed `Request.mjs` behavior
-that is present and tested at current main but is not wired into the published
-upstream templates. This repairs that wiring gap; it is not a claim of
-byte-for-byte parity with the generated plugin.
+that is present and tested at the pinned release but is not wired into the
+published upstream templates. This repairs that wiring gap; it is not a claim
+of byte-for-byte parity with the generated plugin. Upstream replaced its
+standalone dataset-filter helper with `WeatherKit2.filterRootNames`, which
+applies the same predicate against the same configurable dataset list, so this
+port's request behavior is unchanged.
 
 ## Settings
 
@@ -163,24 +176,41 @@ explicit choice.
 
 ## FlatBuffer and schema boundary
 
-Current main imports private GitHub Package `@nsringo/weatherkit@1.1.0`.
+The pinned release imports private GitHub Package `@nsringo/weatherkit@1.1.2`.
 The reviewed credentials cannot fetch that package, its package-internal
 license is not independently auditable, and the former `NSRingo/proto`
 submodule is inaccessible. The private package is not copied or treated as the
 license source.
 
 Instead, the build consumes the public Apache-2.0 schema object committed at
-`ecebd324...`. Its 27 tables used by the `v3.2.0-beta1` response bundle have
+`ecebd324...`. Its 27 tables used by the `v3.2.0-beta2` response bundle have
 the same field counts, wire operations, and enum values, and it supplies every
-symbol referenced by current-main runtime code. That establishes tested
-historical wire compatibility and current API coverage, not byte identity with
-private 1.1.0.
+symbol referenced by the pinned runtime code: all 48 `WK2` symbols and all 21
+enum lookups resolve, and of the 50 distinct generated-constructor call sites
+only `Metadata.createMetadata` is narrower than the private schema. That
+establishes tested historical wire compatibility and current API coverage, not
+byte identity with private 1.1.2.
 
-Root overlay preserves unknown root slots, including nested opaque tables.
-When slot 0 is replaced, fields added inside a newer `AirQuality` or `Metadata`
-table but unknown to the public schema can be lost. The public `Metadata`
-class exposes 11 slots; the current static call site passes extra arguments
-named `unknown11` through `unknown15`, which this public class ignores.
+`v3.2.0-beta2` also introduces the in-repository workspace package
+`@nsringo/flatbuffer-root`. That package is marked private and is not published
+to the public npm registry, but its Apache-2.0 source is committed in the
+upstream tree, so the build pins and compiles those files by immutable raw URL
+rather than resolving the package.
+
+The new root processor derives each root slot ID from the *position* of the
+generated root class accessors rather than from a declared schema field ID.
+The public schema object's `Weather` class exposes exactly the ten accessors
+the pinned codec map registers, in the same order, and each has a matching
+`add*` static, so slot identities line up with the private model: `airQuality`
+is slot 0 through `locationInfo` at slot 9. Revalidate this ordering before any
+future schema or upstream change.
+
+Root reassembly preserves unknown root slots, including nested opaque tables.
+When the `airQuality` slot is replaced, fields added inside a newer
+`AirQuality` or `Metadata` table but unknown to the public schema can be lost.
+The public `Metadata` class exposes 11 slots; the current static call site
+passes extra arguments named `unknown11` through `unknown15`, which this public
+class ignores. This gap is unchanged from the previously reviewed revision.
 
 ## License boundary
 
@@ -207,8 +237,11 @@ file-level boundary.
   weather replacement, next-hour injection, and yesterday comparison are not
   included. Current defaults can exceed the native four-request limit and
   disclose exact coordinates in provider URLs.
-- Cloudflare, Vercel, Hono, `weatherkit.nanocat.cloud`, BoxJS, cross-extension
-  location caches, and all proxy-client compatibility globals are excluded.
+- Cloudflare, Vercel, Hono, BoxJS, cross-extension location caches, and all
+  proxy-client compatibility globals are excluded. That includes every
+  configurable upstream rewrite endpoint added in `v3.2.0-beta2`
+  (`weatherkit.pages.dev`, `dev.weatherkit.pages.dev`, and
+  `weather.nanocat.cloud`).
 - Current weather, daily/hourly forecasts, next-hour precipitation, alerts,
   news, and future root products are never decoded or rewritten by the binary
   action.
@@ -221,8 +254,8 @@ file-level boundary.
 ## Reproducible build
 
 `weather.js` is generated; do not edit it directly. The build downloads the
-five fixed WeatherKit inputs above sequentially, verifies each byte length and
-SHA-256, patches only the two module imports needed by the native adapter, and
+seven fixed WeatherKit inputs above sequentially, verifies each byte length and
+SHA-256, patches only the four module imports needed by the native adapter, and
 bundles them with the locked FlatBuffers runtime. esbuild removes upstream
 comments and module syntax, emits ASCII, injects lexical UTF-8 codecs required
 by Goja, embeds the complete Rspack and esbuild notices, and adds one named
@@ -235,8 +268,8 @@ npm run build:check --prefix weatherkit/source
 if ($LASTEXITCODE -ne 0) { throw "WeatherKit reproducibility check failed with exit code $LASTEXITCODE" }
 ```
 
-The reviewed generated output is 180,351 bytes with SHA-256
-`ee249df7f7a692767cfb8b276c762a04829285f3c2ff4ec334c69b77325bd7b7`.
+The reviewed generated output is 186,621 bytes with SHA-256
+`67cf617efa0caf1204af07b5922602fa0baefa3c8214ef247fc20c2420df4b17`.
 The build rejects compatibility globals, ambient fetch, module loaders,
 process access, timers, asynchronous runtime constructs, missing entrypoints,
 and output above 1 MiB.
@@ -271,11 +304,11 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.weatherkit`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=2.0.0`; `persistentStorage=false`; `settings=9`; `captureHosts=1`; `actions=3`; `routingRules=1`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=9`; `captureHosts=1`; `actions=3`; `routingRules=1`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false and the scripts retain no extension-owned cache. |
 | Settings | Preserve the nine keys and types when possible. A normal same-ID update retains only values that remain valid under the candidate. |
-| Binary schema | Keep the two upstream commits distinct. Revalidate public-object compatibility before any binary behavior change. |
-| License review gate | Preserve Apache plus Rspack and esbuild MIT notices and the `Apache-2.0 AND MIT` generated-bundle mapping. Never infer a license for private 1.1.0. |
+| Binary schema | Keep the two upstream commits distinct. Revalidate public-object compatibility, including root accessor count and order, before any binary behavior change. |
+| License review gate | Preserve Apache plus Rspack and esbuild MIT notices and the `Apache-2.0 AND MIT` generated-bundle mapping. Never infer a license for private 1.1.2. |
 | Reviewed capability baseline | One capture host, three local actions, nine settings, one UDP/443 reject rule, no origins or mappings, and no required egress. |
 | Operator state | A normal update retains valid settings, `capture_dns`, and execution order. Review all while disabled. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed URL. No extension-owned data conversion is required. |
@@ -290,8 +323,8 @@ decision.
    projection.
 3. Exercise every dataset toggle, duplicate and encoded queries, both JSON
    media types, AQ no-op/normalization/calculation paths, QWeather CO repair,
-   unknown root-slot preservation, malformed FlatBuffers, and both
-   `failClosed` modes.
+   unknown root-slot preservation, unreadable root-slot isolation, malformed
+   FlatBuffers, and both `failClosed` modes.
 4. Apply the same-ID candidate while disabled. Confirm settings, the one-host
    boundary, action order, empty origin list, absent egress requirement, and
    routing rule before authorized device testing.
@@ -331,8 +364,9 @@ if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $L
 The fixtures cover manifest/resource counts, request and availability
 behavior, every dataset toggle, content-type boundaries, no-op and malformed
 inputs, local HJ6332012 calculation, QWeather CO repair, metadata/comparison
-preservation, synthetic unknown root slots, input immutability, script limits,
-forbidden globals, and both `failClosed` paths. Runtime-facing changes must
+preservation, synthetic unknown root slots, isolation of an unreadable root
+slot, input immutability, script limits, forbidden globals, and both
+`failClosed` paths. Runtime-facing changes must
 also pass the current 5gpn core parser/marketplace integration gate from the
 shared migration playbook. Finally, test authorized device traffic while the
 candidate is disabled by default and verify that no external provider request

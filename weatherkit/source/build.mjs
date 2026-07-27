@@ -21,30 +21,44 @@ const artifacts = [
   {
     name: 'AirQuality.mjs',
     path: 'class/AirQuality.mjs',
-    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/class/AirQuality.mjs',
+    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/class/AirQuality.mjs',
     bytes: 107716,
     sha256: 'd612c7154290982900fbf525dea81f4888c3f823ded723c115255095a394e46a',
   },
   {
     name: 'SimplePrecisionMath.mjs',
     path: 'class/SimplePrecisionMath.mjs',
-    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/class/SimplePrecisionMath.mjs',
+    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/class/SimplePrecisionMath.mjs',
     bytes: 2687,
     sha256: '5a95761beaa6423f0925ad67d2dba9e5eb08ee03564f739b323686d22478284e',
   },
   {
     name: 'WeatherKit2.mjs',
     path: 'class/WeatherKit2.mjs',
-    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/class/WeatherKit2.mjs',
-    bytes: 81047,
-    sha256: '5e38900a0c854cafcc2471e93379e9a527508fcc417ded864a4e068d53a209e9',
+    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/class/WeatherKit2.mjs',
+    bytes: 63108,
+    sha256: '829ce76b07196c31726d75cf97a2c839cfafc50595962ff95ded280aef491b44',
   },
   {
-    name: 'flatBufferRootOverlay.mjs',
-    path: 'function/flatBufferRootOverlay.mjs',
-    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/969c7c4e9725c81063384013a0e9e40355425361/src/function/flatBufferRootOverlay.mjs',
-    bytes: 5804,
-    sha256: 'bd4b99d5b39e9ed36da773c27aaff00d438346bc848cc986f4bc5eff4b68f8ac',
+    name: 'database.mjs',
+    path: 'function/database.mjs',
+    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/src/function/database.mjs',
+    bytes: 6904,
+    sha256: '5ada781ad6404974233e77da4381825f644e7b8a25a5efd491534fa2d17d97e3',
+  },
+  {
+    name: 'flatbuffer-root/index.mjs',
+    path: 'flatbuffer-root/index.mjs',
+    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/packages/flatbuffer-root/src/index.mjs',
+    bytes: 82,
+    sha256: 'f5173ffc57b50b486a7ea7a880fb287525a5e3985021d5b6995309fc3f024967',
+  },
+  {
+    name: 'FlatBufferRootProcessor.mjs',
+    path: 'flatbuffer-root/FlatBufferRootProcessor.mjs',
+    url: 'https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/packages/flatbuffer-root/src/FlatBufferRootProcessor.mjs',
+    bytes: 25129,
+    sha256: 'c1b7caaf5d968e5b43af4a6f48a09ce542ec245a826623f19509622415afa187',
   },
 ]
 
@@ -86,17 +100,16 @@ async function main() {
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'weatherkit-native-build-'))
   const temporarySource = path.join(temporaryRoot, 'src')
   try {
-    await mkdir(path.join(temporarySource, 'class'), { recursive: true })
-    await mkdir(path.join(temporarySource, 'function'), { recursive: true })
+    await mkdir(temporarySource, { recursive: true })
 
     for (const artifact of artifacts) {
       let body = await fetchArtifact(artifact)
-      if (artifact.name === 'AirQuality.mjs') {
+      if (artifact.name === 'AirQuality.mjs' || artifact.name === 'FlatBufferRootProcessor.mjs') {
         const source = body.toString('utf8')
         body = Buffer.from(replaceOnce(source, 'import { Console } from "@nsnanocat/util";', 'import { Console } from "../native-runtime.mjs";', artifact.name))
       } else if (artifact.name === 'WeatherKit2.mjs') {
         let source = body.toString('utf8')
-        source = replaceOnce(source, 'import { Console } from "@nsnanocat/util";', 'import { Console } from "../native-runtime.mjs";', artifact.name)
+        source = replaceOnce(source, 'import { FlatBufferRootProcessor } from "@nsringo/flatbuffer-root";', 'import { FlatBufferRootProcessor } from "../flatbuffer-root/index.mjs";', artifact.name)
         source = replaceOnce(source, 'import * as WK2 from "@nsringo/weatherkit";', 'import * as WK2 from "../proto.bundle.js";', artifact.name)
         body = Buffer.from(source)
       }

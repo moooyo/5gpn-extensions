@@ -37,7 +37,7 @@ async function loadTransform(relativePath) {
 
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '2.0.0')
+assert.equal(manifest.metadata.version, '2.1.0')
 assert.deepEqual(manifest.permissions, { persistentStorage: false })
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
 assert.deepEqual(manifest.traffic.routingRules, [{
@@ -450,6 +450,16 @@ assert.deepEqual(unknownLeafSnapshot(calculatedResult.response.body, indirect(ca
   text: 'future-slot-value',
   value: 424242,
 })
+
+// An unreadable root slot is isolated instead of failing the whole response,
+// but it cannot be carried over, so it is dropped from the rewritten body.
+const corruptedSlotFixture = Uint8Array.from(airQualityFixture)
+const corruptedSlotField = tableField(corruptedSlotFixture, binaryView(corruptedSlotFixture).getUint32(0, true), 12)
+binaryView(corruptedSlotFixture).setUint32(corruptedSlotField, 0x40000000, true)
+const corruptedSlotResult = airQualityScript.transform(airQualityContext(corruptedSlotFixture))
+assert.equal(airQualitySnapshot(corruptedSlotResult.response.body).scale, 'HJ6332012', 'a corrupt sibling slot must not block the AQ rewrite')
+assert.equal(rootSlot(corruptedSlotResult.response.body, 12), 0, 'an unreadable root slot is dropped, not copied')
+assert.notEqual(rootSlot(corruptedSlotResult.response.body, 15), 0, 'readable sibling slots survive a corrupt neighbour')
 
 const fixedQWeather = airQualitySnapshot(airQualityScript.transform(airQualityContext(qweatherFixture)).response.body)
 assert.equal(fixedQWeather.scale, 'EU.EAQI')

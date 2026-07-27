@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Native Enhancer
-  version: 2.0.0
+  version: 2.1.0
   description: Controls WeatherKit datasets, preserves availability, and applies bounded local air-quality normalization.
 
 permissions:

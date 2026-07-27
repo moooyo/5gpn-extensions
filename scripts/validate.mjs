@@ -34,7 +34,7 @@ const expectedExtensions = new Map([
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '12e89d6d93d72d39eb283ef81d2b58eb204cdb58', licenseDigest: '8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b' }],
   ['httpdns-interceptor', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
-  ['weatherkit', { license: 'Apache-2.0', pin: '969c7c4e9725c81063384013a0e9e40355425361', licenseDigest: 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4' }],
+  ['weatherkit', { license: 'Apache-2.0', pin: '1a2f64883d866a6974a9a5369a82191c49413617', licenseDigest: 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525', licenseDigest: 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4' }],
   ['zhihu-cleaner', { license: 'CC-BY-NC-SA-4.0', pin: '8d0e2791f531d4a02e1bd00d0f64427984bc999a', licenseDigest: '600ca4e25fe11762b75a97e714707fab48bb778374e92d24c6ca068791661c11' }],
 ])
