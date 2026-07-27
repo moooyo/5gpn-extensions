@@ -92,62 +92,34 @@ not embed the upstream generated runtimes. The external
 and its implementation is not present in the pinned upstream tree. The port
 retains Maasea attribution and the Apache-2.0 license.
 
-## WeatherKit native port
+## WeatherKit release bundle
 
-`weatherkit` is a bounded native port of request-dataset filtering, JSON
-availability merging, FlatBuffer root-slot processing, and local air-quality
-behavior from the Apache-2.0 `NSRingo/WeatherKit` repository. Runtime behavior
-is pinned to release `v3.2.0-beta2`, commit
-`1a2f64883d866a6974a9a5369a82191c49413617`. The compatible public schema
-object is pinned separately to commit
-`ecebd32432161571a39f2579ad3ab758f62e80de`. Neither upstream tree contains a
-`NOTICE` file. The port retains NSRingo WeatherKit contributor attribution and
-documents its material changes.
+`weatherkit` does not vendor upstream source. It loads the Apache-2.0
+`NSRingo/WeatherKit` published release bundle at runtime and executes it under
+the `5gpn.io/v1` proxy-compat script contract. The reviewed asset is
+`v3.2.0-beta2/response.bundle.js`, 251,617 bytes, SHA-256
+`4d368808a17c42eef18135f04d1bc9f01cbf7878d227006521ef0a6598941ff2`, built from
+commit `1a2f64883d866a6974a9a5369a82191c49413617`. The upstream tree contains
+no `NOTICE` file.
 
-The pinned package metadata credits VirgilClyne, WordlessEcho, and 001ProMax.
-The bundled source carries `AirQuality.Author = "Virgil Clyne & Wordless
-Echo"`, and its source comments state `Code by Claude` for the credited
-precision-related implementation. These strings are retained as creator
-attribution and are not promoted to unverified copyright claims.
+Because the bundle is fetched rather than copied, this repository distributes
+none of its bytes and adds no derived work of it. `weatherkit/extension.yaml`
+and `weatherkit/README.md` are original and Apache-2.0. The upstream package
+metadata credits VirgilClyne, WordlessEcho, and 001ProMax; those are retained
+creator attributions, not copyright assertions by this repository.
 
-The current upstream FlatBuffer implementation imports the separately
-distributed GitHub Package `@nsringo/weatherkit@1.1.2`. That package could not
-be fetched with the reviewed credentials, its package-internal license and
-preferred generated source could not be verified, and the former
-`NSRingo/proto` submodule is no longer publicly accessible. The private 1.1.2
-package is not copied or used as the license basis. The distributed schema is
-instead derived from the earlier public Apache-2.0 object form; its wire API
-was independently compared with the `v3.2.0-beta2` response bundle and the
-pinned release's static symbol usage, but byte identity with the private
-package is not claimed.
+GitHub release assets are publisher-replaceable, and GitHub reports
+`immutable: false` for this release, so `npm run verify:upstreams` downloads
+the asset on every run and enforces the recorded size and digest. That gate
+proves the reviewed bytes are the ones that run; it is not a line-by-line
+review of the bundle's contents, and the bundle carries whatever third-party
+runtimes upstream chose to include.
 
-`v3.2.0-beta2` moved the generic root-table logic into the in-repository
-workspace package `@nsringo/flatbuffer-root`. That package is marked private
-and is absent from the public npm registry, but its preferred source form is
-committed in the Apache-2.0 upstream tree and is pinned and compiled from
-immutable raw URLs rather than resolved as a package.
-
-The pinned `decodeMetadata` reads the 11 public `Metadata` fields and never
-reads `unknown11` through `unknown15`, so those values are dropped by any
-decode/encode round trip at this revision, upstream included. The public schema
-object used here declares 11 slots and omits them; upstream's private schema
-still receives them as `undefined` and emits placeholder slots. This is a
-property of the upstream round trip, not of the public-object substitution.
-
-The generated `weather.js` also contains the Apache-2.0 FlatBuffers 24.12.23
-JavaScript runtime. That release has no `NOTICE` file. Rspack 1.7.7 bootstrap
-code retained by the public schema bundle is MIT licensed, Copyright (c)
-2022-present Bytedance Inc and its affiliates. Its complete notice is embedded
-in `weather.js` and retained in
-`weatherkit/source/licenses/rspack-MIT.txt`. esbuild 0.25.8 also emits bounded
-bundle helper code under MIT, Copyright (c) 2020 Evan Wallace; its complete
-notice is embedded in `weather.js` and retained in
-`weatherkit/source/licenses/esbuild-MIT.txt`. The final bundle is therefore
-mapped as `Apache-2.0 AND MIT` in `REUSE.toml`.
-
-Third-party weather providers, cloud proxy adapters, mutable provider assets,
-and proxy-client compatibility runtimes remain excluded. This phase performs
-no external provider request and declares no network or storage permission.
+An enabled provider receives the request's exact coordinates and the operator's
+API token in the provider URL. The extension therefore declares the network
+capability and persistent storage, and its README states this boundary before
+enable. The cloud rewrite endpoints upstream ships remain unused: responses are
+processed on the gateway.
 
 ## Apple WLOC response transformer
 

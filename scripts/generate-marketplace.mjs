@@ -152,9 +152,12 @@ function parseStrictManifest(body, directory) {
   assert(typeof manifest.permissions.persistentStorage === 'boolean', `${directory}: persistentStorage must be boolean`)
   const network = manifest.permissions.network
   if (network !== undefined) {
-    assertKeys(network, new Set(['origins']), `${directory}: permissions.network`)
-    assert(Array.isArray(network.origins), `${directory}: permissions.network.origins must be an array`)
-    for (const origin of network.origins) assertString(origin, `${directory}: network origin`)
+    assertKeys(network, new Set(['origins', 'any']), `${directory}: permissions.network`)
+    assert((network.any === true) !== (network.origins !== undefined), `${directory}: permissions.network must declare exactly one of any or origins`)
+    if (network.origins !== undefined) {
+      assert(Array.isArray(network.origins), `${directory}: permissions.network.origins must be an array`)
+      for (const origin of network.origins) assertString(origin, `${directory}: network origin`)
+    }
   }
 
   if (manifest.requirements !== undefined) {
@@ -200,7 +203,7 @@ function parseStrictManifest(body, directory) {
     assert(!actionIDs.has(action.id), `${directory}: duplicate action id ${action.id}`)
     actionIDs.add(action.id)
     assertKeys(action.match, new Set(['hosts', 'schemes', 'methods', 'pathRegex', 'statusCodes']), `${directory}: action ${action.id}.match`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
     assert(action.script.inline === undefined, `${directory}: published actions must use immutable local script sources`)
     assertString(action.script.source, `${directory}: action ${action.id}.script.source`)
   }
@@ -260,7 +263,11 @@ async function extensionDirectories(root) {
 
 async function buildResources(root, directory, actions) {
   const extensionRoot = await realpath(path.join(root, directory))
-  const paths = [...new Set(actions.map((action) => safeResourcePath(action.script.source, directory)))].sort()
+  // A proxy-compat action loads a published bundle by URL. There is no local
+  // file to digest, and the catalog must not imply this repository ships one;
+  // the README record and `verify:upstreams` bind those bytes instead.
+  const localActions = actions.filter((action) => action.script.entry !== 'proxy-compat')
+  const paths = [...new Set(localActions.map((action) => safeResourcePath(action.script.source, directory)))].sort()
   const resources = []
   for (const relative of paths) {
     const filename = path.join(extensionRoot, ...relative.split('/'))
@@ -356,6 +363,9 @@ export async function generateMarketplace({ root = repositoryRoot, revision, pro
         actionCount: (manifest.actions ?? []).length,
         settingCount: (manifest.settings ?? []).length,
         networkOrigins: [...(manifest.permissions.network?.origins ?? [])].sort(),
+        // A capability grant is broader than any list, so the catalog says so
+        // rather than showing an empty origin array that reads as "no network".
+        networkAny: manifest.permissions.network?.any === true,
         persistentStorage: manifest.permissions.persistentStorage,
         upstreamMappingCount: (manifest.traffic.upstreamMappings ?? []).length,
         routingRuleCount: (manifest.traffic.routingRules ?? []).length,

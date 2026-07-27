@@ -4,16 +4,29 @@
   "title": "5gpn Extension Marketplace",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apiVersion", "kind", "metadata", "entries"],
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "entries"
+  ],
   "properties": {
-    "apiVersion": { "const": "5gpn.io/marketplace/v1" },
-    "kind": { "const": "ExtensionMarketplace" },
-    "metadata": { "$ref": "#/$defs/metadata" },
+    "apiVersion": {
+      "const": "5gpn.io/marketplace/v1"
+    },
+    "kind": {
+      "const": "ExtensionMarketplace"
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    },
     "entries": {
       "type": "array",
       "minItems": 1,
       "maxItems": 512,
-      "items": { "$ref": "#/$defs/entry" }
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
     }
   },
   "$defs": {
@@ -34,19 +47,45 @@
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "description", "homepage", "source"],
+      "required": [
+        "id",
+        "name",
+        "description",
+        "homepage",
+        "source"
+      ],
       "properties": {
-        "id": { "const": "io.5gpn.official" },
-        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
-        "description": { "type": "string", "minLength": 1, "maxLength": 512 },
-        "homepage": { "$ref": "#/$defs/httpsUrl" },
+        "id": {
+          "const": "io.5gpn.official"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "homepage": {
+          "$ref": "#/$defs/httpsUrl"
+        },
         "source": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["repository", "revision"],
+          "required": [
+            "repository",
+            "revision"
+          ],
           "properties": {
-            "repository": { "const": "https://github.com/moooyo/5gpn-extensions" },
-            "revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+            "repository": {
+              "const": "https://github.com/moooyo/5gpn-extensions"
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            }
           }
         }
       }
@@ -54,98 +93,229 @@
     "entry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "version", "description", "tags", "license", "documentationUrl", "manifest", "resources", "capabilities"],
+      "required": [
+        "id",
+        "name",
+        "version",
+        "description",
+        "tags",
+        "license",
+        "documentationUrl",
+        "manifest",
+        "resources",
+        "capabilities"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9.-]{1,38}[a-z0-9])$" },
-        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
-        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
-        "description": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[a-z0-9.-]{1,38}[a-z0-9])$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
         "tags": {
           "type": "array",
           "minItems": 1,
           "maxItems": 16,
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          }
         },
         "license": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["spdx", "url"],
+          "required": [
+            "spdx",
+            "url"
+          ],
           "properties": {
-            "spdx": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9.+-]*$" },
-            "url": { "$ref": "#/$defs/httpsUrl" }
+            "spdx": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9.+-]*$"
+            },
+            "url": {
+              "$ref": "#/$defs/httpsUrl"
+            }
           }
         },
-        "documentationUrl": { "$ref": "#/$defs/httpsUrl" },
-        "manifest": { "$ref": "#/$defs/artifact" },
+        "documentationUrl": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "manifest": {
+          "$ref": "#/$defs/artifact"
+        },
         "resources": {
           "type": "array",
           "maxItems": 256,
-          "items": { "$ref": "#/$defs/resource" }
+          "items": {
+            "$ref": "#/$defs/resource"
+          }
         },
-        "capabilities": { "$ref": "#/$defs/capabilities" },
-        "policy": { "$ref": "#/$defs/policy" }
+        "capabilities": {
+          "$ref": "#/$defs/capabilities"
+        },
+        "policy": {
+          "$ref": "#/$defs/policy"
+        }
       }
     },
     "artifact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["url", "sha256", "size"],
+      "required": [
+        "url",
+        "sha256",
+        "size"
+      ],
       "properties": {
         "url": {
           "type": "string",
           "format": "uri",
           "pattern": "^https://raw\\.githubusercontent\\.com/moooyo/5gpn-extensions/main/"
         },
-        "sha256": { "$ref": "#/$defs/sha256" },
-        "size": { "type": "integer", "minimum": 1, "maximum": 67108864 }
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        }
       }
     },
     "resource": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "url", "sha256", "size"],
+      "required": [
+        "path",
+        "url",
+        "sha256",
+        "size"
+      ],
       "properties": {
-        "path": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^[A-Za-z0-9._/-]+$" },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "pattern": "^[A-Za-z0-9._/-]+$"
+        },
         "url": {
           "type": "string",
           "format": "uri",
           "pattern": "^https://raw\\.githubusercontent\\.com/moooyo/5gpn-extensions/main/"
         },
-        "sha256": { "$ref": "#/$defs/sha256" },
-        "size": { "type": "integer", "minimum": 1, "maximum": 67108864 }
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        }
       }
     },
     "capabilities": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["captureHostCount", "actionCount", "settingCount", "networkOrigins", "persistentStorage", "upstreamMappingCount", "routingRuleCount", "egressGroupRequired"],
+      "required": [
+        "captureHostCount",
+        "actionCount",
+        "settingCount",
+        "networkOrigins",
+        "persistentStorage",
+        "upstreamMappingCount",
+        "routingRuleCount",
+        "egressGroupRequired",
+        "networkAny"
+      ],
       "properties": {
-        "captureHostCount": { "type": "integer", "minimum": 1, "maximum": 512 },
-        "actionCount": { "type": "integer", "minimum": 0, "maximum": 256 },
-        "settingCount": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "captureHostCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 512
+        },
+        "actionCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "settingCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
         "networkOrigins": {
           "type": "array",
           "maxItems": 64,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/httpUrl" }
+          "items": {
+            "$ref": "#/$defs/httpUrl"
+          }
         },
-        "persistentStorage": { "type": "boolean" },
-        "upstreamMappingCount": { "type": "integer", "minimum": 0, "maximum": 256 },
-        "routingRuleCount": { "type": "integer", "minimum": 0, "maximum": 256 },
-        "egressGroupRequired": { "type": "boolean" }
+        "persistentStorage": {
+          "type": "boolean"
+        },
+        "upstreamMappingCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "routingRuleCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "egressGroupRequired": {
+          "type": "boolean"
+        },
+        "networkAny": {
+          "type": "boolean"
+        }
       }
     },
     "policy": {
       "description": "The typed runtime-overlay projection this extension compiles to. Present only in the v1beta profile: the stable core parses the index with DisallowUnknownFields and refuses a document carrying a field it does not know, so the v1 profile omits it.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["clientRules", "policyRules", "captureRules", "digest"],
+      "required": [
+        "clientRules",
+        "policyRules",
+        "captureRules",
+        "digest"
+      ],
       "properties": {
-        "clientRules": { "type": "integer", "minimum": 0, "maximum": 4096 },
-        "policyRules": { "type": "integer", "minimum": 0, "maximum": 256 },
-        "captureRules": { "type": "integer", "minimum": 0, "maximum": 4096 },
-        "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "clientRules": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "policyRules": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "captureRules": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
       }
     }
   }
