@@ -114,9 +114,11 @@ actions plus one host-scoped transport rule:
    fixes QWeather CO units, marks the provider metadata as normalized so the
    conversion is idempotent, and normalizes known versioned Apple AQ scale
    names.
-   When an operator selects a local algorithm and the input scale is
-   `HJ6332012`, it recalculates the existing pollutants without contacting an
-   external provider. Original metadata and `previousDayComparison` are kept.
+   When an operator selects a local algorithm, it recalculates the existing
+   pollutants without contacting an external provider — by default only for an
+   incoming HJ6332012 index, which is upstream's own default. It can then
+   restate the pollutant amounts in a chosen unit family. Original metadata and
+   `previousDayComparison` are kept.
 4. The generic FlatBuffer root processor decodes only the `airQuality` root
    slot, recompiles it into its own arena, and reassembles the root table with
    every other present slot carried over as raw bytes. Other known and future
@@ -149,7 +151,9 @@ port's request behavior is unchanged.
 | `forecastDaily` | boolean, `true` | Keep `forecastDaily` in the request. |
 | `forecastHourly` | boolean, `true` | Keep `forecastHourly` in the request. |
 | `forecastNextHour` | boolean, `true` | Keep `forecastNextHour` in the request. |
-| `airQualityAlgorithm` | select, `None` | `None` applies repairs and scale normalization only. Other values locally recalculate an existing HJ6332012 pollutant set with `UBA`, `EU_EAQI`, US/CN InstantCast, or the CN 2025 draft. |
+| `airQualityAlgorithm` | select, `None` | `None` applies repairs and scale normalization only. Other values locally recalculate a pollutant set with `UBA`, `EU_EAQI`, US/CN InstantCast, or the CN 2025 draft. |
+| `airQualityIndexScope` | select, `HJ6332012Only` | Limits recalculation to an incoming HJ6332012 index, matching upstream's own `Index.Replace` default. `AnyScale` applies the selected algorithm to whatever scale Apple returned. |
+| `pollutantUnits` | select, `Off` | Locally restates the reported pollutant amounts. `MatchScale` uses the units the active standard requires; `MicrogramsPerCubicMeter`, `EuropeanPPB`, and `USPPB` force one family. Particulate matter is never restated. |
 | `forceCNPrimaryPollutant` | boolean, `true` | For Chinese calculations, keep the highest pollutant as primary even at AQI 50 or below. |
 | `allowAirQualityOverRange` | boolean, `true` | Allow supported local algorithms to exceed their standard maximum. |
 | `failClosed` | boolean, `true` | Block script-level validation failures. False passes through only exceptions caught by the scripts; body limits, VM timeouts, and result validation remain core fail-closed. |
@@ -160,6 +164,12 @@ pollutants and runs only when the response already contains them. Upstream full
 configuration defaults to `EU_EAQI` for replacement; this native port defaults
 to `None` so an index is not silently recalculated until the operator makes an
 explicit choice.
+
+Upstream models pollutant units as an array of scales (`Units.Replace`) crossed
+with a seven-value mode (`Units.Mode`). No `5gpn.io/v1` setting type expresses
+an array, so this port collapses the pair into one select: enabling conversion
+applies it to whichever scale is active rather than to a chosen subset. All of
+it runs on the bundled `AirQuality.ConvertPollutants`; no pollutant is fetched.
 
 ## Permissions and data boundary
 
@@ -206,11 +216,23 @@ is slot 0 through `locationInfo` at slot 9. Revalidate this ordering before any
 future schema or upstream change.
 
 Root reassembly preserves unknown root slots, including nested opaque tables.
-When the `airQuality` slot is replaced, fields added inside a newer
-`AirQuality` or `Metadata` table but unknown to the public schema can be lost.
-The public `Metadata` class exposes 11 slots; the current static call site
-passes extra arguments named `unknown11` through `unknown15`, which this public
-class ignores. This gap is unchanged from the previously reviewed revision.
+Inside the `airQuality` slot, however, a decode/encode round trip keeps only the
+fields the codec reads. The pinned `decodeMetadata` reads the 11 public
+`Metadata` fields and never reads `unknown11` through `unknown15`, so those
+values do not survive re-encoding — upstream included. Because upstream's
+private `createMetadata` still receives them as `undefined`, upstream emits
+those five slots with placeholder values; the public schema object used here
+declares 11 slots and omits them instead. This is a property of the upstream
+round trip at the pinned revision, not a consequence of substituting the public
+schema object. `tests/weatherkit-fixtures.mjs` pins the exact behavior with a
+Metadata table that carries sentinels in slots 11 to 15.
+
+Byte-preserving passthrough of those slots would require assembling the root
+table locally instead of calling `FlatBufferRootProcessor.encode`, so that the
+rewritten product table could point at the original sub-table. That is
+deliberately not done here: with one rewritten dataset it buys little, and it
+would fork this port from the reviewed upstream encoder. Revisit it before
+rewriting any additional dataset.
 
 ## License boundary
 
@@ -268,8 +290,8 @@ npm run build:check --prefix weatherkit/source
 if ($LASTEXITCODE -ne 0) { throw "WeatherKit reproducibility check failed with exit code $LASTEXITCODE" }
 ```
 
-The reviewed generated output is 186,621 bytes with SHA-256
-`67cf617efa0caf1204af07b5922602fa0baefa3c8214ef247fc20c2420df4b17`.
+The reviewed generated output is 187,416 bytes with SHA-256
+`e5745642ef6a7dc1b8798c990200d77fd78ff999e3a27058d9152d51b5da1937`.
 The build rejects compatibility globals, ambient fetch, module loaders,
 process access, timers, asynchronous runtime constructs, missing entrypoints,
 and output above 1 MiB.
@@ -304,27 +326,28 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.weatherkit`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=9`; `captureHosts=1`; `actions=3`; `routingRules=1`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=11`; `captureHosts=1`; `actions=3`; `routingRules=1`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false and the scripts retain no extension-owned cache. |
-| Settings | Preserve the nine keys and types when possible. A normal same-ID update retains only values that remain valid under the candidate. |
+| Settings | Preserve the eleven keys and types when possible. A normal same-ID update retains only values that remain valid under the candidate. |
 | Binary schema | Keep the two upstream commits distinct. Revalidate public-object compatibility, including root accessor count and order, before any binary behavior change. |
 | License review gate | Preserve Apache plus Rspack and esbuild MIT notices and the `Apache-2.0 AND MIT` generated-bundle mapping. Never infer a license for private 1.1.2. |
-| Reviewed capability baseline | One capture host, three local actions, nine settings, one UDP/443 reject rule, no origins or mappings, and no required egress. |
+| Reviewed capability baseline | One capture host, three local actions, eleven settings, one UDP/443 reject rule, no origins or mappings, and no required egress. |
 | Operator state | A normal update retains valid settings, `capture_dns`, and execution order. Review all while disabled. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed URL. No extension-owned data conversion is required. |
 
 ### Repeatable migration
 
 1. Complete every shared playbook row with both upstream commits, all pinned
-   artifacts, three actions, nine settings, binary schema, build inputs,
+   artifacts, three actions, eleven settings, binary schema, build inputs,
    licenses, routing, exclusions, and exact capability diffs.
 2. Run `npm ci` and `build:check` in `weatherkit/source`; review the generated
    size, digest, license banner, forbidden-pattern scan, and changed input
    projection.
 3. Exercise every dataset toggle, duplicate and encoded queries, both JSON
-   media types, AQ no-op/normalization/calculation paths, QWeather CO repair,
-   unknown root-slot preservation, unreadable root-slot isolation, malformed
-   FlatBuffers, and both `failClosed` modes.
+   media types, AQ no-op/normalization/calculation paths, both recalculation
+   scopes, every pollutant unit mode, QWeather CO repair, unknown root-slot
+   preservation, unreadable root-slot isolation, malformed FlatBuffers, and
+   both `failClosed` modes.
 4. Apply the same-ID candidate while disabled. Confirm settings, the one-host
    boundary, action order, empty origin list, absent egress requirement, and
    routing rule before authorized device testing.
@@ -363,8 +386,9 @@ if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $L
 
 The fixtures cover manifest/resource counts, request and availability
 behavior, every dataset toggle, content-type boundaries, no-op and malformed
-inputs, local HJ6332012 calculation, QWeather CO repair, metadata/comparison
-preservation, synthetic unknown root slots, isolation of an unreadable root
+inputs, local HJ6332012 calculation, both recalculation scopes, every pollutant
+unit mode, QWeather CO repair, metadata/comparison preservation, unknown
+`Metadata` slots, synthetic unknown root slots, isolation of an unreadable root
 slot, input immutability, script limits, forbidden globals, and both
 `failClosed` paths. Runtime-facing changes must
 also pass the current 5gpn core parser/marketplace integration gate from the

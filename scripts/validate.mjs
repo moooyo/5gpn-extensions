@@ -348,7 +348,7 @@ for (const entry of entries) {
     assert(actions.length === 3 && manifest.settings?.length === 5 && manifest.permissions.persistentStorage && manifest.permissions.network?.origins?.length === 1 && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')
   }
   if (entry.name === 'weatherkit') {
-    assert(actions.length === 3 && manifest.settings?.length === 9 && !manifest.permissions.persistentStorage && manifest.permissions.network === undefined && routingRules.length === 1, 'weatherkit: reviewed native capability set is incomplete')
+    assert(actions.length === 3 && manifest.settings?.length === 11 && !manifest.permissions.persistentStorage && manifest.permissions.network === undefined && routingRules.length === 1, 'weatherkit: reviewed native capability set is incomplete')
     const weatherBundle = await readFile(path.join(directory, 'weather.js'), 'utf8')
     assert(weatherBundle.startsWith('/*!\n * SPDX-License-Identifier: Apache-2.0 AND MIT\n'), 'weatherkit: generated bundle SPDX expression is incomplete')
     assert(weatherBundle.includes('Copyright (c) 2022-present Bytedance Inc and its affiliates.'), 'weatherkit: Rspack MIT notice is missing')

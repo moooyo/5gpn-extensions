@@ -11,6 +11,19 @@ const AIR_QUALITY_ALGORITHMS = new Set([
   'WAQI_InstantCast_CN_25_DRAFT',
 ])
 
+// Upstream drives pollutant units with an array of scales crossed with a mode.
+// The manifest has no array setting type, so a single select carries the mode
+// and enabling it converts whichever scale is active.
+const POLLUTANT_UNIT_MODES = new Map([
+  ['Off', null],
+  ['MatchScale', 'Scale'],
+  ['MicrogramsPerCubicMeter', 'Force_ugm3'],
+  ['EuropeanPPB', 'Force_EU_ppb'],
+  ['USPPB', 'Force_US_ppb'],
+])
+
+const AIR_QUALITY_INDEX_SCOPES = new Set(['HJ6332012Only', 'AnyScale'])
+
 function headerValue(headers, expected) {
   if (!headers || typeof headers !== 'object') return ''
   for (const name of Object.keys(headers)) {
@@ -57,6 +70,22 @@ function algorithmSetting(settings) {
   const value = settings?.airQualityAlgorithm ?? 'None'
   if (typeof value !== 'string' || !AIR_QUALITY_ALGORITHMS.has(value)) {
     throw new Error('WeatherKit airQualityAlgorithm setting is invalid')
+  }
+  return value
+}
+
+function pollutantUnitsSetting(settings) {
+  const value = settings?.pollutantUnits ?? 'Off'
+  if (typeof value !== 'string' || !POLLUTANT_UNIT_MODES.has(value)) {
+    throw new Error('WeatherKit pollutantUnits setting is invalid')
+  }
+  return POLLUTANT_UNIT_MODES.get(value)
+}
+
+function indexScopeSetting(settings) {
+  const value = settings?.airQualityIndexScope ?? 'HJ6332012Only'
+  if (typeof value !== 'string' || !AIR_QUALITY_INDEX_SCOPES.has(value)) {
+    throw new Error('WeatherKit airQualityIndexScope setting is invalid')
   }
   return value
 }
@@ -160,10 +189,14 @@ function transformWeatherKitAirQuality(context) {
   airQuality = AirQuality.NormalizeScaleIdentifier(airQuality)
 
   const algorithm = algorithmSetting(context.settings)
+  const indexScope = indexScopeSetting(context.settings)
+  const unitsMode = pollutantUnitsSetting(context.settings)
   const scaleName = AirQuality.GetNameFromScale(airQuality.scale)
+  const preIndexAirQuality = airQuality
+  let recalculated = false
   if (
     algorithm !== 'None' &&
-    scaleName === AirQuality.Config.Scales.HJ6332012.weatherKitScale.name &&
+    (indexScope === 'AnyScale' || scaleName === AirQuality.Config.Scales.HJ6332012.weatherKitScale.name) &&
     Array.isArray(airQuality.pollutants) &&
     airQuality.pollutants.length > 0
   ) {
@@ -179,7 +212,23 @@ function transformWeatherKitAirQuality(context) {
         metadata: airQuality.metadata,
         previousDayComparison: airQuality.previousDayComparison,
       }
+      recalculated = true
     }
+  }
+
+  // Upstream converts pollutant units after the index stage, using the scale the
+  // index ended up on. `preIndexAirQuality` only supplies the provider-derived STP
+  // conversion factors; the pollutants and scale come from the current object.
+  if (unitsMode) {
+    const converted = AirQuality.ConvertPollutants(preIndexAirQuality, airQuality, recalculated, airQuality, {
+      AirQuality: {
+        Current: {
+          Pollutants: { Units: { Mode: unitsMode, Replace: [AirQuality.GetNameFromScale(airQuality.scale)] } },
+          Index: { Provider: 'Calculate' },
+        },
+      },
+    })
+    if (Array.isArray(converted)) airQuality = { ...airQuality, pollutants: converted }
   }
 
   if (JSON.stringify(encodedProjection(airQuality)) === before) return null

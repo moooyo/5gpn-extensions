@@ -127,6 +127,13 @@ and is absent from the public npm registry, but its preferred source form is
 committed in the Apache-2.0 upstream tree and is pinned and compiled from
 immutable raw URLs rather than resolved as a package.
 
+The pinned `decodeMetadata` reads the 11 public `Metadata` fields and never
+reads `unknown11` through `unknown15`, so those values are dropped by any
+decode/encode round trip at this revision, upstream included. The public schema
+object used here declares 11 slots and omits them; upstream's private schema
+still receives them as `undefined` and emits placeholder slots. This is a
+property of the upstream round trip, not of the public-object substitution.
+
 The generated `weather.js` also contains the Apache-2.0 FlatBuffers 24.12.23
 JavaScript runtime. That release has no `NOTICE` file. Rspack 1.7.7 bootstrap
 code retained by the public schema bundle is MIT licensed, Copyright (c)

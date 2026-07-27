@@ -37,7 +37,7 @@ async function loadTransform(relativePath) {
 
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '2.1.0')
+assert.equal(manifest.metadata.version, '2.2.0')
 assert.deepEqual(manifest.permissions, { persistentStorage: false })
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
 assert.deepEqual(manifest.traffic.routingRules, [{
@@ -53,6 +53,8 @@ assert.deepEqual(manifest.settings.map((setting) => setting.key), [
   'forecastHourly',
   'forecastNextHour',
   'airQualityAlgorithm',
+  'airQualityIndexScope',
+  'pollutantUnits',
   'forceCNPrimaryPollutant',
   'allowAirQualityOverRange',
   'failClosed',
@@ -68,8 +70,24 @@ assert.deepEqual(algorithmSetting.options, [
   'WAQI_InstantCast_CN',
   'WAQI_InstantCast_CN_25_DRAFT',
 ])
-assert(manifest.settings.filter((setting) => setting.key !== 'airQualityAlgorithm').every(
-  (setting) => setting.type === 'boolean' && setting.required === true && setting.default === true,
+const indexScopeSetting = manifest.settings.find((setting) => setting.key === 'airQualityIndexScope')
+assert.equal(indexScopeSetting.type, 'select')
+assert.equal(indexScopeSetting.default, 'HJ6332012Only')
+assert.deepEqual(indexScopeSetting.options, ['HJ6332012Only', 'AnyScale'])
+const pollutantUnitsSetting = manifest.settings.find((setting) => setting.key === 'pollutantUnits')
+assert.equal(pollutantUnitsSetting.type, 'select')
+assert.equal(pollutantUnitsSetting.default, 'Off')
+assert.deepEqual(pollutantUnitsSetting.options, [
+  'Off',
+  'MatchScale',
+  'MicrogramsPerCubicMeter',
+  'EuropeanPPB',
+  'USPPB',
+])
+const selectKeys = new Set(['airQualityAlgorithm', 'airQualityIndexScope', 'pollutantUnits'])
+assert(manifest.settings.every((setting) => setting.required === true))
+assert(manifest.settings.filter((setting) => !selectKeys.has(setting.key)).every(
+  (setting) => setting.type === 'boolean' && setting.default === true,
 ))
 assert.equal(manifest.actions.length, 3)
 
@@ -470,10 +488,88 @@ assert.equal(fixedQWeather.pollutants[0].units, 1)
 const fixedQWeatherResult = airQualityScript.transform(airQualityContext(qweatherFixture))
 assert.equal(airQualityScript.transform(airQualityContext(fixedQWeatherResult.response.body)), null, 'QWeather CO repair must be idempotent')
 
+// Pollutant unit conversion. The CO fixture is the convertible one; the PM-only
+// fixture must stay untouched in every mode because no standard restates PM in
+// anything other than micrograms per cubic metre.
+const convertedUnits = (fixture, mode, settings = {}) => {
+  const result = airQualityScript.transform(airQualityContext(fixture, { pollutantUnits: mode, ...settings }))
+  return result === null ? null : airQualitySnapshot(result.response.body).pollutants
+}
+for (const mode of ['Off', 'MatchScale', 'MicrogramsPerCubicMeter', 'EuropeanPPB', 'USPPB']) {
+  assert.deepEqual(convertedUnits(airQualityFixture, mode), [
+    { type: 8, amount: 100, units: 1 },
+    { type: 10, amount: 120, units: 1 },
+  ], `${mode} must not restate particulate matter`)
+}
+for (const mode of ['Off', 'MatchScale', 'MicrogramsPerCubicMeter']) {
+  assert.deepEqual(convertedUnits(qweatherFixture, mode), [{ type: 11, amount: 1000, units: 1 }], `${mode} keeps the scale's own units`)
+}
+assert.deepEqual(convertedUnits(qweatherFixture, 'EuropeanPPB'), [{ type: 11, amount: 858.7761840820312, units: 12 }])
+assert.deepEqual(convertedUnits(qweatherFixture, 'USPPB'), [{ type: 11, amount: 873.4235229492188, units: 12 }])
+const convertedResult = airQualityScript.transform(airQualityContext(qweatherFixture, { pollutantUnits: 'USPPB' }))
+assert.equal(
+  airQualityScript.transform(airQualityContext(convertedResult.response.body, { pollutantUnits: 'USPPB' })),
+  null,
+  'unit conversion must be idempotent',
+)
+
+// Recalculation scope. The QWeather fixture arrives on EU.EAQI, so the default
+// only repairs it, while AnyScale applies the selected algorithm to it.
+const scopedDefault = airQualitySnapshot(airQualityScript.transform(airQualityContext(qweatherFixture, {
+  airQualityAlgorithm: 'WAQI_InstantCast_CN',
+})).response.body)
+assert.equal(scopedDefault.scale, 'EU.EAQI', 'HJ6332012Only must not recalculate another scale')
+const scopedAny = airQualitySnapshot(airQualityScript.transform(airQualityContext(qweatherFixture, {
+  airQualityAlgorithm: 'WAQI_InstantCast_CN',
+  airQualityIndexScope: 'AnyScale',
+})).response.body)
+assert.equal(scopedAny.scale, 'HJ6332012', 'AnyScale must recalculate a non-HJ6332012 scale')
+assert.equal(
+  airQualitySnapshot(airQualityScript.transform(airQualityContext(qweatherFixture, {
+    airQualityAlgorithm: 'WAQI_InstantCast_CN',
+    airQualityIndexScope: 'AnyScale',
+    pollutantUnits: 'USPPB',
+  })).response.body).pollutants[0].units,
+  12,
+  'conversion runs after recalculation',
+)
+
+// Metadata fidelity. `metadataUnknownSlotsFixture` was generated with the pinned
+// FlatBuffers runtime and public schema object by building a Metadata table over
+// `builder.startObject(16)`: the 11 public slots through the generated `add*`
+// helpers, then `addFieldInt32` sentinels 111111..555555 in slots 11 to 15.
+// Upstream's own decoder reads only the 11 public fields, so those sentinels do
+// not survive a decode/encode round trip here or upstream.
+const metadataUnknownSlotsFixture = new Uint8Array(Buffer.from(
+  'DAAAAAAABgAIAAQABgAAABgAAAAUABgAFAATABAAAAAMAAsACgAEABQAAAAUAAAAAAAIBCAAAABNAAACfAAAAA0AAABISjYzMzIwMTIuOTk5AAAAAgAAACwAAAAQAAAAAAAKAA4ADQAIAAcACgAAAAAAAAEAAPBCAAoKABAADwAIAAcACgAAAAAAAAEAAMhCAAAACCQAQAA8ADgANAAwACwAKAAkACAAHAAAABsAFAAQAAwACAAEACQAAAAjeggAHMgGABUWBQAOZAMAB7IBAAAAAAEC8VNlAfFTZRwAAAAsAAAAAADzQgAA+kFIAAAAAPFTZUwAAAANAAAAQXBwbGUgV2VhdGhlcgAAACAAAABodHRwczovL2V4YW1wbGUuaW52YWxpZC9sb2dvLnBuZwAAAAAFAAAAZW4tVVMAAAAjAAAAaHR0cHM6Ly9leGFtcGxlLmludmFsaWQvYXR0cmlidXRpb24A',
+  'base64',
+))
+const declaredSlots = (bytes, table) => {
+  const vtable = table - binaryView(bytes).getInt32(table, true)
+  return (binaryView(bytes).getUint16(vtable, true) - 4) / 2
+}
+const metadataTable = (bytes) => indirect(bytes, tableField(bytes, rootSlot(bytes, 0), 0))
+const sourceMetadata = metadataTable(metadataUnknownSlotsFixture)
+assert.equal(declaredSlots(metadataUnknownSlotsFixture, sourceMetadata), 16, 'the fixture must carry slots beyond the public schema')
+assert.deepEqual([11, 12, 13, 14, 15].map(
+  (slot) => binaryView(metadataUnknownSlotsFixture).getInt32(tableField(metadataUnknownSlotsFixture, sourceMetadata, slot), true),
+), [111111, 222222, 333333, 444444, 555555])
+const metadataResult = airQualityScript.transform(airQualityContext(metadataUnknownSlotsFixture))
+const rewrittenMetadata = metadataTable(metadataResult.response.body)
+assert.equal(airQualitySnapshot(metadataResult.response.body).scale, 'HJ6332012')
+assert.equal(declaredSlots(metadataResult.response.body, rewrittenMetadata), 11, 'the rewrite emits only the public schema slots')
+assert.deepEqual([11, 12, 13, 14, 15].map((slot) => tableField(metadataResult.response.body, rewrittenMetadata, slot)), [0, 0, 0, 0, 0])
+assert.equal(stringField(metadataResult.response.body, rewrittenMetadata, 0), 'https://example.invalid/attribution')
+assert.equal(stringField(metadataResult.response.body, rewrittenMetadata, 2), 'en-US')
+assert.equal(stringField(metadataResult.response.body, rewrittenMetadata, 5), 'https://example.invalid/logo.png')
+assert.equal(stringField(metadataResult.response.body, rewrittenMetadata, 6), 'Apple Weather')
+
 assert.equal(airQualityScript.transform(airQualityContext(airQualityFixture, {}, 'application/json')), null)
 assert.equal(airQualityScript.transform(airQualityContext(airQualityFixture, {}, 'application/vnd.apple.flatbuffer', 'currentWeather')), null)
 assert.throws(() => airQualityScript.transform(airQualityContext(new Uint8Array([1, 2, 3]))))
 assert.throws(() => airQualityScript.transform(airQualityContext(airQualityFixture, { airQualityAlgorithm: 'Unknown' })), /airQualityAlgorithm/)
+assert.throws(() => airQualityScript.transform(airQualityContext(airQualityFixture, { airQualityIndexScope: 'Unknown' })), /airQualityIndexScope/)
+assert.throws(() => airQualityScript.transform(airQualityContext(airQualityFixture, { pollutantUnits: 'Unknown' })), /pollutantUnits/)
 airQualityScript.messages.length = 0
 assert.equal(airQualityScript.transform(airQualityContext(new Uint8Array([1, 2, 3]), { failClosed: false })), null)
 assert.match(airQualityScript.messages.at(-1)[1], /AQ transform skipped/)

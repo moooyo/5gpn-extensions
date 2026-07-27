@@ -81,7 +81,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   assert.deepEqual(weatherkit.capabilities, {
     captureHostCount: 1,
     actionCount: 3,
-    settingCount: 9,
+    settingCount: 11,
     networkOrigins: [],
     persistentStorage: false,
     upstreamMappingCount: 0,
