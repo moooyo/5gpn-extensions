@@ -87,7 +87,7 @@ example-cleaner/
 | 类型化运营者配置 | `settings[]` | `text`、`select`、`boolean`、`number` 和 `location`；启用前必须完整填写必填值。 |
 | 持久状态 | `permissions.persistentStorage: true` | 添加受扩展作用域和配额限制的 `context.storage`；脚本绝不能选择路径或访问文件系统。 |
 | 按源（origin）限定的出站 HTTP | `permissions.network.origins` | 仅为精确的 HTTP(S) 源（origin）添加同步 `context.network.request`。不存在环境级 `fetch`、重定向跟随、Cookie jar 或套接字访问。运营者必须确认可见的已解密数据可能被发送到这些源。 |
-| 覆盖一个已捕获的上游 | `traffic.upstreamMappings` | 在保留原始 Host 和 TLS SNI 的情况下更改 sidecar 拨号目标。目标经过 SSRF 检查，且仍经 mihomo 返回。 |
+| 覆盖一个名字的解析结果 | `traffic.upstreamMappings` | Loon 的 `[Host]`。目标可以是地址（`1.2.3.4`）、别名（`origin.example.net`）或解析器（`server:1.1.1.1`）。名字的 Host 头和 TLS SNI 保持不变，只有地址改变，而且改变发生在网关的解析器里 —— 因此客户端的应答与被捕获主机的上游腿遵循同一张表。映射只提供地址，绝不提供转发决策：映射到国内地址的国内域名依然直连，映射到境外地址的依然被引流。地址型目标经过 SSRF 检查。映射无法作用于由远端解析的出站，因为代理节点收到的是名字而不是地址。 |
 | 要求区域/运营者出口 | `requirements.egressGroup.required: true` | 启用前强制运营者绑定现有 mihomo 组或 `DIRECT`。扩展不能命名、检查、选择或更改任意组；另行审查的路由规则只能选择 `DIRECT`。 |
 | 组合多个扩展 | Console 执行顺序 | 请求和响应操作自上而下运行。对于重叠目的地，同一顺序中的第一个已绑定扩展和第一条全局路由规则生效。重排需要审查调整前后顺序并确认。 |
 

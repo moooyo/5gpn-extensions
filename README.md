@@ -129,7 +129,7 @@ update procedure, and verification steps.
 | Typed operator configuration | `settings[]` | `text`, `select`, `boolean`, `number`, and `location`; required values must be complete before enable. |
 | Persistent state | `permissions.persistentStorage: true` | Adds extension-scoped, quota-bound `context.storage`; scripts never choose a path or access the filesystem. |
 | Origin-scoped outbound HTTP | `permissions.network.origins` | Adds `context.network.request` and the concurrent `context.network.requestAsync` for exact HTTP(S) origins only. There is no ambient `fetch`, redirect following, cookie jar, or socket access. The operator must confirm that visible decrypted data could be sent to those origins. |
-| Override one captured upstream | `traffic.upstreamMappings` | Changes the sidecar dial target while preserving the original Host and TLS SNI. Targets are SSRF-checked and still return through mihomo. |
+| Override where a name resolves | `traffic.upstreamMappings` | Loon's `[Host]`. A target is an address (`1.2.3.4`), an alias (`origin.example.net`), or a resolver (`server:1.1.1.1`). The name keeps its Host header and TLS SNI: only the address changes, and it changes in the gateway's resolver, so both the client's answer and the upstream leg of a captured host follow the same table. A mapping supplies an address and never a routing decision — a domestic name mapped to a domestic address still goes direct, and one mapped to a foreign address is still steered. Address targets are SSRF-checked. A mapping cannot reach an outbound that resolves remotely, because a proxy node is handed the name rather than the address. |
 | Require a regional/operator exit | `requirements.egressGroup.required: true` | Forces the operator to bind an existing mihomo group or `DIRECT` before enable. The extension cannot name, inspect, select, or change an arbitrary group; a separately reviewed routing rule may select only `DIRECT`. |
 | Compose several extensions | Console execution order | Request and response actions run top-to-bottom. For overlapping destinations, the first bound extension and first global routing rule in that same order win. Reordering requires a before/after confirmation. |
 
@@ -291,7 +291,12 @@ Network origins contain only a canonical scheme, hostname, and effective port;
 wildcards, paths, queries, fragments, userinfo, IP literals, localhost, and
 private names are rejected. Upstream mappings apply only to a host already
 owned by the same extension and cannot target private, loopback, link-local,
-or otherwise unsafe addresses.
+carrier-grade NAT, or otherwise unsafe addresses. That refusal is not defence
+in depth: the gateway's rendered private-range denies are all `no-resolve`, so
+they stop an IP-form routing target and nothing else, and the egress anchor
+resolves ahead of the rule list entirely. A static mapping is the one case
+where the address is known before any traffic flows, which is why it can be
+checked at all.
 
 ### Development and review workflow
 

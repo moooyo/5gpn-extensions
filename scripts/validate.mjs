@@ -105,6 +105,45 @@ function validHost(value) {
   return host.split('.').length >= 2 && host.split('.').every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
 }
 
+// A [Host] target carries its form in Loon's own encoding, so an entry lifted
+// from an upstream plugin transcribes unchanged:
+//
+//   1.2.3.4            an address
+//   other.example.com  an alias
+//   server:1.1.1.1     a resolver (comma-separated, at most four)
+//
+// The address form refuses everything the gateway must never be pointed at.
+// That is not defence in depth here, it is the only defence: the rendered
+// private-range denies are all no-resolve, so they stop an IP-form routing
+// target and nothing else, and the egress anchor resolves ahead of the rule
+// list entirely. The core refuses the same set; this is the copy that fails in
+// CI instead of at import.
+function validHostMappingAddress(value) {
+  const octets = value.split('.')
+  if (octets.length !== 4) return false
+  const parts = octets.map((octet) => Number(octet))
+  if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(value)) return false
+  const [a, b] = parts
+  if (a === 0 || a === 127 || a === 10) return false
+  if (a === 172 && b >= 16 && b <= 31) return false
+  if (a === 192 && b === 168) return false
+  if (a === 169 && b === 254) return false
+  if (a === 100 && b >= 64 && b <= 127) return false // carrier-grade NAT
+  if (a >= 224) return false // multicast and reserved
+  return true
+}
+
+function validHostMappingTarget(value) {
+  if (typeof value !== 'string' || value !== value.trim()) return false
+  if (value.startsWith('server:')) {
+    const specs = value.slice('server:'.length).split(',').map((spec) => spec.trim()).filter(Boolean)
+    return specs.length > 0 && specs.length <= 4
+  }
+  if (/^\d/.test(value)) return validHostMappingAddress(value)
+  return validHost(value) && !value.startsWith('*.')
+}
+
 for (const entry of entries) {
   if (!entry.isDirectory()) continue
   const directory = path.join(root, entry.name)
@@ -167,6 +206,9 @@ for (const entry of entries) {
 
   const actions = manifest.actions ?? []
   const mappings = manifest.traffic.upstreamMappings ?? []
+  for (const [index, mapping] of mappings.entries()) {
+    assert(validHostMappingTarget(mapping.target), `${entry.name}: upstreamMappings[${index}].target is invalid`)
+  }
   const routingRules = manifest.traffic.routingRules ?? []
   if (hasOwn(manifest.traffic, 'routingRules')) assert(Array.isArray(manifest.traffic.routingRules), `${entry.name}: routingRules must be an array when declared`)
   assert(Array.isArray(routingRules) && routingRules.length <= 256, `${entry.name}: routing rule limit exceeded`)
