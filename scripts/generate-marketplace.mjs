@@ -42,7 +42,9 @@ function newerContractReasons(manifest) {
   // A v1-era core parses the index with DisallowUnknownFields and the manifest
   // with KnownFields, so an action carrying a jq expression costs that core the
   // whole catalogue rather than just this entry.
-  if ((manifest.actions ?? []).some((action) => action.script?.jq !== undefined)) reasons.push('script.jq')
+  for (const field of ['jq', 'reject', 'mock']) {
+    if ((manifest.actions ?? []).some((action) => action.script?.[field] !== undefined)) reasons.push(`script.${field}`)
+  }
   return reasons
 }
 
@@ -222,7 +224,7 @@ function parseStrictManifest(body, directory) {
     assert(!actionIDs.has(action.id), `${directory}: duplicate action id ${action.id}`)
     actionIDs.add(action.id)
     assertKeys(action.match, new Set(['hosts', 'schemes', 'methods', 'pathRegex', 'statusCodes']), `${directory}: action ${action.id}.match`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'reject', 'mock', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
     assert(action.script.inline === undefined, `${directory}: published actions must use immutable local script sources`)
     // A jq action carries an expression rather than a script, so it contributes
     // no resource to the index and has no source to pin.
@@ -230,6 +232,15 @@ function parseStrictManifest(body, directory) {
       assertString(action.script.jq, `${directory}: action ${action.id}.script.jq`)
       assert(action.script.source === undefined, `${directory}: action ${action.id} declares both jq and a source`)
       assert(action.script.bodyMode === 'text', `${directory}: action ${action.id} jq requires a text body`)
+      continue
+    }
+    // reject and mock are declarative too: no code, no resource, nothing to pin.
+    if (action.script.reject !== undefined) {
+      assert(action.script.reject === true, `${directory}: action ${action.id} reject must be true`)
+      continue
+    }
+    if (action.script.mock !== undefined) {
+      assert(action.script.source === undefined, `${directory}: action ${action.id} declares both mock and a source`)
       continue
     }
     assertString(action.script.source, `${directory}: action ${action.id}.script.source`)
@@ -456,6 +467,14 @@ export async function generateMarketplace({ root = repositoryRoot, revision, pro
     })
   }
   entries.sort((left, right) => compareText(left.id, right.id))
+  // An empty profile is a real answer, not a failure: it means nothing this
+  // repository ships can run on the core that profile targets. Publishing it
+  // empty is more truthful than a 404, which reads as an outage, or than
+  // listing entries that would fail to install. It is announced so it cannot
+  // be mistaken for a build that silently dropped everything.
+  if (entries.length === 0) {
+    console.error(`${profile}: publishing an empty catalogue — every extension needs a newer contract`)
+  }
 
   return `${JSON.stringify({
     apiVersion: '5gpn.io/marketplace/v1',

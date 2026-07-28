@@ -41,8 +41,7 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `55050748eae31a8ec51897a5cb4313af0d0a050e20dbf97e7d106a3e5d58dd1f` |
-| Script | `testflight-region-unlock/rewrite-storefront.js` — SHA-256 `77a4c392500782431f080e6a11b3d6703bb15a0a74350cf494b4574c2abdf13e` |
+| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `72b4f96cacc6fd5114a4c62f5492dfb5ab97f975c81108f52e0fdaa117d0a2a6` |
 
 ## License and attribution
 
@@ -201,7 +200,7 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.testflight-region-unlock`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=1.1.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=true`. |
+| Current manifest | `version=2.0.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=true`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | Preserve `storefront` as a `select` setting. A same-ID update retains its value only while the selected option remains valid. |
 | Reviewed capability baseline | One capture host, one request action, no network origins, upstream mappings, or routing rules, and a required operator egress binding. |

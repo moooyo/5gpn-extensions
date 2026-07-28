@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.httpdns-interceptor
   name: HTTPDNS Interceptor
-  version: 2.1.0
+  version: 2.2.0
   description: DNS-steers 58 HTTPDNS domains and rejects 59 gateway-visible
     IP/CIDR routes plus seven hostname-based request paths.
 
@@ -323,7 +323,7 @@ actions:
         - http
       pathRegex: ^/launch/queryHttpDns
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024
@@ -337,7 +337,7 @@ actions:
         - https
       pathRegex: ^/monitor/monitor\.jsp
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024
@@ -350,7 +350,7 @@ actions:
         - http
       pathRegex: ^/xmlymain-login-web/login/
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024
@@ -363,7 +363,7 @@ actions:
         - http
       pathRegex: ^/(?:2/)?httpdns/config
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024
@@ -377,7 +377,7 @@ actions:
         - https
       pathRegex: ^/mailmaster/api/http/urlConfig\.do$
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024
@@ -390,7 +390,7 @@ actions:
         - https
       pathRegex: ^/msg/outer/broker/get$
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024
@@ -403,7 +403,7 @@ actions:
         - https
       pathRegex: ^/linkeye-cloud/httpdns/
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024

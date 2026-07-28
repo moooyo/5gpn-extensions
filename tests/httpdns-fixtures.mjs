@@ -8,7 +8,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'httpdns-interceptor', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.httpdns-interceptor')
-assert.equal(manifest.metadata.version, '2.1.0')
+assert.equal(manifest.metadata.version, '2.2.0')
 assert.deepEqual(manifest.permissions, { persistentStorage: false })
 assert.equal(manifest.settings, undefined)
 assert.equal(manifest.requirements, undefined)
@@ -22,8 +22,10 @@ assert.equal(routeCIDRs.length, 59)
 assert.equal(new Set(routeDomains).size, routeDomains.length)
 assert(manifest.traffic.routingRules.every((rule) => rule.action === 'reject'))
 
+// Declarative rejection: these seven actions used to share a 57-byte script
+// whose whole body was `return { abort: true }`.
 const script = {
-  source: './block.js',
+  reject: true,
   bodyMode: 'none',
   timeoutMs: 200,
   maxBodyBytes: 1024,

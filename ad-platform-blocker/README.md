@@ -157,7 +157,7 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.ad-platform-blocker`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=0`; `captureHosts=277`; `actions=3`; `routingRules=201`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=0`; `captureHosts=277`; `actions=3`; `routingRules=201`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false and there are no extension settings. |
 | Reviewed capability baseline | 277 capture hosts, 201 typed routing rules (194 `REJECT` and seven `DIRECT`), three request actions, no network origins or upstream mappings, and no required egress binding. The `DIRECT` rules deliberately bypass the ordinary operator target and capture path for their narrow matches. |
 | Operator state | A normal same-ID update retains `capture_dns` and execution position. Record both before rollout. |

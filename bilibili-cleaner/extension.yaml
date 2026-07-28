@@ -86,22 +86,6 @@ settings:
     default: error
 
 actions:
-  - id: mock-grpc-promotions
-    phase: request
-    match:
-      hosts:
-        - grpc.biliapi.net
-      schemes:
-        - https
-      methods:
-        - POST
-      pathRegex: '^/bilibili\.app\.(interface\.v1\.(Teenagers/ModeStatus|Search/DefaultWords)|view\.v1\.View/TFInfo|viewunite\.v1\.View/(PlayPause|ViewEndPage))$'
-    script:
-      source: ./mock-grpc.js
-      bodyMode: none
-      timeoutMs: 500
-      maxBodyBytes: 1024
-
   - id: mock-live-shopping-json
     phase: request
     match:
@@ -111,7 +95,11 @@ actions:
         - https
       pathRegex: '^/xlive/e-commerce-interface/v1/ecommerce-user/get_shopping_info\?.*$'
     script:
-      source: ./mock-json.js
+      mock:
+        status: 200
+        headers:
+          Content-Type: 'application/json; charset=utf-8'
+        body: '{}'
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024
@@ -125,7 +113,29 @@ actions:
         - https
       pathRegex: '^/game/live/large_card_material\?.*$'
     script:
-      source: ./mock-json.js
+      mock:
+        status: 200
+        headers:
+          Content-Type: 'application/json; charset=utf-8'
+        body: '{}'
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+
+  - id: mock-app-splash-list
+    phase: request
+    match:
+      hosts:
+        - app.bilibili.com
+      schemes:
+        - https
+      pathRegex: '^/x/v2/splash/list\?.*$'
+    script:
+      mock:
+        status: 200
+        headers:
+          Content-Type: 'application/json; charset=utf-8'
+        body: '{"code":0,"message":"OK","ttl":1,"data":{"max_time":0,"min_interval":31536000,"pull_interval":31536000,"keep_ids":[],"show":[],"list":[{}],"splash_request_id":""}}'
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024
@@ -138,9 +148,13 @@ actions:
         - app.bilibili.com
       schemes:
         - https
-      pathRegex: '^/x/(v2/splash/list|resource/(top/activity|patch/tab(/v2)?)|v2/search/square|vip/ads/materials)\?.*$'
+      pathRegex: '^/x/(?:resource/(?:top/activity|patch/tab(?:/v2)?)|v2/search/square|vip/ads/materials)\?.*$'
     script:
-      source: ./mock-json.js
+      mock:
+        status: 200
+        headers:
+          Content-Type: 'application/json; charset=utf-8'
+        body: '{"code":-404,"message":"-404","ttl":1,"data":null}'
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024
@@ -154,7 +168,68 @@ actions:
         - https
       pathRegex: '^/pgc/activity/deliver/material/receive\?.*$'
     script:
-      source: ./mock-json.js
+      mock:
+        status: 200
+        headers:
+          Content-Type: 'application/json; charset=utf-8'
+        body: '{"code":0,"data":{"closeType":"close_win","container":[],"showTime":""},"message":"success"}'
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+
+  - id: mock-grpc-teenagers
+    phase: request
+    match:
+      hosts:
+        - grpc.biliapi.net
+      schemes:
+        - https
+      pathRegex: '^/bilibili\.app\.interface\.v1\.Teenagers/ModeStatus$'
+    script:
+      mock:
+        status: 200
+        headers:
+          Content-Type: 'application/grpc'
+          Grpc-Status: '0'
+        base64Body: 'AAAAABMKEQgCEgl0ZWVuYWdlcnMgAioA'
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+
+  - id: mock-grpc-default-words
+    phase: request
+    match:
+      hosts:
+        - grpc.biliapi.net
+      schemes:
+        - https
+      pathRegex: '^/bilibili\.app\.interface\.v1\.Search/DefaultWords$'
+    script:
+      mock:
+        status: 200
+        headers:
+          Content-Type: 'application/grpc'
+          Grpc-Status: '0'
+        base64Body: 'AAAAACEaHeaQnOe0ouinhumikeOAgeeVquWJp+aIlnVw5Li7KAE='
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+
+  - id: mock-grpc-empty-frames
+    phase: request
+    match:
+      hosts:
+        - grpc.biliapi.net
+      schemes:
+        - https
+      pathRegex: '^/bilibili\.app\.(?:view\.v1\.View/TFInfo|viewunite\.v1\.View/(?:PlayPause|ViewEndPage))$'
+    script:
+      mock:
+        status: 200
+        headers:
+          Content-Type: 'application/grpc'
+          Grpc-Status: '0'
+        base64Body: 'AAAAAAA='
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024

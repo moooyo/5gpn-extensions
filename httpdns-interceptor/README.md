@@ -182,7 +182,7 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.httpdns-interceptor`; update the generator-owned `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=0`; `captureHosts=64`; `actions=7`; `routingRules=117`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=0`; `captureHosts=64`; `actions=7`; `routingRules=117`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false and there are no extension settings. |
 | Reviewed capability baseline | 64 capture hosts, 117 typed routing rules, seven request actions, no network origins or upstream mappings, and no required egress binding. |
 | Operator state | A normal same-ID update retains `capture_dns` and execution position. Record both before rollout. |

@@ -111,7 +111,12 @@ Twenty-one actions, in three kinds:
 | --- | ---: | --- |
 | `entry: proxy-compat` | 5 | The pinned `dist/` scripts: the protobuf request transformer on both request paths, the protobuf response transformer, the live JSON transformer, and the activity webpage transformer. |
 | `script.jq` | 11 | The pinned `[Rewrite]` expressions, including the two `jq-path` programs inlined. |
-| local script | 5 | `mock-json.js` and `mock-grpc.js`, for the `mock-response-body` and `reject-dict` directives. A synthetic response has no input document, so there is nothing for jq to transform and no upstream script to load. |
+| `script.mock` | 8 | The `mock-response-body` and `reject-dict` directives, one action per distinct body exactly as upstream declares them. The three gRPC mocks carry upstream's base64 frames and its `grpc-status: 0` header. |
+
+This directory ships no JavaScript. Earlier revisions carried `mock-json.js`
+and `mock-grpc.js` to match a URL and return a fixed body, which the manifest
+can now declare; splitting them raised the action count because a declared mock
+has one body, the way upstream writes one `[Map Local]` line per body.
 
 The five settings are unchanged and already match the upstream `[Argument]`
 names, so they reach the scripts as the decoded object Loon supplies.
@@ -205,7 +210,7 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=3.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=21`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
+| Current manifest | `version=3.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
 | State class | Stateful. `persistentStorage` is false. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, eleven actions, three network origins, five settings, and a required egress binding. |

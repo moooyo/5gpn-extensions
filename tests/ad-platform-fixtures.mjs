@@ -1,13 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import vm from 'node:vm'
 import { parse } from 'yaml'
 
 const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'ad-platform-blocker', 'extension.yaml'), 'utf8'))
 const readme = await readFile(path.join(root, 'ad-platform-blocker', 'README.md'), 'utf8')
-const script = await readFile(path.join(root, 'ad-platform-blocker', 'block.js'), 'utf8')
 
 const captureHosts = manifest.traffic.captureHosts
 const routingRules = manifest.traffic.routingRules
@@ -17,7 +15,7 @@ function coveredBySuffixes(host, suffixes) {
   return suffixes.some((suffix) => host === suffix || host.endsWith(`.${suffix}`))
 }
 
-assert.equal(manifest.metadata.version, '2.1.0')
+assert.equal(manifest.metadata.version, '2.2.0')
 assert.equal(routingRules.length, 201)
 assert.equal(captureHosts.length, 277)
 assert.equal(pathActions.length, 3)
@@ -85,11 +83,12 @@ assert.deepEqual(routingRules.filter((rule) => rule.ipCIDR !== undefined), [
   { action: 'reject', ipCIDR: '47.110.187.87/32' },
 ])
 
-const sandbox = {}
-vm.createContext(sandbox)
-new vm.Script(script, { filename: 'ad-platform-blocker/block.js' }).runInContext(sandbox)
-assert.equal(typeof sandbox.transform, 'function')
-assert.deepEqual({ ...sandbox.transform({}) }, { abort: true })
+// The three path actions block declaratively. They used to share a 57-byte
+// script whose whole body was `return { abort: true }`.
+for (const action of pathActions) {
+  assert.equal(action.script.reject, true, `${action.id} must reject declaratively`)
+  assert.equal(action.script.source, undefined, `${action.id} must ship no script`)
+}
 
 assert(readme.includes('277 hosts in `traffic.captureHosts`'))
 assert(readme.includes('Host-wide blocking is owned exclusively by the typed routing rules'))

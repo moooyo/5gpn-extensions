@@ -240,12 +240,17 @@ assert(!new RegExp(settingsAction.match.pathRegex).test('/wloc-settings/load'))
 // non-200 body the scripts still handle.
 assert.equal(wlocAction.match.statusCodes, undefined)
 
-const testflight = await loadTransform('testflight-region-unlock/rewrite-storefront.js')
-const upstreamBody = '{"storefrontId" : "143444-19,29","other":true}'
-const upstreamUS = testflight.transform({ settings: { storefront: 'US' }, request: { body: upstreamBody } })
-assert.equal(upstreamUS.request.body, '{"storefrontId":"143441-19,29","other":true}')
-assert.match(testflight.messages.at(-1)[1], /with upstream syntax/)
-
+// TestFlight rewrites the storefront declaratively now. The region-to-id table
+// lives in the jq program, which reads the operator's choice through $settings;
+// its behavior is executed against gojq in the sidecar's jq suite, because Node
+// has no jq. What is checked here is that the shipped program still carries
+// every reviewed region and reads the setting rather than a constant.
+const testflightManifest = await readManifest('testflight-region-unlock/extension.yaml')
+const testflightAction = testflightManifest.actions[0]
+assert.equal(typeof testflightAction.script.jq, 'string')
+assert.equal(testflightAction.script.source, undefined)
+assert.equal(testflightAction.script.entry, undefined)
+assert(testflightAction.script.jq.includes('$settings.storefront'), 'the program must read the operator choice')
 const storefronts = {
   US: '143441-19,29',
   GB: '143444-19,29',
@@ -258,47 +263,14 @@ const storefronts = {
   KR: '143466-19,29',
   TW: '143470-19,29',
 }
+assert.deepEqual(
+  testflightManifest.settings[0].options.slice().sort(),
+  Object.keys(storefronts).slice().sort(),
+  'every offered region must have a storefront id in the program',
+)
 for (const [region, storefrontID] of Object.entries(storefronts)) {
-  const result = testflight.transform({
-    settings: { storefront: region },
-    request: { body: '{"storefrontId":"999999-99,99"}' },
-  })
-  assert.equal(result.request.body, `{"storefrontId":"${storefrontID}"}`)
+  assert(testflightAction.script.jq.includes(`"${region}":"${storefrontID}"`), `${region} is missing from the shipped program`)
 }
-
-const flexibleBody = '{"storefrontId"  :\t"143441-19,29"}'
-assert.equal(testflight.transform({
-  settings: { storefront: 'HK' },
-  request: { body: flexibleBody },
-}).request.body, '{"storefrontId"  :\t"143463-19,29"}')
-
-const duplicateBody = '{"storefrontId":"143441-19,29","storefrontId":"143444-19,29"}'
-assert.equal(testflight.transform({
-  settings: { storefront: 'HK' },
-  request: { body: duplicateBody },
-}).request.body, '{"storefrontId":"143463-19,29","storefrontId":"143444-19,29"}')
-
-testflight.resetMessages()
-assert.equal(testflight.transform({
-  settings: { storefront: 'US' },
-  request: { body: '{"storefrontId":"143441-19,29"}' },
-}), null)
-assert.deepEqual(testflight.messages.at(-1), ['info', 'TestFlight storefront is already set to US'])
-testflight.resetMessages()
-assert.equal(testflight.transform({ settings: { storefront: 'US' }, request: { body: '{}' } }), null)
-assert.deepEqual(testflight.messages.at(-1), ['warn', 'TestFlight install request has no recognized storefrontId'])
-assert.throws(() => testflight.transform({
-  settings: { storefront: 'ZZ' },
-  request: { body: upstreamBody },
-}), /unsupported TestFlight storefront setting/)
-assert.throws(() => testflight.transform({
-  settings: { storefront: '__proto__' },
-  request: { body: upstreamBody },
-}), /unsupported TestFlight storefront setting/)
-assert.throws(() => testflight.transform({
-  settings: { storefront: 'US' },
-  request: { body: new Uint8Array() },
-}), /body is not text/)
 
 const appleReadme = await readFile(path.join(root, 'apple-wloc/README.md'), 'utf8')
 const testflightReadme = await readFile(path.join(root, 'testflight-region-unlock/README.md'), 'utf8')
@@ -319,7 +291,7 @@ assert.match(testflightReadme, /a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd3
 assert.match(testflightReadme, /047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98/)
 for (const [readme, manifestPath, scriptPath] of [
   [appleReadme, 'apple-wloc/extension.yaml'],
-  [testflightReadme, 'testflight-region-unlock/extension.yaml', 'testflight-region-unlock/rewrite-storefront.js'],
+  [testflightReadme, 'testflight-region-unlock/extension.yaml'],
 ]) {
   assert(readme.includes(sha256(await readFile(path.join(root, manifestPath)))))
   if (scriptPath !== undefined) {

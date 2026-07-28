@@ -48,9 +48,13 @@ actions:
         - api.zhihu.com
       schemes:
         - https
-      pathRegex: '^/(?:commercial_api(?:/.*)?|root/window(?:\?.*)?|next-render(?:\?.*)?|search/preset_words(?:\?.*)?|search/related_queries/question/\d+(?:\?.*)?|content-distribution-core/bubble/common/show(?:\?.*)?|people/homepage_entry_v\d+(?:\?.*)?|kvip/right/my_card(?:\?.*)?|unlimited/go/my_card/v\d+(?:\?.*)?)$'
+      pathRegex: '^/(?:commercial_api(?:/.*)?|root/window(?:\?.*)?|search/preset_words(?:\?.*)?|search/related_queries/question/\d+(?:\?.*)?|content-distribution-core/bubble/common/show(?:\?.*)?|people/homepage_entry_v\d+(?:\?.*)?|kvip/right/my_card(?:\?.*)?|unlimited/go/my_card/v\d+(?:\?.*)?)$'
     script:
-      source: ./mock-json.js
+      mock:
+        status: 200
+        headers:
+          Content-Type: application/json
+        body: '{}'
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024
@@ -64,7 +68,11 @@ actions:
         - https
       pathRegex: '^/api/v\d+/members/homepage_card(?:\?.*)?$'
     script:
-      source: ./mock-json.js
+      mock:
+        status: 200
+        headers:
+          Content-Type: application/json
+        body: '{}'
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024
@@ -76,9 +84,49 @@ actions:
         - zhida.zhihu.com
       schemes:
         - https
-      pathRegex: '^/ai_ingress/(?:knowledge/square/categories/feeds(?:\?.*)?|ai_chat/guidance(?:\?.*)?)$'
+      pathRegex: '^/ai_ingress/ai_chat/guidance(?:\?.*)?$'
     script:
-      source: ./mock-json.js
+      mock:
+        status: 200
+        headers:
+          Content-Type: application/json
+        body: '{}'
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+
+  - id: mock-next-render
+    phase: request
+    match:
+      hosts:
+        - api.zhihu.com
+      schemes:
+        - https
+      pathRegex: '^/next-render\?(?:(?:.*&)?id=\d+&(?:.*&)?type=answer|(?:.*&)?type=answer&(?:.*&)?id=\d+)(?:&.*)?$'
+    script:
+      mock:
+        status: 200
+        headers:
+          Content-Type: application/json
+        body: '{}'
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 1024
+
+  - id: mock-zhida-feeds
+    phase: request
+    match:
+      hosts:
+        - zhida.zhihu.com
+      schemes:
+        - https
+      pathRegex: '^/ai_ingress/knowledge/square/categories/feeds\?(?:.*&)?categoryId=1(?:\}|%7[Dd])?(?:&.*)?$'
+    script:
+      mock:
+        status: 200
+        headers:
+          Content-Type: application/json
+        body: '{}'
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024

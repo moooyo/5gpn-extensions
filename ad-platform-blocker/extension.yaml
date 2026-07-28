@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.ad-platform-blocker
   name: Ad Platform Blocker
-  version: 2.1.0
+  version: 2.2.0
   description: Blocks selected advertising-platform endpoints and narrow Pinduoduo
     marketing paths.
 
@@ -737,7 +737,7 @@ actions:
         - https
       pathRegex: ^/market-dsp-video/
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024
@@ -750,7 +750,7 @@ actions:
         - https
       pathRegex: ^/dspcb/i/mrk_
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024
@@ -763,7 +763,7 @@ actions:
         - https
       pathRegex: ^/(mrk/|marketing_api/)
     script:
-      source: ./block.js
+      reject: true
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 1024

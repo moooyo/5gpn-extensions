@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import vm from 'node:vm'
 import { parse } from 'yaml'
 
 const root = path.resolve(import.meta.dirname, '..')
@@ -28,27 +27,6 @@ const blockedConfigKeys = [
   'zaSetExtraRequestHeader',
 ]
 
-async function loadTransform(filename) {
-  const source = await readFile(path.join(extensionRoot, filename), 'utf8')
-  const messages = []
-  const sandbox = {
-    JSON,
-    Object,
-    RegExp,
-    Set,
-    console: {
-      debug: (...args) => messages.push(['debug', ...args]),
-      error: (...args) => messages.push(['error', ...args]),
-      info: (...args) => messages.push(['info', ...args]),
-      log: (...args) => messages.push(['log', ...args]),
-      warn: (...args) => messages.push(['warn', ...args]),
-    },
-  }
-  vm.createContext(sandbox)
-  new vm.Script(source, { filename }).runInContext(sandbox)
-  assert.equal(typeof sandbox.transform, 'function')
-  return { transform: sandbox.transform, messages }
-}
 
 function clean(transform, url, document) {
   const result = transform({
@@ -77,16 +55,20 @@ assert.deepEqual(manifest.traffic.captureHosts, [
   'www.zhihu.com',
   'zhida.zhihu.com',
 ])
-assert.equal(manifest.actions.length, 16)
-assert.equal(new Set(manifest.actions.map((action) => action.id)).size, 16)
-assert.equal(manifest.actions.filter((action) => action.phase === 'request').length, 3)
+assert.equal(manifest.actions.length, 18)
+assert.equal(new Set(manifest.actions.map((action) => action.id)).size, 18)
+assert.equal(manifest.actions.filter((action) => action.phase === 'request').length, 5)
 assert.equal(manifest.actions.filter((action) => action.phase === 'response').length, 13)
 for (const action of manifest.actions) {
   assert(action.match.hosts.every((host) => manifest.traffic.captureHosts.includes(host)))
   assert.deepEqual(action.match.schemes, ['https'])
   assert.equal(action.match.pathRegex.startsWith('^'), true)
   if (action.phase === 'request') {
-    assert.equal(action.script.source, './mock-json.js')
+    // The three synthetic replies used to share a URL-matching script whose
+    // only job was to return {}. They are declared now.
+    assert.equal(action.script.mock.body, '{}')
+    assert.equal(action.script.mock.headers['Content-Type'], 'application/json')
+    assert.equal(action.script.source, undefined)
     assert.equal(action.script.bodyMode, 'none')
   } else {
     // Every response action carries an expression, not code. The behavior of
@@ -107,11 +89,6 @@ const pathCases = new Map([
       '/commercial_api',
       '/commercial_api/banner',
       '/root/window?source=ios',
-      '/next-render?id=1&type=answer',
-      '/next-render?id=1&type=answer&next=2',
-      '/next-render?type=answer&next=2&id=1',
-      '/next-render?type=question&id=1',
-      '/next-render?type=answer',
       '/search/preset_words?source=ios',
       '/search/preset_words',
       '/search/related_queries/question/42',
@@ -137,15 +114,19 @@ const pathCases = new Map([
   }],
   ['mock-zhida-json', {
     matches: [
-      '/ai_ingress/knowledge/square/categories/feeds?categoryId=1%7D',
-      '/ai_ingress/knowledge/square/categories/feeds?source=ios&categoryId=1',
-      '/ai_ingress/knowledge/square/categories/feeds?categoryId=1%7d&source=ios',
-      '/ai_ingress/knowledge/square/categories/feeds?categoryId=2',
       '/ai_ingress/ai_chat/guidance?source=ios',
     ],
     misses: [
       '/ai_ingress/knowledge/square/categories/other?categoryId=1',
     ],
+  }],
+  ['mock-next-render', {
+    matches: ['/next-render?id=1&type=answer', '/next-render?type=answer&next=2&id=1'],
+    misses: ['/next-render?type=question&id=1', '/next-render?id=1'],
+  }],
+  ['mock-zhida-feeds', {
+    matches: ['/ai_ingress/knowledge/square/categories/feeds?categoryId=1', '/ai_ingress/knowledge/square/categories/feeds?categoryId=1}', '/ai_ingress/knowledge/square/categories/feeds?categoryId=1%7d&source=ios'],
+    misses: ['/ai_ingress/knowledge/square/categories/feeds?categoryId=2'],
   }],
   ['clean-transport-config', {
     matches: ['/api/cloud/zhihu/config/all', '/api/cloud/zhihu/config/all?v=1'],
@@ -209,31 +190,27 @@ for (const action of manifest.actions) {
   for (const value of cases.misses) assert(!expression.test(value), `${action.id}: expected ${value} not to match`)
 }
 
-const { transform: mockTransform } = await loadTransform('mock-json.js')
-const mockURLs = [
-  'https://api.zhihu.com/commercial_api/banner',
-  'https://api.zhihu.com/root/window?source=ios',
-  'https://api.zhihu.com/next-render?type=answer&source=ios&id=1',
-  'https://api.zhihu.com/search/preset_words?source=ios',
-  'https://api.zhihu.com/search/related_queries/question/42?source=ios',
-  'https://api.zhihu.com/content-distribution-core/bubble/common/show?source=ios',
-  'https://api.zhihu.com/people/homepage_entry_v12',
-  'https://api.zhihu.com/kvip/right/my_card',
-  'https://api.zhihu.com/unlimited/go/my_card/v12?source=ios',
-  'https://www.zhihu.com/api/v12/members/homepage_card?source=ios',
-  'https://zhida.zhihu.com/ai_ingress/knowledge/square/categories/feeds?source=ios&categoryId=1',
-  'https://zhida.zhihu.com/ai_ingress/ai_chat/guidance?source=ios',
-]
-for (const url of mockURLs) {
-  const result = mockTransform({ request: { url } })
-  assert.equal(result.response.status, 200, url)
-  assert.equal(result.response.headers['Content-Type'], 'application/json', url)
-  assert.equal(result.response.body, '{}', url)
-}
-assert.equal(mockTransform({ request: { url: 'https://www.zhihu.com/commercial_api/banner' } }), null)
-assert.equal(mockTransform({ request: { url: 'https://api.zhihu.com/next-render?type=question&id=1' } }), null)
-assert.equal(mockTransform({ request: { url: 'https://api.zhihu.com/next-render?type=answer' } }), null)
-assert.equal(mockTransform({ request: { url: 'https://zhida.zhihu.com/ai_ingress/knowledge/square/categories/feeds?categoryId=2' } }), null)
-assert.equal(mockTransform({ request: { url: 'not a URL' } }), null)
+// The two paths that discriminate on query values are their own actions now.
+// The deleted script tested them in JavaScript; the pattern has to carry the
+// same conditions, and RE2 has no lookahead, so both parameter orders are
+// enumerated. Getting this wrong would widen what is mocked rather than fail.
+const nextRender = new RegExp(manifest.actions.find(action => action.id === 'mock-next-render').match.pathRegex)
+for (const value of [
+  '/next-render?id=1&type=answer',
+  '/next-render?id=1&type=answer&next=2',
+  '/next-render?type=answer&next=2&id=1',
+]) assert(nextRender.test(value), `next-render should mock ${value}`)
+for (const value of [
+  '/next-render?type=question&id=1',
+  '/next-render?id=1',
+  '/next-render?type=answer',
+  '/next-render?id=x&type=answer',
+]) assert(!nextRender.test(value), `next-render should not mock ${value}`)
+
+const zhidaFeeds = new RegExp(manifest.actions.find(action => action.id === 'mock-zhida-feeds').match.pathRegex)
+assert(zhidaFeeds.test('/ai_ingress/knowledge/square/categories/feeds?source=ios&categoryId=1'))
+assert(zhidaFeeds.test('/ai_ingress/knowledge/square/categories/feeds?categoryId=1}'))
+assert(!zhidaFeeds.test('/ai_ingress/knowledge/square/categories/feeds?categoryId=2'))
+assert(!zhidaFeeds.test('/ai_ingress/knowledge/square/categories/feeds?categoryId=12'))
 
 console.log('Zhihu fixtures passed')

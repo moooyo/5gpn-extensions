@@ -60,13 +60,15 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     'the profiles differ by more than the beta-only projections and omitted entries',
   )
 
-  // An entry is omitted from v1 only when its manifest uses a field the frozen
-  // v1 contract does not cover. Anything else disappearing is a bug, not a
-  // policy, so the omission set is asserted by name rather than by count.
+  // Every extension now uses a field the frozen v1 contract does not cover, so
+  // v1 is empty. That is the honest answer for a v1-era core rather than a
+  // failure: it can run none of them. The assertion is that the omission set is
+  // exactly the catalogue, so an entry disappearing for any other reason still
+  // shows up as a difference.
   const omitted = catalog.entries.filter((entry) => !stableIDs.has(entry.id)).map((entry) => entry.id)
   assert.deepEqual(
     omitted,
-    ['io.5gpn.apple-wloc', 'io.5gpn.bilibili-cleaner', 'io.5gpn.weatherkit', 'io.5gpn.youtube-cleaner', 'io.5gpn.zhihu-cleaner'],
+    catalog.entries.map((entry) => entry.id),
     'unexpected entries are missing from the v1 profile',
   )
 
@@ -101,10 +103,12 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
       `${entry.id}: a reviewed routing rule did not survive into the typed projection`)
   }
   const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
-  assert.equal(bilibili.capabilities.actionCount, 21)
+  assert.equal(bilibili.capabilities.actionCount, 24)
   // Eleven of bilibili's actions are jq expressions and five load pinned
   // upstream scripts, so the only local resources left are the two mocks.
-  assert.deepEqual(bilibili.resources.map(resource => resource.path).filter(p => !p.includes('/')), ['mock-grpc.js', 'mock-json.js'])
+  // Every action is declarative or loads a pinned upstream script, so the
+  // entry contributes no local resource at all.
+  assert.deepEqual(bilibili.resources.map(resource => resource.path).filter(p => !p.includes('/')), [])
   const weatherkit = catalog.entries.find(entry => entry.id === 'io.5gpn.weatherkit')
   assert.deepEqual(weatherkit.capabilities, {
     captureHostCount: 1,
@@ -130,11 +134,11 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   assert.equal(zhihu.version, '2.0.0')
   assert.deepEqual(
     [zhihu.capabilities.captureHostCount, zhihu.capabilities.actionCount, zhihu.capabilities.routingRuleCount],
-    [5, 16, 5],
+    [5, 18, 5],
   )
-  // Thirteen of zhihu's sixteen actions are jq expressions, which name no
-  // script and so contribute no resource for the gateway to fetch or pin.
-  assert.deepEqual(zhihu.resources.map(resource => resource.path), ['mock-json.js'])
+  // All sixteen of zhihu's actions are declarative, so it names no script for
+  // the gateway to fetch or pin.
+  assert.deepEqual(zhihu.resources.map(resource => resource.path), [])
   assert.equal(validate(catalog), true, ajv.errorsText(validate.errors))
   assert.equal(validate(stable), true, ajv.errorsText(validate.errors))
   const boundary = structuredClone(catalog)
@@ -154,7 +158,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   try {
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 3, "the v1 profile omits entries needing a newer contract")
+    assert.equal(JSON.parse(generated).entries.length, 0, "the v1 profile omits entries needing a newer contract")
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--check', output], { cwd: repositoryRoot })
 
     // --check is profile-aware: the same path checked against the other profile
@@ -181,12 +185,19 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
       assert.match(error.stderr, /profile must be one of v1, v1beta/)
     }
 
-    await writeFile(output, generated.replace(/"sha256": "[0-9a-f]{64}"/, `"sha256": "${'0'.repeat(64)}"`))
+    // The tamper check runs against v1beta: v1 is empty now, so it carries no
+    // digest to modify, and a test that mutates nothing would pass for the
+    // wrong reason.
+    const betaOutput = path.join(temporaryRoot, 'beta.json')
+    await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1beta', '--output', betaOutput], { cwd: repositoryRoot })
+    const beta = await readFile(betaOutput, 'utf8')
+    assert.match(beta, /"sha256": "[0-9a-f]{64}"/, 'the v1beta index must carry digests for this to test anything')
+    await writeFile(betaOutput, beta.replace(/"sha256": "[0-9a-f]{64}"/, `"sha256": "${'0'.repeat(64)}"`))
     try {
-      await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--check', output], { cwd: repositoryRoot })
+      await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1beta', '--check', betaOutput], { cwd: repositoryRoot })
       assert.fail('--check accepted a modified marketplace digest')
     } catch (error) {
-      assert.match(error.stderr, /not the deterministic v1 marketplace output/)
+      assert.match(error.stderr, /not the deterministic v1beta marketplace output/)
     }
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true })

@@ -230,11 +230,35 @@ for (const entry of entries) {
     for (const host of action.match.hosts) assert(captureSet.has(host), `${entry.name}: ${action.id} host ${host} is outside captureHosts`)
     assert(Array.isArray(action.match.schemes) && action.match.schemes.every((scheme) => scheme === 'http' || scheme === 'https'), `${entry.name}: ${action.id} has invalid schemes`)
     assert(typeof action.match.pathRegex === 'string' && action.match.pathRegex.startsWith('^'), `${entry.name}: ${action.id} pathRegex must be anchored`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'reject', 'mock', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
     const scriptEntry = action.script.entry ?? 'native'
     assert(scriptEntry === 'native' || scriptEntry === 'proxy-compat', `${entry.name}: ${action.id} has an unknown script entry`)
-    // A jq action carries an upstream expression instead of code, so it runs
-    // declaratively and declares no script at all.
+    // Three declarative kinds carry what the published modules declare and run
+    // no code at all. Exactly one kind applies to an action.
+    const kinds = ['jq', 'reject', 'mock', 'source', 'inline'].filter((key) => action.script[key] !== undefined)
+    assert(kinds.length === 1, `${entry.name}: ${action.id} must declare exactly one of jq, reject, mock, source, inline`)
+    if (action.script.reject !== undefined) {
+      assert(action.script.reject === true, `${entry.name}: ${action.id} reject must be true`)
+      assert(action.script.entry === undefined, `${entry.name}: ${action.id} rejects and cannot declare an entry`)
+      continue
+    }
+    if (action.script.mock !== undefined) {
+      const mock = action.script.mock
+      assertKeys(mock, new Set(['status', 'headers', 'body', 'base64Body']), `${entry.name}: ${action.id}.script.mock`)
+      assert(action.script.entry === undefined, `${entry.name}: ${action.id} mocks and cannot declare an entry`)
+      assert(!(mock.body !== undefined && mock.base64Body !== undefined), `${entry.name}: ${action.id} declares both body and base64Body`)
+      if (mock.status !== undefined) assert(Number.isInteger(mock.status) && mock.status >= 100 && mock.status <= 599, `${entry.name}: ${action.id} mock status is not an HTTP status`)
+      for (const [name, value] of Object.entries(mock.headers ?? {})) {
+        // A raw newline is folded away by YAML, but a double-quoted escape
+        // survives and would let a mock put a second response on the wire.
+        assert(!/[\r\n]/.test(String(value)), `${entry.name}: ${action.id} mock header ${name} contains a newline`)
+        assert(/^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(name), `${entry.name}: ${action.id} mock header name ${name} is invalid`)
+      }
+      if (mock.base64Body !== undefined) {
+        assert(Buffer.from(mock.base64Body, 'base64').toString('base64').replace(/=+$/, '') === String(mock.base64Body).replace(/=+$/, ''), `${entry.name}: ${action.id} mock base64Body is not base64`)
+      }
+      continue
+    }
     if (action.script.jq !== undefined) {
       assert(typeof action.script.jq === 'string' && action.script.jq.trim() !== '', `${entry.name}: ${action.id} jq must be a non-empty expression`)
       assert(action.script.jq.length <= 32768, `${entry.name}: ${action.id} jq expression is too long`)
@@ -325,13 +349,14 @@ for (const entry of entries) {
   }
   if (entry.name === 'bilibili-cleaner') {
     assert(migrationSection.includes('| License review gate |'), 'bilibili-cleaner: migration contract has no aggregate-license review gate')
-    assert(actions.length === 21 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3 && manifest.requirements?.egressGroup?.required === true, 'bilibili-cleaner: pinned LPX capability set is incomplete')
+    assert(actions.length === 24 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3 && manifest.requirements?.egressGroup?.required === true, 'bilibili-cleaner: pinned LPX capability set is incomplete')
     // Nothing GPL is redistributed any more: the scripts are fetched by the
     // gateway from immutable URLs. What has to stay true is that no upstream
     // bytes crept back into the directory, and that every script action still
     // points at the reviewed commit.
-    const shipped = (await relativeFiles(directory)).filter((name) => name.endsWith('.js')).sort()
-    assert(shipped.length === 2 && shipped[0] === 'mock-grpc.js' && shipped[1] === 'mock-json.js', `bilibili-cleaner: unexpected JavaScript in the directory: ${shipped.join(', ')}`)
+    const shipped = (await relativeFiles(directory)).filter((name) => name.endsWith('.js'))
+    assert(shipped.length === 0, `bilibili-cleaner: unexpected JavaScript in the directory: ${shipped.join(', ')}`)
+    assert(actions.filter((action) => action.script.mock !== undefined).length === 8, 'bilibili-cleaner: the eight reviewed synthetic responses are incomplete')
     const compat = actions.filter((action) => action.script.entry === 'proxy-compat')
     assert(compat.length === 5, 'bilibili-cleaner: the five upstream transformers must all be loaded')
     for (const action of compat) {
@@ -389,7 +414,8 @@ for (const entry of entries) {
   }
   if (entry.name === 'zhihu-cleaner') {
     assert(captureHosts.length === 5, 'zhihu-cleaner: reviewed capture hosts are incomplete')
-    assert(actions.length === 16 && actions.filter((action) => action.phase === 'request').length === 3 && actions.filter((action) => action.phase === 'response').length === 13, 'zhihu-cleaner: reviewed action set is incomplete')
+    assert(actions.length === 18 && actions.filter((action) => action.phase === 'request').length === 5 && actions.filter((action) => action.phase === 'response').length === 13, 'zhihu-cleaner: reviewed action set is incomplete')
+    assert((await relativeFiles(directory)).filter((name) => name.endsWith('.js')).length === 0, 'zhihu-cleaner: this extension ships no JavaScript')
     assert(actions.filter((action) => action.phase === 'response').every((action) => typeof action.script.jq === 'string'), 'zhihu-cleaner: every response action must be a jq expression, not a script')
     assert((manifest.settings?.length ?? 0) === 0 && !manifest.permissions.persistentStorage && (manifest.permissions.network?.origins?.length ?? 0) === 0 && routingRules.length === 5 && mappings.length === 0 && manifest.requirements?.egressGroup?.required !== true, 'zhihu-cleaner: unexpected permission or routing expansion')
     assert(routingRules.every((rule) => rule.action === 'reject' && rule.network === 'udp' && rule.destinationPort === 443 && captureSet.has(rule.domain)), 'zhihu-cleaner: UDP/443 fallback rules are incomplete')
@@ -436,4 +462,15 @@ for (const surface of [
 assert(migrationPlaybook.includes('## Repeatable port migration'), 'migration playbook has no repeatable port procedure')
 assert(migrationPlaybook.includes('## Repeatable installed rollout'), 'migration playbook has no installed rollout procedure')
 assert(migrationPlaybook.includes('## Repeatable rollback'), 'migration playbook has no rollback procedure')
+// No extension ships JavaScript any more: every action is declarative or loads
+// a pinned upstream script. This is asserted at the repository level so that a
+// reintroduced local script is a deliberate decision with a test to match,
+// rather than something that reappears one file at a time.
+const strayScripts = []
+for (const name of extensionNames) {
+  for (const file of await relativeFiles(path.join(root, name))) {
+    if (file.endsWith('.js')) strayScripts.push(`${name}/${file}`)
+  }
+}
+assert(strayScripts.length === 0, `extensions ship no JavaScript; found ${strayScripts.join(', ')}`)
 console.log(`Validated ${extensionNames.length} extensions: ${extensionNames.join(', ')}`)

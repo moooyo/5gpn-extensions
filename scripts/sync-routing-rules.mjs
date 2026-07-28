@@ -12,12 +12,12 @@ const sources = {
   'ad-platform-blocker': {
     url: 'https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/BlockAdvertisers.lpx',
     sha256: '3974936ec21be3675db2496bdcbf05fa20af8f0be8c105e61bbada9b86e01c3e',
-    version: '2.1.0',
+    version: '2.2.0',
   },
   'httpdns-interceptor': {
     url: 'https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/Block_HTTPDNS.lpx',
     sha256: '08429c4f1c677d79e87eb3cd41e880868f7a71381dc1d6c81b393734fd5df21a',
-    version: '2.1.0',
+    version: '2.2.0',
     excludedIPAddressPathRules: 48,
     inertPathLines: 3,
   },
@@ -33,7 +33,9 @@ function blockAction(id, host, schemes, pathRegex, timeoutMs = 200) {
       pathRegex,
     },
     script: {
-      source: './block.js',
+      // Declarative rejection. These actions used to share a 57-byte script
+      // whose whole body was `return { abort: true }`.
+      reject: true,
       bodyMode: 'none',
       timeoutMs,
       maxBodyBytes: 1024,
