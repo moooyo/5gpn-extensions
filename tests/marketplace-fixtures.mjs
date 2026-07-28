@@ -42,17 +42,30 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     )
   }
 
-  // The two profiles are one document differing by one key. Stripping it has to
-  // reproduce the other exactly — otherwise the split has quietly become a
-  // second way of describing the catalogue, and the v1 readers would be the
-  // last to find out.
+  // The two profiles are one document differing by the fields v1 has not
+  // learned. Stripping them has to reproduce the other exactly — otherwise the
+  // split has quietly become a second way of describing the catalogue, and the
+  // v1 readers would be the last to find out.
   const strippedBeta = structuredClone(catalog)
-  for (const entry of strippedBeta.entries) delete entry.policy
+  for (const entry of strippedBeta.entries) {
+    delete entry.policy
+    delete entry.capabilities.networkAny
+  }
   assert.deepEqual(
     strippedBeta,
     stable,
-    'the profiles differ by more than the policy projection',
+    'the profiles differ by more than the beta-only projections',
   )
+
+  // v1 is frozen at what the stable core accepts, and it parses the index with
+  // DisallowUnknownFields: an unknown field costs that core its whole catalogue.
+  for (const entry of stable.entries) {
+    assert.equal(
+      Object.hasOwn(entry.capabilities, 'networkAny'),
+      false,
+      `${entry.id}: the v1 profile published a capability field the stable core would refuse`,
+    )
+  }
 
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
   assert.equal(catalog.entries.length, 8)
@@ -80,15 +93,18 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const weatherkit = catalog.entries.find(entry => entry.id === 'io.5gpn.weatherkit')
   assert.deepEqual(weatherkit.capabilities, {
     captureHostCount: 1,
-    actionCount: 3,
-    settingCount: 11,
+    actionCount: 2,
+    settingCount: 8,
     networkOrigins: [],
-    persistentStorage: false,
+    networkAny: true,
+    persistentStorage: true,
     upstreamMappingCount: 0,
     routingRuleCount: 1,
     egressGroupRequired: false,
   })
-  assert.deepEqual(weatherkit.resources.map(resource => resource.path), ['availability.js', 'request.js', 'weather.js'])
+  // The bundle is fetched at runtime, so the catalog must not advertise a local
+  // resource this repository does not ship.
+  assert.deepEqual(weatherkit.resources, [])
   const zhihu = catalog.entries.find(entry => entry.id === 'io.5gpn.zhihu-cleaner')
   assert.equal(zhihu.version, '1.2.0')
   assert.deepEqual(

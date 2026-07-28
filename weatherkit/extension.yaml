@@ -3,12 +3,14 @@ kind: Extension
 
 metadata:
   id: io.5gpn.weatherkit
-  name: WeatherKit Native Enhancer
-  version: 2.2.0
-  description: Controls WeatherKit datasets, preserves availability, and applies bounded local air-quality normalization.
+  name: WeatherKit Enhancer
+  version: 3.0.0
+  description: Runs the reviewed NSRingo WeatherKit release bundle against Apple WeatherKit responses.
 
 permissions:
-  persistentStorage: false
+  persistentStorage: true
+  network:
+    any: true
 
 traffic:
   captureHosts:
@@ -20,40 +22,30 @@ traffic:
       destinationPort: 443
 
 settings:
-  - key: airQuality
-    type: boolean
-    label: Request air quality
-    description: Keeps the airQuality dataset in WeatherKit v2 requests.
+  - key: Weather.Provider
+    type: select
+    label: Weather source
+    description: Replaces the weather data with the selected provider. WeatherKit leaves Apple's own data in place.
     required: true
-    default: true
-  - key: currentWeather
-    type: boolean
-    label: Request current weather
-    description: Keeps the currentWeather dataset in WeatherKit v2 requests.
+    options:
+      - WeatherKit
+      - ColorfulClouds
+      - QWeather
+    default: WeatherKit
+  - key: NextHour.Provider
+    type: select
+    label: Next-hour precipitation source
+    description: Fills in next-hour precipitation from the selected provider. WeatherKit adds nothing.
     required: true
-    default: true
-  - key: forecastDaily
-    type: boolean
-    label: Request daily forecasts
-    description: Keeps the forecastDaily dataset in WeatherKit v2 requests.
-    required: true
-    default: true
-  - key: forecastHourly
-    type: boolean
-    label: Request hourly forecasts
-    description: Keeps the forecastHourly dataset in WeatherKit v2 requests.
-    required: true
-    default: true
-  - key: forecastNextHour
-    type: boolean
-    label: Request next-hour forecasts
-    description: Keeps the forecastNextHour dataset in WeatherKit v2 requests.
-    required: true
-    default: true
-  - key: airQualityAlgorithm
+    options:
+      - WeatherKit
+      - ColorfulClouds
+      - QWeather
+    default: WeatherKit
+  - key: AirQuality.Calculate.Algorithm
     type: select
     label: Local air-quality algorithm
-    description: Recalculates an existing HJ6332012 index from its pollutants, or only normalizes the Apple scale when set to None.
+    description: Calculates the air-quality index locally from the reported pollutants.
     required: true
     options:
       - None
@@ -63,70 +55,42 @@ settings:
       - WAQI_InstantCast_CN
       - WAQI_InstantCast_CN_25_DRAFT
     default: None
-  - key: airQualityIndexScope
+  - key: API.ColorfulClouds.Token
+    type: text
+    label: ColorfulClouds token
+    description: ColorfulClouds API token. Required only when a ColorfulClouds source is selected.
+    required: false
+  - key: API.QWeather.Host
+    type: text
+    label: QWeather host
+    description: QWeather API host, for example devapi.qweather.com.
+    required: false
+  - key: API.QWeather.Token
+    type: text
+    label: QWeather token
+    description: QWeather API token. Required only when a QWeather source is selected.
+    required: false
+  - key: API.WAQI.Token
+    type: text
+    label: WAQI token
+    description: WAQI API token. Selects the WAQI premium API when set.
+    required: false
+  - key: LogLevel
     type: select
-    label: Recalculated index scope
-    description: Limits local recalculation to an incoming HJ6332012 index, or applies the selected algorithm to any incoming scale.
+    label: Script log level
+    description: Bundle log verbosity. Output goes only to the plugin engine log ring.
     required: true
     options:
-      - HJ6332012Only
-      - AnyScale
-    default: HJ6332012Only
-  - key: pollutantUnits
-    type: select
-    label: Pollutant unit conversion
-    description: Converts the reported pollutant amounts locally. MatchScale uses the units the active air-quality standard requires; the other values force one unit family.
-    required: true
-    options:
-      - 'Off'
-      - MatchScale
-      - MicrogramsPerCubicMeter
-      - EuropeanPPB
-      - USPPB
-    default: 'Off'
-  - key: forceCNPrimaryPollutant
-    type: boolean
-    label: Force Chinese primary pollutant
-    description: Keeps the highest calculated pollutant as primary even when a Chinese AQI is at or below 50.
-    required: true
-    default: true
-  - key: allowAirQualityOverRange
-    type: boolean
-    label: Allow over-range air-quality index
-    description: Allows supported local calculations to exceed their standard maximum index.
-    required: true
-    default: true
-  - key: failClosed
-    type: boolean
-    label: Block on script validation failure
-    description: Blocks malformed input rejected by a script; core body, timeout, and result checks always remain fail closed.
-    required: true
-    default: true
+      - "OFF"
+      - ERROR
+      - WARN
+      - INFO
+      - DEBUG
+      - ALL
+    default: WARN
 
 actions:
-  - id: filter-weather-datasets
-    phase: request
-    match:
-      hosts:
-        - weatherkit.apple.com
-      schemes:
-        - http
-        - https
-      methods:
-        - DELETE
-        - GET
-        - HEAD
-        - OPTIONS
-        - PATCH
-        - POST
-        - PUT
-      pathRegex: '^/api/v2/weather/'
-    script:
-      source: ./request.js
-      bodyMode: none
-      timeoutMs: 500
-      maxBodyBytes: 1024
-  - id: merge-weather-availability
+  - id: weather-availability
     phase: response
     match:
       hosts:
@@ -138,11 +102,12 @@ actions:
       statusCodes:
         - 200
     script:
-      source: ./availability.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js
       bodyMode: text
-      timeoutMs: 500
+      entry: proxy-compat
+      timeoutMs: 10000
       maxBodyBytes: 65536
-  - id: transform-weather-air-quality
+  - id: weather-data
     phase: response
     match:
       hosts:
@@ -156,7 +121,8 @@ actions:
       statusCodes:
         - 200
     script:
-      source: ./weather.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js
       bodyMode: binary
-      timeoutMs: 3000
+      entry: proxy-compat
+      timeoutMs: 25000
       maxBodyBytes: 16777216

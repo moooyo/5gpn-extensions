@@ -110,6 +110,7 @@ for (const entry of entries) {
   } catch {
     continue
   }
+  const readme = await readFile(path.join(directory, 'README.md'), 'utf8')
   extensionNames.push(entry.name)
 
   const manifestText = await readFile(path.join(directory, 'extension.yaml'), 'utf8')
@@ -129,11 +130,22 @@ for (const entry of entries) {
   assertKeys(manifest.permissions, new Set(['persistentStorage', 'network']), `${entry.name}: permissions`)
   assert(typeof manifest.permissions.persistentStorage === 'boolean', `${entry.name}: persistentStorage must be boolean`)
   if (manifest.permissions.network !== undefined) {
-    assertKeys(manifest.permissions.network, new Set(['origins']), `${entry.name}: permissions.network`)
-    assert(Array.isArray(manifest.permissions.network.origins), `${entry.name}: network origins must be an array`)
-    for (const origin of manifest.permissions.network.origins) {
+    assertKeys(manifest.permissions.network, new Set(['origins', 'any']), `${entry.name}: permissions.network`)
+    // `any` and `origins` are alternatives: an exact list shown beside `any`
+    // would not describe what the extension may actually reach.
+    assert(
+      (manifest.permissions.network.any === true) !== (manifest.permissions.network.origins !== undefined),
+      `${entry.name}: network permission must declare exactly one of any or origins`,
+    )
+    if (manifest.permissions.network.any !== undefined) {
+      assert(manifest.permissions.network.any === true, `${entry.name}: network any must be true when declared`)
+    }
+    for (const origin of manifest.permissions.network.origins ?? []) {
       const parsed = new URL(origin)
       assert(['http:', 'https:'].includes(parsed.protocol) && parsed.origin === origin && parsed.username === '' && parsed.password === '', `${entry.name}: invalid network origin ${origin}`)
+    }
+    if (manifest.permissions.network.origins !== undefined) {
+      assert(Array.isArray(manifest.permissions.network.origins), `${entry.name}: network origins must be an array`)
     }
   }
 
@@ -215,11 +227,22 @@ for (const entry of entries) {
     for (const host of action.match.hosts) assert(captureSet.has(host), `${entry.name}: ${action.id} host ${host} is outside captureHosts`)
     assert(Array.isArray(action.match.schemes) && action.match.schemes.every((scheme) => scheme === 'http' || scheme === 'https'), `${entry.name}: ${action.id} has invalid schemes`)
     assert(typeof action.match.pathRegex === 'string' && action.match.pathRegex.startsWith('^'), `${entry.name}: ${action.id} pathRegex must be anchored`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
+    const scriptEntry = action.script.entry ?? 'native'
+    assert(scriptEntry === 'native' || scriptEntry === 'proxy-compat', `${entry.name}: ${action.id} has an unknown script entry`)
     const hasSource = typeof action.script.source === 'string'
     const hasInline = typeof action.script.inline === 'string'
     assert(hasSource !== hasInline, `${entry.name}: ${action.id} must declare exactly one script source`)
-    if (hasSource) {
+    if (scriptEntry === 'proxy-compat') {
+      // A published bundle is fetched by URL and is not ours to lint: it is
+      // async, it defines no transform(context), and it uses the proxy-client
+      // globals on purpose. Its provenance is bound by the README instead, and
+      // `npm run verify:upstreams` downloads it and enforces that record.
+      assert(hasSource, `${entry.name}: ${action.id} must load its bundle from a URL`)
+      const parsed = new URL(action.script.source)
+      assert(parsed.protocol === 'https:', `${entry.name}: ${action.id} bundle source must be HTTPS`)
+      assert(readme.includes(action.script.source), `${entry.name}: ${action.id} bundle is not recorded in the README`)
+    } else if (hasSource) {
       assert(action.script.source.startsWith('./') && !action.script.source.includes('..'), `${entry.name}: ${action.id} must use a local relative script`)
       const scriptPath = path.join(directory, action.script.source.slice(2))
       const script = await readFile(scriptPath, 'utf8')
@@ -229,7 +252,6 @@ for (const entry of entries) {
     }
   }
 
-  const readme = await readFile(path.join(directory, 'README.md'), 'utf8')
   const expected = expectedExtensions.get(entry.name)
   assert(expected !== undefined, `${entry.name}: no reviewed license policy`)
   assert(/SHA-256/i.test(readme), `${entry.name}: README has no SHA-256 provenance`)
@@ -274,8 +296,9 @@ for (const entry of entries) {
   if (entry.name === 'bilibili-cleaner') {
     assert(reuseAnnotations.some((annotation) => annotation.includes('SPDX-License-Identifier = "GPL-3.0-only"')), 'bilibili-cleaner: GPL aggregate mapping is missing')
   } else if (entry.name === 'weatherkit') {
-    assert(reuseAnnotations.some((annotation) => annotation.includes('SPDX-License-Identifier = "Apache-2.0"')), 'weatherkit: Apache mapping is missing')
-    assert(reuseAnnotations.some((annotation) => annotation.includes('SPDX-License-Identifier = "Apache-2.0 AND MIT"')), 'weatherkit: compound bundle mapping is missing')
+    // The bundle is fetched at runtime, so this repository distributes no
+    // upstream bytes and the compound generated-bundle mapping is gone with it.
+    assert(reuseAnnotations.every((annotation) => annotation.includes('SPDX-License-Identifier = "Apache-2.0"')), 'weatherkit: Apache mapping is missing')
   } else {
     assert(reuseAnnotations.every((annotation) => annotation.includes(`SPDX-License-Identifier = "${expected.license}"`)), `${entry.name}: REUSE.toml license mismatch`)
   }
@@ -348,17 +371,19 @@ for (const entry of entries) {
     assert(actions.length === 3 && manifest.settings?.length === 5 && manifest.permissions.persistentStorage && manifest.permissions.network?.origins?.length === 1 && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')
   }
   if (entry.name === 'weatherkit') {
-    assert(actions.length === 3 && manifest.settings?.length === 11 && !manifest.permissions.persistentStorage && manifest.permissions.network === undefined && routingRules.length === 1, 'weatherkit: reviewed native capability set is incomplete')
-    const weatherBundle = await readFile(path.join(directory, 'weather.js'), 'utf8')
-    assert(weatherBundle.startsWith('/*!\n * SPDX-License-Identifier: Apache-2.0 AND MIT\n'), 'weatherkit: generated bundle SPDX expression is incomplete')
-    assert(weatherBundle.includes('Copyright (c) 2022-present Bytedance Inc and its affiliates.'), 'weatherkit: Rspack MIT notice is missing')
-    assert(weatherBundle.includes('Copyright (c) 2020 Evan Wallace'), 'weatherkit: esbuild MIT notice is missing')
-    const weatherBundleBody = Buffer.from(weatherBundle)
-    const weatherBundleDigest = createHash('sha256').update(weatherBundleBody).digest('hex')
-    assert(weatherBundleBody.length <= 1048576, 'weatherkit: generated bundle exceeds the core script limit')
-    assert(readme.includes(`${weatherBundleBody.length.toLocaleString('en-US')} bytes`) && readme.includes(weatherBundleDigest), 'weatherkit: README generated bundle record differs from local bytes')
-    assert(reuseParagraphFor('weatherkit/weather.js', 'Apache-2.0 AND MIT'), 'weatherkit: generated bundle compound mapping is missing')
-    assert((await stat(path.join(directory, 'source', 'package-lock.json'))).isFile(), 'weatherkit: deterministic build lockfile is missing')
+    assert(
+      actions.length === 2 && manifest.settings?.length === 8 && manifest.permissions.persistentStorage && manifest.permissions.network?.any === true && routingRules.length === 1,
+      'weatherkit: reviewed proxy-compat capability set is incomplete',
+    )
+    assert(actions.every((action) => action.script.entry === 'proxy-compat'), 'weatherkit: every action must run the published bundle')
+    // The bundle is remote, so the README record and the verifier are what bind
+    // which bytes run. Both must name the same release.
+    const bundleSources = new Set(actions.map((action) => action.script.source))
+    assert(bundleSources.size === 1, 'weatherkit: actions must pin the same bundle release')
+    const [bundleSource] = bundleSources
+    assert(/^https:\/\/github\.com\/NSRingo\/WeatherKit\/releases\/download\//.test(bundleSource), 'weatherkit: bundle must come from the reviewed upstream release')
+    assert(readme.includes(bundleSource), 'weatherkit: README does not record the pinned bundle URL')
+    assert(reuseParagraphFor('weatherkit/extension.yaml', 'Apache-2.0'), 'weatherkit: manifest license mapping is missing')
   }
   if (entry.name === 'zhihu-cleaner') {
     assert(captureHosts.length === 5, 'zhihu-cleaner: reviewed capture hosts are incomplete')
