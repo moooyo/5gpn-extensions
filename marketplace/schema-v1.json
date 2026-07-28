@@ -238,8 +238,7 @@
         "persistentStorage",
         "upstreamMappingCount",
         "routingRuleCount",
-        "egressGroupRequired",
-        "networkAny"
+        "egressGroupRequired"
       ],
       "properties": {
         "captureHostCount": {

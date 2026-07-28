@@ -42,17 +42,30 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     )
   }
 
-  // The two profiles are one document differing by one key. Stripping it has to
-  // reproduce the other exactly — otherwise the split has quietly become a
-  // second way of describing the catalogue, and the v1 readers would be the
-  // last to find out.
+  // The two profiles are one document differing by the fields v1 has not
+  // learned. Stripping them has to reproduce the other exactly — otherwise the
+  // split has quietly become a second way of describing the catalogue, and the
+  // v1 readers would be the last to find out.
   const strippedBeta = structuredClone(catalog)
-  for (const entry of strippedBeta.entries) delete entry.policy
+  for (const entry of strippedBeta.entries) {
+    delete entry.policy
+    delete entry.capabilities.networkAny
+  }
   assert.deepEqual(
     strippedBeta,
     stable,
-    'the profiles differ by more than the policy projection',
+    'the profiles differ by more than the beta-only projections',
   )
+
+  // v1 is frozen at what the stable core accepts, and it parses the index with
+  // DisallowUnknownFields: an unknown field costs that core its whole catalogue.
+  for (const entry of stable.entries) {
+    assert.equal(
+      Object.hasOwn(entry.capabilities, 'networkAny'),
+      false,
+      `${entry.id}: the v1 profile published a capability field the stable core would refuse`,
+    )
+  }
 
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
   assert.equal(catalog.entries.length, 8)
@@ -275,7 +288,6 @@ async function expectFailure(options, pattern) {
       actionCount: 1,
       settingCount: 1,
       networkOrigins: ['https://api.example.com'],
-      networkAny: false,
       persistentStorage: false,
       upstreamMappingCount: 1,
       routingRuleCount: 0,

@@ -23,8 +23,8 @@ const maxCaptureHosts = 512
 // accepts, and `v1beta` carries the typed policy projection for cores that have
 // learned to read it. One build emits both; neither is a branch.
 const PROFILES = {
-  v1: { policy: false },
-  v1beta: { policy: true },
+  v1: { policy: false, networkAny: false },
+  v1beta: { policy: true, networkAny: true },
 }
 
 function assertProfile(profile) {
@@ -311,7 +311,7 @@ function policyProjection(manifest, directory) {
 }
 
 export async function generateMarketplace({ root = repositoryRoot, revision, profile = 'v1' }) {
-  const { policy: publishesPolicy } = assertProfile(profile)
+  const { policy: publishesPolicy, networkAny: publishesNetworkAny } = assertProfile(profile)
   assert(revisionPattern.test(revision), 'revision must be a lowercase 40-character Git commit')
   const metadataBody = await readFile(path.join(root, 'marketplace', 'metadata.json'), 'utf8')
   const metadata = JSON.parse(metadataBody)
@@ -365,7 +365,9 @@ export async function generateMarketplace({ root = repositoryRoot, revision, pro
         networkOrigins: [...(manifest.permissions.network?.origins ?? [])].sort(),
         // A capability grant is broader than any list, so the catalog says so
         // rather than showing an empty origin array that reads as "no network".
-        networkAny: manifest.permissions.network?.any === true,
+        // It rides the v1beta profile only: v1 is frozen at what the stable core
+        // accepts, and an unknown field costs that core its whole catalogue.
+        ...(publishesNetworkAny ? { networkAny: manifest.permissions.network?.any === true } : {}),
         persistentStorage: manifest.permissions.persistentStorage,
         upstreamMappingCount: (manifest.traffic.upstreamMappings ?? []).length,
         routingRuleCount: (manifest.traffic.routingRules ?? []).length,
