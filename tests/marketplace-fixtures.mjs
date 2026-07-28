@@ -102,9 +102,15 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     routingRuleCount: 1,
     egressGroupRequired: false,
   })
-  // The bundle is fetched at runtime, so the catalog must not advertise a local
-  // resource this repository does not ship.
-  assert.deepEqual(weatherkit.resources, [])
+  // The core derives this list from every action that names a script source and
+  // refuses an install whose entry does not match, so the remote bundle is listed
+  // with the digest the gateway will compute for itself.
+  assert.deepEqual(weatherkit.resources, [{
+    path: 'NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js',
+    url: 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js',
+    sha256: '4d368808a17c42eef18135f04d1bc9f01cbf7878d227006521ef0a6598941ff2',
+    size: 251617,
+  }])
   const zhihu = catalog.entries.find(entry => entry.id === 'io.5gpn.zhihu-cleaner')
   assert.equal(zhihu.version, '1.2.0')
   assert.deepEqual(

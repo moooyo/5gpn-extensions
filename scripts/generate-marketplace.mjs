@@ -263,11 +263,14 @@ async function extensionDirectories(root) {
 
 async function buildResources(root, directory, actions) {
   const extensionRoot = await realpath(path.join(root, directory))
-  // A proxy-compat action loads a published bundle by URL. There is no local
-  // file to digest, and the catalog must not imply this repository ships one;
-  // the README record and `verify:upstreams` bind those bytes instead.
-  const localActions = actions.filter((action) => action.script.entry !== 'proxy-compat')
-  const paths = [...new Set(localActions.map((action) => safeResourcePath(action.script.source, directory)))].sort()
+  // The core derives this list from every action that names a script source,
+  // absolute URLs included, and refuses an install whose entry does not match.
+  // A remote bundle therefore belongs here with the digest the gateway will
+  // compute: omitting it because this repository does not ship the bytes makes
+  // the entry uninstallable rather than more honest.
+  const local = actions.filter((action) => !isAbsoluteScriptSource(action.script.source))
+  const remote = actions.filter((action) => isAbsoluteScriptSource(action.script.source))
+  const paths = [...new Set(local.map((action) => safeResourcePath(action.script.source, directory)))].sort()
   const resources = []
   for (const relative of paths) {
     const filename = path.join(extensionRoot, ...relative.split('/'))
@@ -284,7 +287,44 @@ async function buildResources(root, directory, actions) {
       size: body.length,
     })
   }
+  // Deduplicate by URL the way the core does: two actions may run one bundle.
+  const seenRemote = new Map()
+  for (const source of [...new Set(remote.map((action) => action.script.source))].sort()) {
+    const body = await fetchRemoteScript(source, directory)
+    const resource = {
+      path: remoteResourcePath(source),
+      url: source,
+      sha256: sha256(body),
+      size: body.length,
+    }
+    const previous = seenRemote.get(resource.url)
+    assert(previous === undefined || previous.sha256 === resource.sha256, `${directory}: remote script ${source} changed between reads`)
+    seenRemote.set(resource.url, resource)
+    resources.push(resource)
+  }
   return resources
+}
+
+function isAbsoluteScriptSource(source) {
+  if (typeof source !== 'string') return false
+  try {
+    return new URL(source).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+// Mirrors the core's derivation: the URL path without its leading slash.
+function remoteResourcePath(source) {
+  return new URL(source).pathname.replace(/^\/+/, '')
+}
+
+async function fetchRemoteScript(source, directory) {
+  const response = await fetch(source, { redirect: 'follow' })
+  assert(response.ok, `${directory}: remote script ${source} returned HTTP ${response.status}`)
+  const body = Buffer.from(await response.arrayBuffer())
+  assert(body.length > 0 && body.length <= 1 << 20, `${directory}: remote script ${source} must contain 1 to 1048576 bytes`)
+  return body
 }
 
 // The typed runtime-overlay projection this extension compiles to.

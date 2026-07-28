@@ -215,7 +215,7 @@
         "url": {
           "type": "string",
           "format": "uri",
-          "pattern": "^https://raw\\.githubusercontent\\.com/moooyo/5gpn-extensions/main/"
+          "pattern": "^https://"
         },
         "sha256": {
           "$ref": "#/$defs/sha256"
