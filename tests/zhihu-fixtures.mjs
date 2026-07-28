@@ -59,7 +59,7 @@ function clean(transform, url, document) {
 }
 
 assert.equal(manifest.metadata.id, 'io.5gpn.zhihu-cleaner')
-assert.equal(manifest.metadata.version, '1.2.0')
+assert.equal(manifest.metadata.version, '2.0.0')
 assert.deepEqual(manifest.permissions, { persistentStorage: false })
 assert.equal(manifest.settings, undefined)
 assert.equal(manifest.requirements, undefined)
@@ -77,16 +77,28 @@ assert.deepEqual(manifest.traffic.captureHosts, [
   'www.zhihu.com',
   'zhida.zhihu.com',
 ])
-assert.equal(manifest.actions.length, 6)
-assert.equal(new Set(manifest.actions.map((action) => action.id)).size, 6)
+assert.equal(manifest.actions.length, 16)
+assert.equal(new Set(manifest.actions.map((action) => action.id)).size, 16)
 assert.equal(manifest.actions.filter((action) => action.phase === 'request').length, 3)
-assert.equal(manifest.actions.filter((action) => action.phase === 'response').length, 3)
+assert.equal(manifest.actions.filter((action) => action.phase === 'response').length, 13)
 for (const action of manifest.actions) {
   assert(action.match.hosts.every((host) => manifest.traffic.captureHosts.includes(host)))
   assert.deepEqual(action.match.schemes, ['https'])
   assert.equal(action.match.pathRegex.startsWith('^'), true)
-  assert.equal(action.script.source, action.phase === 'request' ? './mock-json.js' : './clean-json.js')
-  assert.equal(action.script.bodyMode, action.phase === 'request' ? 'none' : 'text')
+  if (action.phase === 'request') {
+    assert.equal(action.script.source, './mock-json.js')
+    assert.equal(action.script.bodyMode, 'none')
+  } else {
+    // Every response action carries an expression, not code. The behavior of
+    // those expressions is verified against gojq -- the engine that runs them
+    // -- in the sidecar's jq suite; what is checked here is that nothing
+    // reintroduces a script.
+    assert.equal(typeof action.script.jq, 'string')
+    assert.equal(action.script.source, undefined)
+    assert.equal(action.script.inline, undefined)
+    assert.equal(action.script.entry, undefined)
+    assert.equal(action.script.bodyMode, 'text')
+  }
 }
 
 const pathCases = new Map([
@@ -135,39 +147,57 @@ const pathCases = new Map([
       '/ai_ingress/knowledge/square/categories/other?categoryId=1',
     ],
   }],
-  ['clean-m-cloud-config', {
-    matches: ['/api/cloud/zhihu/config/all', '/api/cloud/zhihu/config/all?version=1'],
-    misses: ['/api/cloud/zhihu/config/partial'],
+  ['clean-transport-config', {
+    matches: ['/api/cloud/zhihu/config/all', '/api/cloud/zhihu/config/all?v=1'],
+    misses: ['/api/cloud/zhihu/config', '/api/cloud/zhihu/config/all/extra'],
   }],
   ['clean-answer-responses', {
-    matches: ['/answers/v4/42', '/answers/v12/42?include=all'],
-    misses: ['/answers/version/42', '/answers/v4/id'],
+    matches: ['/answers/v4/12345', '/answers/v4/12345?include=x'],
+    misses: ['/answers/v4', '/answers/12345', '/answers/v4/12345/comments'],
   }],
-  ['clean-api-responses', {
-    matches: [
-      '/root/tab',
-      '/root/tab/v4',
-      '/root/tab/v12?source=ios',
-      '/topstory/recommend',
-      '/questions/42/feeds?include=all',
-      '/questions/42/feeds',
-      '/comment_v12/answers/42/root_comment',
-      '/comment_v5/pins/42/root_comment?order=normal',
-      '/articles/v12/42',
-      '/pins/v4/42?include=all',
-      '/comment_v12/answers/42/list-headers?source=ios',
-      '/podcasts/hub/v12',
-      '/search/recommend_query/v12?source=ios',
-      '/search_v12?source=ios',
-      '/search/tabs',
-      '/people/self?source=ios',
-    ],
-    misses: [
-      '/root/window',
-      '/questions/id/feeds',
-      '/articles/version/42',
-      '/podcasts/hub/latest',
-    ],
+  ['clean-root-tab', {
+    matches: ['/root/tab', '/root/tab/v2', '/root/tab/v2?source=ios'],
+    misses: ['/root/tabs', '/root/tab/v2/extra'],
+  }],
+  ['clean-topstory-recommend', {
+    matches: ['/topstory/recommend', '/topstory/recommend?session_token=1'],
+    misses: ['/topstory/recommends', '/topstory/hot'],
+  }],
+  ['clean-question-feeds', {
+    matches: ['/questions/42/feeds', '/questions/42/feeds?limit=5'],
+    misses: ['/questions/id/feeds', '/questions/42/feed'],
+  }],
+  ['clean-root-comment', {
+    matches: ['/comment_v5/answers/42/root_comment', '/comment_v5/pins/42/root_comment?order=1'],
+    misses: ['/comment_v5/articles/42/root_comment', '/comment_v5/answers/42/child_comment'],
+  }],
+  ['clean-article-pin', {
+    matches: ['/articles/v4/42', '/pins/v4/42?include=x'],
+    misses: ['/answers/v4/42', '/articles/v4'],
+  }],
+  ['clean-comment-list-headers', {
+    matches: ['/comment_v5/answers/42/list-headers', '/comment_v5/answers/42/list-headers?x=1'],
+    misses: ['/comment_v5/pins/42/list-headers', '/comment_v5/answers/42/list-header'],
+  }],
+  ['clean-podcast-hub', {
+    matches: ['/podcasts/hub/v2', '/podcasts/hub/v2?source=ios'],
+    misses: ['/podcasts/hub', '/podcasts/hub/latest'],
+  }],
+  ['clean-search-recommend-query', {
+    matches: ['/search/recommend_query/v2', '/search/recommend_query/v2?x=1'],
+    misses: ['/search/recommend_query', '/search/preset_words'],
+  }],
+  ['clean-search-result', {
+    matches: ['/search_v3', '/search_v3?q=x'],
+    misses: ['/search', '/search_v3/extra'],
+  }],
+  ['clean-search-tabs', {
+    matches: ['/search/tabs', '/search/tabs?q=x'],
+    misses: ['/search/tab', '/search/tabs/extra'],
+  }],
+  ['clean-people-self', {
+    matches: ['/people/self', '/people/self?include=x'],
+    misses: ['/people/other', '/people/self/extra'],
   }],
 ])
 
@@ -205,264 +235,5 @@ assert.equal(mockTransform({ request: { url: 'https://api.zhihu.com/next-render?
 assert.equal(mockTransform({ request: { url: 'https://api.zhihu.com/next-render?type=answer' } }), null)
 assert.equal(mockTransform({ request: { url: 'https://zhida.zhihu.com/ai_ingress/knowledge/square/categories/feeds?categoryId=2' } }), null)
 assert.equal(mockTransform({ request: { url: 'not a URL' } }), null)
-
-const { transform: cleanTransform, messages } = await loadTransform('clean-json.js')
-
-{
-  const result = clean(cleanTransform, 'https://m-cloud.zhihu.com/api/cloud/zhihu/config/all', {
-    marker: 'keep',
-    data: {
-      configs: [
-        ...blockedConfigKeys.map((configKey) => ({ configKey, configValue: { blocked: true } })),
-        {
-          configKey: 'unrelated',
-          configValue: { delayHttpdns: true, dnsParser: 'blocked', HTTPDNS: {}, keep: 'value' },
-          sibling: 'keep',
-        },
-        { configKey: 'array-value', configValue: [{ HTTPDNS: 'keep' }] },
-        'non-object',
-      ],
-    },
-  })
-  assert.equal(result.marker, 'keep')
-  assert.deepEqual(result.data.configs, [
-    { configKey: 'unrelated', configValue: { keep: 'value' }, sibling: 'keep' },
-    { configKey: 'array-value', configValue: [{ HTTPDNS: 'keep' }] },
-    'non-object',
-  ])
-}
-
-{
-  const rootTabURL = 'https://api.zhihu.com/root/tab/v2?source=ios'
-  const result = clean(cleanTransform, rootTabURL, {
-    marker: 'keep',
-    ring_list: [{ id: 'ring-1' }],
-    tab_ext: {
-      is_show_ring: true,
-      ring_title: 'keep',
-      ring_link: 'zhihu://rings',
-      future: { keep: true },
-    },
-    tab_list: [
-      { tab_type: 'activity', id: 0 },
-      { tab_type: 'follow', id: 1 },
-      { tab_type: 'recommend', id: 2 },
-      { tab_type: 'hot', id: 3 },
-      { tab_type: 'vip', id: 4 },
-      { tab_type: 'ring_tab', id: 5 },
-    ],
-  })
-  assert.equal(result.marker, 'keep')
-  assert.deepEqual(result.tab_list.map((item) => item.id), [1, 2, 3])
-  assert.deepEqual(result.ring_list, [])
-  assert.deepEqual(result.tab_ext, {
-    is_show_ring: false,
-    ring_title: 'keep',
-    ring_link: 'zhihu://rings',
-    future: { keep: true },
-  })
-  assert.equal(clean(cleanTransform, rootTabURL, result), null)
-  assert.equal(clean(cleanTransform, rootTabURL, {
-    tab_list: 'keep',
-    ring_list: 'keep',
-    tab_ext: 'keep',
-  }), null)
-}
-
-{
-  const result = clean(cleanTransform, 'https://api.zhihu.com/topstory/recommend?source=ios', {
-    marker: 'keep',
-    data: [
-      { type: 'ComponentCard', id: 1, children: [{ id: 'ring' }, { id: 'answer' }] },
-      { type: 'ComponentCard', id: 2, children: 'keep' },
-      { type: 'AdCard', id: 3 },
-    ],
-  })
-  assert.equal(result.marker, 'keep')
-  assert.deepEqual(result.data, [
-    { type: 'ComponentCard', id: 1, children: [{ id: 'answer' }] },
-    { type: 'ComponentCard', id: 2, children: 'keep' },
-  ])
-}
-
-{
-  const result = clean(cleanTransform, 'https://api.zhihu.com/topstory/recommend?limit=20', {
-    data: [
-      { type: 'feed', id: 1, target: { type: 'answer' }, action_card: { text: 'keep' } },
-      { type: 'future_feed', id: 4, ad_info: {}, commercial_info: false, promotion_info: '' },
-      { type: 'feed', id: 2, ad_info: { id: 'blocked' } },
-      { type: 'promotion', id: 3 },
-    ],
-    styles: { keep: true },
-  })
-  assert.deepEqual(result, {
-    data: [
-      { type: 'feed', id: 1, target: { type: 'answer' }, action_card: { text: 'keep' } },
-      { type: 'future_feed', id: 4, ad_info: {}, commercial_info: false, promotion_info: '' },
-    ],
-    styles: { keep: true },
-  })
-  assert.equal(clean(cleanTransform, 'https://api.zhihu.com/topstory/recommend?limit=20', result), null)
-}
-
-{
-  const result = clean(cleanTransform, 'https://api.zhihu.com/answers/v4/42?include=all', {
-    third_business: { blocked: true },
-    float_search_word: 'blocked',
-    ring_info: { blocked: true },
-    interaction_bar_plugins: [{ blocked: true }],
-    structured_content: {
-      marker: 'keep',
-      segments: [{ type: 'text', value: 'keep' }, { type: 'card', value: 'blocked' }],
-    },
-    nested: { third_business: 'keep' },
-  })
-  assert.equal('third_business' in result, false)
-  assert.equal('float_search_word' in result, false)
-  assert.equal('ring_info' in result, false)
-  assert.equal('interaction_bar_plugins' in result, false)
-  assert.deepEqual(result.structured_content, {
-    marker: 'keep',
-    segments: [{ type: 'text', value: 'keep' }],
-  })
-  assert.deepEqual(result.nested, { third_business: 'keep' })
-}
-
-{
-  const result = clean(cleanTransform, 'https://page-info.zhihu.com/answers/v4/42', {
-    third_business: true,
-    float_search_word: true,
-    ring_info: 'keep',
-    interaction_bar_plugins: 'keep',
-    structured_content: { segments: [{ type: 'card' }, { type: 'text' }] },
-  })
-  assert.deepEqual(result, {
-    ring_info: 'keep',
-    interaction_bar_plugins: 'keep',
-    structured_content: { segments: [{ type: 'text' }] },
-  })
-}
-
-for (const url of [
-  'https://api.zhihu.com/answers/v12/42',
-  'https://page-info.zhihu.com/answers/v12/42?include=all',
-]) {
-  const result = clean(cleanTransform, url, {
-    third_business: 'blocked',
-    float_search_word: 'blocked',
-    ring_info: 'keep',
-    interaction_bar_plugins: 'keep',
-    structured_content: { segments: [{ type: 'card' }, { type: 'text' }] },
-  })
-  assert.deepEqual(result, url.includes('api.zhihu.com')
-    ? { structured_content: { segments: [{ type: 'text' }] } }
-    : {
-        ring_info: 'keep',
-        interaction_bar_plugins: 'keep',
-        structured_content: { segments: [{ type: 'text' }] },
-      }, url)
-}
-
-for (const url of [
-  'https://api.zhihu.com/articles/v12/42',
-  'https://api.zhihu.com/pins/v4/42?include=all',
-]) {
-  const result = clean(cleanTransform, url, {
-    third_business: 'blocked',
-    ring_info: 'blocked',
-    interaction_bar_plugins: 'blocked',
-    marker: 'keep',
-    nested: {
-      third_business: 'keep',
-      ring_info: 'keep',
-      interaction_bar_plugins: 'keep',
-    },
-  })
-  assert.deepEqual(result, {
-    marker: 'keep',
-    nested: {
-      third_business: 'keep',
-      ring_info: 'keep',
-      interaction_bar_plugins: 'keep',
-    },
-  }, url)
-}
-
-const deleteCases = [
-  ['https://api.zhihu.com/questions/42/feeds', 'ad_info'],
-  ['https://api.zhihu.com/comment_v12/answers/42/root_comment', 'atmosphere_voting_config'],
-  ['https://api.zhihu.com/comment_v12/answers/42/list-headers?source=ios', 'continuous_consumption_module'],
-  ['https://api.zhihu.com/podcasts/hub/v12?source=ios', 'banners'],
-  ['https://api.zhihu.com/search_v12', 'pendant'],
-]
-for (const [url, key] of deleteCases) {
-  const result = clean(cleanTransform, url, { [key]: 'blocked', marker: 'keep', nested: { [key]: 'keep' } })
-  assert.equal(Object.prototype.hasOwnProperty.call(result, key), false, url)
-  assert.equal(result.marker, 'keep', url)
-  assert.equal(result.nested[key], 'keep', url)
-}
-
-{
-  const result = clean(cleanTransform, 'https://api.zhihu.com/search/recommend_query/v12', {
-    recommend_queries: {
-      marker: 'keep',
-      queries: [{ type: 'normal', value: 'keep' }, { type: 'promotion', value: 'blocked' }],
-    },
-  })
-  assert.deepEqual(result.recommend_queries, {
-    marker: 'keep',
-    queries: [{ type: 'normal', value: 'keep' }],
-  })
-}
-
-{
-  const allowed = ['general', 'km_general', 'ai_zhida', 'recent', 'people', 'zvideo', 'ring', 'topic', 'podcast', 'column', 'pin', 'favlist', 'scholar', 'publication']
-  const result = clean(cleanTransform, 'https://api.zhihu.com/search/tabs', {
-    data: [...allowed.map((t) => ({ t })), { t: 'promotion' }],
-  })
-  assert.deepEqual(result.data.map((item) => item.t), allowed)
-}
-
-{
-  const result = clean(cleanTransform, 'https://api.zhihu.com/people/self?source=ios', {
-    vip_info: {
-      entrance_new: { right_button: 'blocked', title: 'keep' },
-      entrance_v2: 'blocked',
-      marker: 'keep',
-    },
-  })
-  assert.deepEqual(result, {
-    vip_info: {
-      entrance_new: { title: 'keep' },
-      marker: 'keep',
-    },
-  })
-}
-
-{
-  const marker = 'x'.repeat(131072)
-  const result = clean(cleanTransform, 'https://api.zhihu.com/questions/42/feeds?include=all', {
-    ad_info: 'blocked',
-    marker,
-  })
-  assert.equal(result.marker, marker)
-}
-
-assert.equal(clean(cleanTransform, 'https://api.zhihu.com/questions/42/feeds?include=all', { marker: 'keep' }), null)
-assert.equal(clean(cleanTransform, 'https://www.zhihu.com/questions/42/feeds?include=all', { ad_info: 'keep' }), null)
-assert.equal(cleanTransform({
-  request: { url: 'https://api.zhihu.com/questions/42/feeds?include=all' },
-  response: { body: '{invalid' },
-}), null)
-assert.equal(cleanTransform({
-  request: { url: 'https://api.zhihu.com/questions/42/feeds?include=all' },
-  response: { body: 'null' },
-}), null)
-assert.equal(cleanTransform({
-  request: { url: 'https://api.zhihu.com/questions/42/feeds?include=all' },
-  response: { body: '[]' },
-}), null)
-assert.equal(messages.some((message) => message[0] === 'error' && String(message[1]).includes('decode failed')), true)
-assert.equal(messages.some((message) => message[0] === 'error' && String(message[1]).includes('root is not an object')), true)
 
 console.log('Zhihu fixtures passed')

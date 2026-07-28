@@ -55,7 +55,6 @@ The reviewed native snapshot is:
 | Item | Canonical value |
 | --- | --- |
 | Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `9cd01abfefd0d494385f95cd424ac66eab0b05b26e4f6b1ea671377a557aad87` |
-| JSON response transform | `zhihu-cleaner/clean-json.js` — SHA-256 `944b9e0d0ed607e439285b0a26b2788793248eb3a31f656742aa3cd98f7dfe9a` |
 | Synthetic JSON response transform | `zhihu-cleaner/mock-json.js` — SHA-256 `ee60aea99548c5b466cbe0beaeaac554284082503239e3890d8d66c81095b352` |
 | Authorization record | `zhihu-cleaner/AUTHORIZATION.md` — SHA-256 `e1d5d51f898539dfcc96b698adebbf84efbdf7d584b6cf3e1a3e26dd6ff2dc22` |
 
@@ -82,15 +81,19 @@ license is 19,018 bytes with SHA-256
 ## Port mapping
 
 The upstream contains 26 rewrite directives: 11 synthetic empty-object
-responses and 15 JSON response transformations. The native port consolidates
-them into six structured actions without expanding the capture boundary.
+responses and 15 JSON response transformations. The synthetic responses become
+three request actions backed by `mock-json.js`. Each JSON transformation becomes
+its own `script.jq` action carrying the expression directly, so where this port
+agrees with upstream the published program is what runs, and where it diverges
+the divergence is visible as one readable expression rather than buried in a
+dispatch table. Nothing here expands the capture boundary.
 
 | Upstream behavior | Native 5gpn mapping |
 | --- | --- |
 | `[MitM]` hosts `api.zhihu.com`, `m-cloud.zhihu.com`, `page-info.zhihu.com`, `www.zhihu.com`, and `zhida.zhihu.com` | The same five exact names are the complete `traffic.captureHosts` list. No wildcard or accidental `api.com`/`page-info.com` alternative is acquired. Five host-scoped UDP/443 reject rules additionally force QUIC fallback on preserved/custom gateway configurations. |
 | Eleven upstream `reject-dict` directives plus the current `/root/window` navigation entry | Three request actions group the API, web, and Zhida path sets. `mock-json.js` verifies the host, normalized path, multi-digit versions, and order-independent query values before returning status 200, `Content-Type: application/json`, and body `{}`. The duplicated token on the upstream `commercial_api` line is normalized to one synthetic response; `/root/window` is an explicit compatibility addition requested to remove the Kanshan entry. |
 | `m-cloud` configuration `drop_keys` JQ program | `clean-m-cloud-config` removes the same 17 HTTPDNS/QUIC config keys and removes `delayHttpdns`, `dnsParser`, and `HTTPDNS` only from retained object-valued configs. Arrays, scalars, and unrelated fields remain unchanged. |
-| Root-tab whitelist | The pinned upstream whitelist retained `ring_tab`. As a deliberate 1.2 compatibility change, `clean-json.js` handles both current `/root/tab` and versioned `/root/tab/vN` paths, keeps only `follow`, `recommend`, and `hot`, clears `ring_list`, and sets an existing `tab_ext.is_show_ring` flag to `false`. This removes the top Rings entry while preserving tab order and unrelated response fields. |
+| Root-tab whitelist | The pinned upstream whitelist retained `ring_tab`. As a deliberate compatibility change, `clean-root-tab` handles both current `/root/tab` and versioned `/root/tab/vN` paths, keeps only `follow`, `recommend`, and `hot`, clears `ring_list`, and sets an existing `tab_ext.is_show_ring` flag to `false`. This removes the top Rings entry while preserving tab order and unrelated response fields. |
 | Two `topstory/recommend` JQ directives | The current API returns normal `type=feed` objects rather than only `ComponentCard`. The hardened branch therefore preserves unknown/normal items, removes only explicit ad/commercial markers, and still removes `children` entries whose `id` is `ring`. |
 | Question feeds and comment roots | Exact response branches remove root-level `ad_info` or `atmosphere_voting_config`; identically named nested fields are preserved. |
 | Answer detail directives on API and page-info hosts | `clean-answer-responses` removes `third_business` and `float_search_word`, then removes `card` segments. API answer URLs with or without a query also receive the generic content-field removals; page-info remains limited to the answer-specific fields. |
@@ -100,8 +103,13 @@ them into six structured actions without expanding the capture boundary.
 | `people/self` directive | The native response branch removes only `vip_info.entrance_new.right_button` and `vip_info.entrance_v2`, preserving sibling values. |
 | Loon metadata | Name and purpose become native metadata. Creator, version-date caveat, immutable bytes, authorization, and update provenance remain in this README. |
 
-The upstream has no external `[Script]` dependency. Both native transforms are
-immutable local files and expose only `transform(context)`.
+The upstream has no external `[Script]` dependency, and neither does this port.
+`mock-json.js` is the only JavaScript left; every response transform is a jq
+expression the sidecar runs without entering the JavaScript runtime at all.
+
+Those expressions are verified against gojq -- the engine that runs them -- in
+the sidecar's own jq suite. This repository checks their structure and their
+path patterns; it cannot execute them, because Node has no jq.
 
 ## Current API compatibility hardening
 
@@ -203,7 +211,6 @@ Refresh local artifact digests with:
 
 ```powershell
 Get-FileHash zhihu-cleaner/extension.yaml -Algorithm SHA256
-Get-FileHash zhihu-cleaner/clean-json.js -Algorithm SHA256
 Get-FileHash zhihu-cleaner/mock-json.js -Algorithm SHA256
 ```
 
@@ -218,7 +225,7 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.zhihu-cleaner`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=1.2.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=6`; `routingRules=5`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.0.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=16`; `routingRules=5`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | None. A same-ID update has no extension setting values to migrate. |
 | Reviewed capability baseline | Five exact capture hosts, three request actions, three response actions, five host-scoped UDP/443 reject rules, two local scripts, and no network origins, mappings, or egress requirement. |

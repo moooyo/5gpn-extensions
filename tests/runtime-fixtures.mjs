@@ -82,15 +82,6 @@ function lengthField(field, bytes) {
 }
 
 {
-  const { transform } = await loadTransform('zhihu-cleaner/clean-json.js')
-  const result = transform({
-    request: { url: 'https://api.zhihu.com/questions/42/feeds?include=all' },
-    response: { body: JSON.stringify({ ad_info: {}, keep: true }) },
-  })
-  assert.deepEqual(JSON.parse(result.response.body), { keep: true })
-}
-
-{
   const { transform } = await loadTransform('bilibili-cleaner/mock-json.js')
   const result = transform({})
   assert.equal(result.response.status, 200)

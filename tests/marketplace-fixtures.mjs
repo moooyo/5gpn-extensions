@@ -66,7 +66,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const omitted = catalog.entries.filter((entry) => !stableIDs.has(entry.id)).map((entry) => entry.id)
   assert.deepEqual(
     omitted,
-    ['io.5gpn.weatherkit', 'io.5gpn.youtube-cleaner'],
+    ['io.5gpn.weatherkit', 'io.5gpn.youtube-cleaner', 'io.5gpn.zhihu-cleaner'],
     'unexpected entries are missing from the v1 profile',
   )
 
@@ -125,12 +125,14 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     size: 251617,
   }])
   const zhihu = catalog.entries.find(entry => entry.id === 'io.5gpn.zhihu-cleaner')
-  assert.equal(zhihu.version, '1.2.0')
+  assert.equal(zhihu.version, '2.0.0')
   assert.deepEqual(
     [zhihu.capabilities.captureHostCount, zhihu.capabilities.actionCount, zhihu.capabilities.routingRuleCount],
-    [5, 6, 5],
+    [5, 16, 5],
   )
-  assert.deepEqual(zhihu.resources.map(resource => resource.path), ['clean-json.js', 'mock-json.js'])
+  // Thirteen of zhihu's sixteen actions are jq expressions, which name no
+  // script and so contribute no resource for the gateway to fetch or pin.
+  assert.deepEqual(zhihu.resources.map(resource => resource.path), ['mock-json.js'])
   assert.equal(validate(catalog), true, ajv.errorsText(validate.errors))
   assert.equal(validate(stable), true, ajv.errorsText(validate.errors))
   const boundary = structuredClone(catalog)
@@ -150,7 +152,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   try {
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 6, "the v1 profile omits entries needing a newer contract")
+    assert.equal(JSON.parse(generated).entries.length, 5, "the v1 profile omits entries needing a newer contract")
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--check', output], { cwd: repositoryRoot })
 
     // --check is profile-aware: the same path checked against the other profile
