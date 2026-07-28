@@ -42,7 +42,7 @@ function newerContractReasons(manifest) {
   // A v1-era core parses the index with DisallowUnknownFields and the manifest
   // with KnownFields, so an action carrying a jq expression costs that core the
   // whole catalogue rather than just this entry.
-  for (const field of ['jq', 'reject', 'mock']) {
+  for (const field of ['jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody']) {
     if ((manifest.actions ?? []).some((action) => action.script?.[field] !== undefined)) reasons.push(`script.${field}`)
   }
   return reasons
@@ -224,7 +224,7 @@ function parseStrictManifest(body, directory) {
     assert(!actionIDs.has(action.id), `${directory}: duplicate action id ${action.id}`)
     actionIDs.add(action.id)
     assertKeys(action.match, new Set(['hosts', 'schemes', 'methods', 'pathRegex', 'statusCodes']), `${directory}: action ${action.id}.match`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'reject', 'mock', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
     assert(action.script.inline === undefined, `${directory}: published actions must use immutable local script sources`)
     // A jq action carries an expression rather than a script, so it contributes
     // no resource to the index and has no source to pin.
@@ -241,6 +241,11 @@ function parseStrictManifest(body, directory) {
     }
     if (action.script.mock !== undefined) {
       assert(action.script.source === undefined, `${directory}: action ${action.id} declares both mock and a source`)
+      continue
+    }
+    // Header edits, rewrites, and body replacements are declarative too.
+    if (['headers', 'rewrite', 'replaceBody'].some((key) => action.script[key] !== undefined)) {
+      assert(action.script.source === undefined, `${directory}: action ${action.id} declares both a declarative kind and a source`)
       continue
     }
     assertString(action.script.source, `${directory}: action ${action.id}.script.source`)

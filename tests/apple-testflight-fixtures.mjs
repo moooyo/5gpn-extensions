@@ -247,10 +247,14 @@ assert.equal(wlocAction.match.statusCodes, undefined)
 // every reviewed region and reads the setting rather than a constant.
 const testflightManifest = await readManifest('testflight-region-unlock/extension.yaml')
 const testflightAction = testflightManifest.actions[0]
-assert.equal(typeof testflightAction.script.jq, 'string')
+const replace = testflightAction.script.replaceBody
 assert.equal(testflightAction.script.source, undefined)
 assert.equal(testflightAction.script.entry, undefined)
-assert(testflightAction.script.jq.includes('$settings.storefront'), 'the program must read the operator choice')
+assert.equal(testflightAction.script.jq, undefined)
+// Byte-surgical, matching upstream's request-body-replace-regex. The jq form
+// this replaced parsed and re-serialised the body, which normalised key order.
+assert(replace.to.includes('{{settings.storefront}}'), 'the replacement must read the operator choice')
+new RegExp(replace.pattern)
 const storefronts = {
   US: '143441-19,29',
   GB: '143444-19,29',
@@ -266,11 +270,9 @@ const storefronts = {
 assert.deepEqual(
   testflightManifest.settings[0].options.slice().sort(),
   Object.keys(storefronts).slice().sort(),
-  'every offered region must have a storefront id in the program',
+  'every offered region must have a storefront id in the value map',
 )
-for (const [region, storefrontID] of Object.entries(storefronts)) {
-  assert(testflightAction.script.jq.includes(`"${region}":"${storefrontID}"`), `${region} is missing from the shipped program`)
-}
+assert.deepEqual(replace.valueMap.storefront, storefronts)
 
 const appleReadme = await readFile(path.join(root, 'apple-wloc/README.md'), 'utf8')
 const testflightReadme = await readFile(path.join(root, 'testflight-region-unlock/README.md'), 'utf8')

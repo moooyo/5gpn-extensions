@@ -120,6 +120,10 @@ update procedure, and verification steps.
 | Block a matched path | `script.reject` | Aborts the exchange before it is sent upstream. No code. |
 | Answer with a fixed reply | `script.mock` | A declared status, headers, and `body` or `base64Body`. No code, and no request leaves the gateway. |
 | Rewrite a JSON body | `script.jq` | An upstream module's own `response-body-json-jq` expression, run by gojq without entering the JavaScript runtime. Reads operator choices through `$settings`. |
+| Edit headers on a real message | `script.headers` | `set` and `remove` fields without replacing the body. Removal runs first. |
+| Send a request elsewhere | `script.rewrite` | Rewrites the URL in place, or answers 302/307. An in-place rewrite passes the same authorization a scripted one does, so a cross-origin target still needs a declared network origin. |
+| Edit body bytes | `script.replaceBody` | A regular expression and a replacement that may read `{{settings.key}}`, optionally resolved through a declared `valueMap`. Unlike `jq` it does not parse the document, so unmatched bytes survive exactly. |
+| Select on an autonomous system | `routingRules[].ipASN` | Compiles to mihomo's `IP-ASN` with `no-resolve`, alongside the domain, CIDR, network, and port selectors. |
 | Run a published proxy-client bundle | `script.entry: proxy-compat` | Loads a pinned upstream script under a Loon persona. See the contract below. |
 | Read a body | `script.bodyMode` | `none`, UTF-8 `text`, or `binary` as `Uint8Array`, bounded by `maxBodyBytes`. |
 | Typed operator configuration | `settings[]` | `text`, `select`, `boolean`, `number`, and `location`; required values must be complete before enable. |
@@ -199,10 +203,10 @@ or uploaded manifests must use inline scripts or absolute HTTPS script URLs.
 
 ### Action kinds
 
-An action declares exactly one of four kinds. Three are declarative and never
-reach the JavaScript runtime: `reject`, `mock`, and `jq`. Prefer them — every
-extension in this repository is built from those three plus `proxy-compat`, and
-none ships JavaScript.
+An action declares exactly one of seven kinds. Six are declarative and never
+reach the JavaScript runtime: `reject`, `mock`, `jq`, `headers`, `rewrite`, and
+`replaceBody`. Prefer them — every extension in this repository is built from
+those plus `proxy-compat`, and none ships JavaScript.
 
 ```yaml
 script: { reject: true, bodyMode: none, timeoutMs: 500, maxBodyBytes: 1024 }

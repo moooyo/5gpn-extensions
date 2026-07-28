@@ -41,7 +41,7 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `72b4f96cacc6fd5114a4c62f5492dfb5ab97f975c81108f52e0fdaa117d0a2a6` |
+| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `9efdc3b23b688ca29e5de4f1c0666d4c0a27abf2d0eaa357079478cd04ee70e5` |
 
 ## License and attribution
 
@@ -69,7 +69,7 @@ and was reverified on `2026-07-22`.
 | --- | --- |
 | `DOMAIN, testflight.apple.com, PROXY` | `traffic.captureHosts` contains only `testflight.apple.com`; `requirements.egressGroup.required` forces an explicit operator binding instead of naming `PROXY`. |
 | Rewrite URL `^https?://testflight.apple.com/v\d/accounts/.+?/install$` | One request action matches only `testflight.apple.com`, HTTP or HTTPS, exactly one version digit, a non-empty account path, and no query string. Host and scheme are native matcher fields while the path expression preserves the pinned URL boundary. |
-| Exact `request-body-replace-regex` for `"storefrontId" : "dddddd-dd,dd",` | A `script.jq` action assigns `.storefrontId` from a region table keyed by the `storefront` setting, which it reads through `$settings`. This is a deliberate substitution, not a reproduction: upstream replaces bytes with a regex, while jq parses the request body and re-serializes it, so key order and whitespace are normalized rather than preserved. The rewrite is semantically identical and byte-wise is not. A body with no `storefrontId`, or an unrecognized region, is left untouched rather than having a value invented. |
+| Exact `request-body-replace-regex` for `"storefrontId" : "dddddd-dd,dd",` | A `script.replaceBody` action applies the same kind of regular expression upstream does, so everything it does not match survives byte for byte, including key order and whitespace. The replacement reads the `storefront` setting through `{{settings.storefront}}` and resolves it through the action's `valueMap`, which is how a module that hard-codes one storefront becomes an extension whose operator chooses among ten. A body with no `storefrontId`, or a region absent from the map, is left untouched rather than having a value invented. Revision 2.0.0 substituted a jq program here, which parsed and re-serialized the body and normalized key order as a side effect. |
 | Hard-coded `143441-19,29` | The required typed `storefront` select defaults to `US`, preserving upstream behavior, and exposes a finite reviewed region map. |
 | `[MitM] hostname=testflight.apple.com` | The exact host is the sole capture permission and therefore the sole interception certificate and traffic-rule host. |
 | Loon metadata | Name and purpose become native metadata; attribution and update provenance remain in this README. |
@@ -198,7 +198,7 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.testflight-region-unlock`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.0.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=true`. |
+| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=true`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | Preserve `storefront` as a `select` setting. A same-ID update retains its value only while the selected option remains valid. |
 | Reviewed capability baseline | One capture host, one request action, no network origins, upstream mappings, or routing rules, and a required operator egress binding. |

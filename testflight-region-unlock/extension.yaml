@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.testflight-region-unlock
   name: TestFlight Region Unlock
-  version: 2.0.0
+  version: 2.1.0
   description: Rewrites the TestFlight install storefront and requires an operator-selected regional egress group.
 
 permissions:
@@ -48,8 +48,21 @@ actions:
         - https
       pathRegex: '^/v[0-9]/accounts/.+?/install$'
     script:
-      jq: >-
-        def ids: {"US":"143441-19,29","GB":"143444-19,29","CA":"143455-19,29","AU":"143460-19,29","JP":"143462-19,29","HK":"143463-19,29","SG":"143464-19,29","CN":"143465-19,29","KR":"143466-19,29","TW":"143470-19,29"}; if has("storefrontId") and (ids[$settings.storefront] != null) then .storefrontId = ids[$settings.storefront] else . end
+      replaceBody:
+        pattern: '"storefrontId"\s*:\s*"[0-9]{6}-[0-9]{2},[0-9]{2}"'
+        to: '"storefrontId":"{{settings.storefront}}"'
+        valueMap:
+          storefront:
+            US: '143441-19,29'
+            GB: '143444-19,29'
+            CA: '143455-19,29'
+            AU: '143460-19,29'
+            JP: '143462-19,29'
+            HK: '143463-19,29'
+            SG: '143464-19,29'
+            CN: '143465-19,29'
+            KR: '143466-19,29'
+            TW: '143470-19,29'
       bodyMode: text
       timeoutMs: 500
       maxBodyBytes: 1048576

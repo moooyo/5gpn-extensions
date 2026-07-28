@@ -230,13 +230,43 @@ for (const entry of entries) {
     for (const host of action.match.hosts) assert(captureSet.has(host), `${entry.name}: ${action.id} host ${host} is outside captureHosts`)
     assert(Array.isArray(action.match.schemes) && action.match.schemes.every((scheme) => scheme === 'http' || scheme === 'https'), `${entry.name}: ${action.id} has invalid schemes`)
     assert(typeof action.match.pathRegex === 'string' && action.match.pathRegex.startsWith('^'), `${entry.name}: ${action.id} pathRegex must be anchored`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'reject', 'mock', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
     const scriptEntry = action.script.entry ?? 'native'
     assert(scriptEntry === 'native' || scriptEntry === 'proxy-compat', `${entry.name}: ${action.id} has an unknown script entry`)
     // Three declarative kinds carry what the published modules declare and run
     // no code at all. Exactly one kind applies to an action.
-    const kinds = ['jq', 'reject', 'mock', 'source', 'inline'].filter((key) => action.script[key] !== undefined)
-    assert(kinds.length === 1, `${entry.name}: ${action.id} must declare exactly one of jq, reject, mock, source, inline`)
+    const kinds = ['jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody', 'source', 'inline'].filter((key) => action.script[key] !== undefined)
+    assert(kinds.length === 1, `${entry.name}: ${action.id} must declare exactly one action kind, found ${kinds.join(', ') || 'none'}`)
+    for (const [key, allowed] of [
+      ['headers', new Set(['set', 'remove'])],
+      ['rewrite', new Set(['pattern', 'to', 'status'])],
+      ['replaceBody', new Set(['pattern', 'to', 'valueMap'])],
+    ]) {
+      if (action.script[key] === undefined) continue
+      assertKeys(action.script[key], allowed, `${entry.name}: ${action.id}.script.${key}`)
+      assert(action.script.entry === undefined, `${entry.name}: ${action.id} declares an entry without a script`)
+    }
+    if (action.script.headers !== undefined) {
+      for (const [name, value] of Object.entries(action.script.headers.set ?? {})) {
+        assert(!/[\r\n]/.test(String(value)), `${entry.name}: ${action.id} header ${name} contains a newline`)
+      }
+      continue
+    }
+    if (action.script.rewrite !== undefined) {
+      const rewrite = action.script.rewrite
+      new RegExp(rewrite.pattern ?? '')
+      assert(typeof rewrite.to === 'string' && rewrite.to !== '', `${entry.name}: ${action.id} rewrite needs a target`)
+      if (rewrite.status !== undefined) {
+        assert(rewrite.status === 302 || rewrite.status === 307, `${entry.name}: ${action.id} rewrite status must be 302 or 307`)
+      }
+      continue
+    }
+    if (action.script.replaceBody !== undefined) {
+      const replace = action.script.replaceBody
+      new RegExp(replace.pattern)
+      assert(typeof replace.to === 'string', `${entry.name}: ${action.id} replaceBody needs a replacement`)
+      continue
+    }
     if (action.script.reject !== undefined) {
       assert(action.script.reject === true, `${entry.name}: ${action.id} reject must be true`)
       assert(action.script.entry === undefined, `${entry.name}: ${action.id} rejects and cannot declare an entry`)
