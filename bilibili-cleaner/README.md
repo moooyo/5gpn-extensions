@@ -60,7 +60,8 @@ commit, and `npm run verify:upstreams` re-downloads and enforces each digest.
 
 The two `jq-path` programs are inlined into `extension.yaml` rather than fetched
 at runtime, because a jq action carries its expression in the manifest. Their
-bytes are recorded above so a review can diff the inlined copy against upstream.
+bytes are recorded above, and `npm run verify:upstreams` compares the downloaded
+file with the inlined copy so the two cannot drift apart unnoticed.
 
 ## Chronos client artifacts
 
@@ -118,12 +119,17 @@ can now declare; splitting them raised the action count because a declared mock
 has one body, the way upstream writes one `[Map Local]` line per body.
 
 The five settings are unchanged and already match the upstream `[Argument]`
-names, so they reach the scripts as the decoded object Loon supplies.
+names, so they reach the scripts as the decoded object Loon supplies. Two of
+them are not script arguments upstream at all; see the `enable=` boundary
+below.
 
-The upstream `bilibili.skin` entry loads `bili-suit-diy.js` from a second
-repository, `kokoryh/Script`. That repository is not pinned here. The skin
-response is instead handled by the `clean-app-skin` jq action, which applies the
-Loon plugin's own `response-body-json-del data.common_equip` directive.
+`clean-app-skin` carries the Loon plugin's own
+`response-body-json-del data.common_equip` directive. The reviewed LPX declares
+no skin script. Surge's `bilibili.sgmodule` does -- a `bilibili.skin` entry
+loading `bili-suit-diy.js` from a second repository, `kokoryh/Script`, under
+`engine=webview` -- and that repository is deliberately not pinned here. The
+LPX is the orchestration authority for this port, so the directive is what is
+carried.
 
 ## Network permission, egress, and data disclosure
 
@@ -143,6 +149,12 @@ content ID, and fixed `category=sponsor` query. Enabling requires one operator
 confirmation naming every origin and warning that all data visible to the
 script can be sent there.
 
+Neither disclosure can be switched off from the settings page. Upstream gates
+those two script entries with Loon's `enable=`, which a native action cannot
+express, so the operator's `sponsorBlock` and `optimizeRequest` choices do not
+reach them. The confirmation at enable time, and disabling the extension, are
+the controls that do. See the `enable=` boundary below.
+
 The upstream LPX routes only `bsbsb.top` to `PROXY`, while the native manifest
 cannot name a proxy group or attach one only to a single network origin. The
 required operator binding therefore applies to this extension's complete
@@ -156,29 +168,38 @@ process, timer, or module-loader access. It declares no persistent storage.
 
 ## Deliberate architecture boundary and remaining differences
 
-- Loon exposes a device-model environment value. Native scripts do not. The
-  frequent-uploader iPad exception uses the `bili-hd` user-agent prefix.
-- Loon performs its two SponsorBlock requests concurrently with a three-second
-  timeout. The port issues them concurrently as well, through the runtime's
-  asynchronous `network.requestAsync`. Older gateways expose only the
-  synchronous `network.request`; the port detects this and falls back to
-  issuing the pair in sequence, which costs both latencies but returns the same
-  response. The per-request timeout stays the runtime's fixed five seconds
-  rather than upstream's three, alongside its one-MiB, call-count, and
-  concurrency limits. Failure preserves the original request.
-- The `grpc.biliapi.net` to `app.bilibili.com` replay fallback stays sequential
-  on both paths. It is a fallback chain rather than a set of mirrors, so the
-  second host is only asked once the first has failed.
+- **Loon's `enable=` has no native equivalent.** Upstream switches two script
+  entries on and off from outside the script — `enable={sponsorBlock}` on the
+  airborne entry and `enable={optimizeRequest}` on the comment/view entry —
+  rather than passing those keys to it. A native action is either declared or
+  it is not, so both entries run unconditionally here. `optimizeRequest` is
+  read by none of the four pinned bundles, so that setting changes nothing at
+  all. `sponsorBlock` is read only by the response bundle, and only to decide
+  whether to point the client at Chronos; turning it off does not stop the
+  request-phase transformer from querying `bsbsb.top` or from injecting its
+  airborne danmaku. Both keys are kept because the upstream `[Argument]` block
+  declares them, and both setting descriptions state the limitation.
+- The response bundle picks its Chronos client from the request `user-agent`
+  prefix — `bili-hd`, `bili-inter`, otherwise universal — and separately reads
+  `$environment["device-model"]`, falling back to `$loon`. Which branch runs
+  depends on what the gateway populates, not on this manifest.
+- The airborne entry issues its replay and its `bsbsb.top` segment lookup
+  concurrently, carrying upstream's own three-second timeout on the lookup. The
+  `grpc.biliapi.net` to `app.bilibili.com` replay is a fallback chain rather
+  than a set of mirrors, so the second host is only asked once the first has
+  failed.
 - Sponsor segment data from `bsbsb.top` is mutable. Network, status, parse, or
   schema failure preserves normal Bilibili behavior.
 - Client Chronos URLs are revision-pinned, but their GPL archives are not
   redistributed because their repository lacks corresponding preferred source.
-- The webpage port injects the same browser-side behavior without reproducing
-  `DOMParser` whole-document serialization. It preserves the upstream
-  `hostname.includes("bilibili")` test.
-- Native request and response bodies remain bounded. Reviewed JSON, Protobuf,
-  and remote-data decode failures return no patch. VM timeouts, invalid result
-  objects, and runtime-contract violations still fail the matched flow closed.
+- The webpage bundle parses the whole document with `DOMParser` and reserializes
+  it, and gates itself on `hostname.includes("bilibili")`. Both are upstream
+  behavior, so the runtime has to supply `DOMParser` for that action to work.
+- Request and response bodies stay bounded by the `maxBodyBytes` and
+  `timeoutMs` each action declares. The published module declares no size cap
+  at all, and allows the two request entries ten seconds where this manifest
+  allows twelve. Exceeding a declared bound fails the matched flow closed
+  rather than returning a partial patch.
 
 ## Updating from upstream
 
@@ -208,10 +229,10 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=3.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
-| State class | Stateful. `persistentStorage` is false. |
+| Current manifest | `version=3.0.1`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
+| State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
-| Reviewed capability baseline | Six capture hosts, five routing rules, eleven actions, three network origins, five settings, and a required egress binding. |
+| Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, three network origins, five settings, and a required egress binding. |
 | Operator state | A normal same-ID update retains valid settings, egress binding, `capture_dns`, and execution position. Review all of them before enable. |
 | Source boundary | A changed GPL bundle must ship with complete corresponding preferred source and deterministic build inputs in the same revision. |
 | External artifacts | Chronos URLs may change only to reviewed immutable revisions; archives without corresponding preferred source remain referenced rather than redistributed. |
@@ -269,8 +290,10 @@ if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $L
 
 `verify:upstreams` re-downloads every artifact in the pinned table and enforces
 its size and digest, so a changed upstream fails the gate rather than being
-adopted silently. That includes the two jq programs, which is what keeps the
-inlined copies honest.
+adopted silently. For the two `.jq` artifacts it also compares the downloaded
+bytes against the copy inlined in `extension.yaml` and names the action that
+carries it, so an edited inline copy fails the same gate. The digest check on
+its own proved only that upstream had not moved.
 
 What this repository can no longer assert is what the scripts do. The previous
 revision shipped protobuf fixtures over local code; that code is gone, and
