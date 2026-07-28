@@ -6,24 +6,20 @@ software license. A file's license is determined by the explicit mapping in
 owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 - Repository scaffolding, validation tooling, and `apple-wloc` use the MIT
-  License. The complete project MIT text is in
+  License. `apple-wloc` loads scripts from an upstream that publishes no
+  license file; it distributes none of their bytes, and
+  [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) records that. The complete project MIT text is in
   [`LICENSES/MIT.txt`](LICENSES/MIT.txt); retained upstream MIT notices are in
   [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
-- The original `bilibili-cleaner` native work uses `GPL-3.0-only`; its final
-  bundle is mapped as `GPL-3.0-only AND BSD-3-Clause` because it retains
-  Google's 2008 `goog-varint` code. Distributed corresponding source also
-  retains independently licensed MIT `fflate`, Apache-2.0 `protobuf-ts`, and
-  the BSD-3-Clause `protobufjs-utf8` component. `REUSE.toml` is authoritative
-  for those file-level boundaries. The complete GPL text is in
-  [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt), and BSD texts are in
-  [`LICENSES/BSD-3-Clause.txt`](LICENSES/BSD-3-Clause.txt) and the owning
-  extension's `source/licenses/` directory.
-- `weatherkit` and `youtube-cleaner` primarily use `Apache-2.0`. The generated
-  `weatherkit/weather.js` bundle is mapped as `Apache-2.0 AND MIT` because it
-  retains Rspack bootstrap code and esbuild-emitted helper code, together with
-  their ByteDance and Evan Wallace MIT notices. The complete Apache text is in
-  [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt), and the component MIT
-  texts are retained under `weatherkit/source/licenses/`.
+- `bilibili-cleaner` uses `GPL-3.0-only`, matching the `kokoryh/Sparkle` module
+  it accompanies. It vendors none of that module: the gateway fetches the
+  pinned scripts at runtime, so no corresponding-source obligation attaches
+  here. The complete GPL text is in
+  [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt).
+- `weatherkit` and `youtube-cleaner` use `Apache-2.0`, matching the upstreams
+  whose published bundles they load. Neither vendors upstream source. The
+  complete Apache text is in
+  [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
 - `ad-platform-blocker`, `httpdns-interceptor`, `testflight-region-unlock`,
   and the separately authorized `zhihu-cleaner` port are Kelee-derived adapted
   material under `CC-BY-NC-SA-4.0`. The complete text is in

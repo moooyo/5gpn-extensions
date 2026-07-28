@@ -40,46 +40,29 @@ licensing authority.
 
 ## Bilibili Cleaner
 
-`bilibili-cleaner` is derived from the GPL-3.0-only `kokoryh/Sparkle`
-plugin, JSON, and JQ implementation. The KeleeOne snapshot was used to
-discover a mirrored plugin version, but its CC BY-NC-SA root license does not
-override Sparkle's original GPL license. The extension README pins the exact
-Sparkle commits and identifies every mapped artifact and modification.
+`bilibili-cleaner` does not vendor upstream source. It loads four scripts from
+the GPL-3.0-only `kokoryh/Sparkle` project at runtime under the `5gpn.io/v1`
+proxy-compat contract, and carries that project's own rewrite expressions as jq
+actions. Every artifact, size, and digest is pinned at commit
+`12e89d6d93d72d39eb283ef81d2b58eb204cdb58` in the extension README, and
+`npm run verify:upstreams` re-downloads and enforces them.
 
-The native adapter, schema inputs, generated TypeScript, pinned Sparkle source
-closure, and deterministic build inputs are distributed under GPL-3.0-only.
-The final `protobuf.js` aggregate is mapped as
-`GPL-3.0-only AND BSD-3-Clause` because it retains the Google component below.
-The complete corresponding source is included under
-`bilibili-cleaner/source/`; the exact file-level mapping is recorded in
-`REUSE.toml`.
+Because the scripts are fetched by the gateway rather than shipped here, this
+repository distributes none of their bytes and the corresponding-source
+obligation does not attach to it. `extension.yaml`, `README.md`,
+`mock-json.js`, and `mock-grpc.js` are original works under GPL-3.0-only so the
+aggregate stays consistent with the module they accompany, and they retain
+Sparkle attribution. The two inlined jq programs are verbatim upstream text
+under the same license.
 
-The rebuild also distributes these independently licensed components:
+The KeleeOne snapshot was used to discover a mirrored plugin version, but its
+CC BY-NC-SA root license does not override Sparkle's original GPL license.
 
-| Component | Distributed scope | License |
-| --- | --- | --- |
-| `fflate` 0.8.3 | Preferred TypeScript source, npm archive, license, and the code retained in the final bundle | MIT, Copyright (c) 2026 Arjun Barrett |
-| `protobuf-ts` 2.11.1 | Preferred runtime TypeScript source, license, npm archive, and the Apache-licensed runtime code retained in the final bundle | Apache-2.0, except for the BSD files below |
-| `protobufjs-utf8.ts` | Exact preferred source retained inside the `protobuf-ts` source snapshot and npm runtime archive | BSD-3-Clause, Copyright (c) 2016 Daniel Wirtz |
-| `goog-varint.ts` | Exact preferred source, standalone notice, npm runtime archive, and code retained in the final bundle | BSD-3-Clause, Copyright 2008 Google Inc. |
-
-The retained `protobuf-ts` runtime archive therefore has the package's
-declared `Apache-2.0 AND BSD-3-Clause` license expression. The deterministic
-`bundle-inputs.json` projection shows that esbuild tree-shakes
-`protobufjs-utf8.ts` from the final `protobuf.js` bundle but retains
-`goog-varint.js`. The raw bundle embeds Google's complete 2008 BSD notice in
-its deterministic banner because it is independently installed and
-distributed. Both standalone BSD notices remain in `source/licenses/`,
-including the exact Google text at
-[`bilibili-cleaner/source/licenses/goog-varint-BSD-3-Clause.txt`](bilibili-cleaner/source/licenses/goog-varint-BSD-3-Clause.txt).
-
-The complete component terms are retained in
-`bilibili-cleaner/source/licenses/` and the shared legal texts are available
-as [`LICENSES/MIT.txt`](LICENSES/MIT.txt),
-[`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt), and
-[`LICENSES/BSD-3-Clause.txt`](LICENSES/BSD-3-Clause.txt). The GPL-3.0-only
-text governing the combined Bilibili work is retained in
-[`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt).
+Revisions through 2.1.0 shipped a native port with its complete corresponding
+source under `bilibili-cleaner/source/`: a generated protobuf runtime, an
+Apache-2.0 `protobuf-ts` snapshot, an MIT `fflate` archive, and BSD-3-Clause
+code from Google (`goog-varint`) and Daniel Wirtz (`protobufjs-utf8`). None of
+that is present any more, and no file in this repository is BSD-3-Clause.
 
 ## YouTube Cleaner
 

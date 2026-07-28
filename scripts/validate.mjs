@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import path from 'node:path'
@@ -18,7 +19,6 @@ const expectedLicenseFiles = new Map([
   ['MIT.txt', 'f41a1117f350375bbafc61e4292c379ed748bc110f46ec8262dd26fffb2fc459'],
   ['GPL-3.0-only.txt', '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'],
   ['Apache-2.0.txt', 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4'],
-  ['BSD-3-Clause.txt', '331ff828cd69efbb82098684450a752a05f05cd4b8f181f4829ba14795d1b5ca'],
   ['CC-BY-NC-SA-4.0.txt', '1349a4b6148492b44f629e64eed676612e234fe9a839e4f3b277c1482c8849f1'],
 ])
 for (const [filename, expectedDigest] of expectedLicenseFiles) {
@@ -400,12 +400,11 @@ for (const entry of entries) {
 extensionNames.sort()
 assert(extensionNames.length === expectedExtensions.size, 'extension catalog and license policy differ')
 assert(thirdPartyNotices.includes('Copyright (c) 2026 WLOC ProxyPin Contributors'), 'Apple upstream MIT notice is missing')
-assert(thirdPartyNotices.includes('Copyright (c) 2026 Arjun Barrett'), 'fflate upstream MIT notice is missing')
-assert(thirdPartyNotices.includes('Copyright (c) 2016 Daniel Wirtz'), 'protobufjs BSD notice is missing')
-assert(thirdPartyNotices.includes('Copyright 2008 Google Inc.'), 'Google BSD notice is missing')
-assert(thirdPartyNotices.includes('goog-varint.js'), 'retained Google BSD bundle scope is undocumented')
-assert(thirdPartyNotices.includes('tree-shakes'), 'Bilibili BSD tree-shaking scope is not documented')
-assert(licenseSummary.includes('LICENSES/BSD-3-Clause.txt'), 'root LICENSE does not describe the BSD component boundary')
+// No extension vendors upstream source any more, so the notices record what is
+// loaded and pinned rather than what is redistributed. What still has to be
+// stated is where a grant is absent: Yu9191/wloc publishes no license at all.
+assert(thirdPartyNotices.includes('publishes no `LICENSE` file'), 'notices do not record the upstream without a license')
+assert(!existsSync(path.join(root, 'LICENSES', 'BSD-3-Clause.txt')), 'an unused license text would fail the REUSE gate')
 assert(rootReadme.includes('MIGRATION.md'), 'root README does not reference the migration playbook')
 assert(rootReadmeZh.includes('MIGRATION.md'), 'Chinese root README does not reference the migration playbook')
 assert(migrationPlaybook.includes('| Candidate selection | `manual-only` |'), 'migration playbook does not require manual-only selection')
