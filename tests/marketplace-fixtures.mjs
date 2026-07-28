@@ -14,71 +14,23 @@ const execFileAsync = promisify(execFile)
 const repositoryRoot = path.resolve(import.meta.dirname, '..')
 
 {
-  const schema = JSON.parse(await readFile(path.resolve(import.meta.dirname, '..', 'marketplace', 'schema-v1.json'), 'utf8'))
+  const schema = JSON.parse(await readFile(path.resolve(import.meta.dirname, '..', 'marketplace', 'schema.json'), 'utf8'))
   const ajv = new Ajv2020({ allErrors: true, strict: true })
   addFormats(ajv)
   const validate = ajv.compile(schema)
-  const stableBody = await generateMarketplace({ revision, profile: 'v1' })
-  const betaBody = await generateMarketplace({ revision, profile: 'v1beta' })
-  const stable = JSON.parse(stableBody)
-  const catalog = JSON.parse(betaBody)
+  const catalog = JSON.parse(await generateMarketplace({ revision }))
 
-  // The stable core parses the index with DisallowUnknownFields, so `policy`
-  // reaching the v1 document costs every gateway that has not learned the field
-  // its whole extension catalogue. Assert its absence directly rather than
-  // trusting the profile plumbing to keep being right.
-  for (const entry of stable.entries) {
-    assert.equal(
-      Object.hasOwn(entry, 'policy'),
-      false,
-      `${entry.id}: the v1 profile published a policy projection the stable core would refuse`,
-    )
-  }
+  // The index is one document describing one contract. It used to be several,
+  // with the frozen one omitting every entry that needed a newer field; the
+  // assertions that policed that split are gone with it. What replaces them is
+  // the direct statement of what the document carries, which is what a reader
+  // depends on either way.
   for (const entry of catalog.entries) {
-    assert.equal(
-      Object.hasOwn(entry, 'policy'),
-      true,
-      `${entry.id}: the v1beta profile dropped the policy projection`,
-    )
-  }
-
-  // The two profiles are one document differing by the fields v1 has not
-  // learned, plus the entries v1 cannot describe at all. Stripping the first
-  // and removing the second has to reproduce v1 exactly — otherwise the split
-  // has quietly become a second way of describing the catalogue, and the v1
-  // readers would be the last to find out.
-  const stableIDs = new Set(stable.entries.map((entry) => entry.id))
-  const strippedBeta = structuredClone(catalog)
-  strippedBeta.entries = strippedBeta.entries.filter((entry) => stableIDs.has(entry.id))
-  for (const entry of strippedBeta.entries) {
-    delete entry.policy
-    delete entry.capabilities.networkAny
-  }
-  assert.deepEqual(
-    strippedBeta,
-    stable,
-    'the profiles differ by more than the beta-only projections and omitted entries',
-  )
-
-  // Every extension now uses a field the frozen v1 contract does not cover, so
-  // v1 is empty. That is the honest answer for a v1-era core rather than a
-  // failure: it can run none of them. The assertion is that the omission set is
-  // exactly the catalogue, so an entry disappearing for any other reason still
-  // shows up as a difference.
-  const omitted = catalog.entries.filter((entry) => !stableIDs.has(entry.id)).map((entry) => entry.id)
-  assert.deepEqual(
-    omitted,
-    catalog.entries.map((entry) => entry.id),
-    'unexpected entries are missing from the v1 profile',
-  )
-
-  // v1 is frozen at what the stable core accepts, and it parses the index with
-  // DisallowUnknownFields: an unknown field costs that core its whole catalogue.
-  for (const entry of stable.entries) {
+    assert.equal(Object.hasOwn(entry, 'policy'), true, `${entry.id}: missing the typed policy projection`)
     assert.equal(
       Object.hasOwn(entry.capabilities, 'networkAny'),
-      false,
-      `${entry.id}: the v1 profile published a capability field the stable core would refuse`,
+      true,
+      `${entry.id}: missing the networkAny capability`,
     )
   }
 
@@ -140,7 +92,6 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   // the gateway to fetch or pin.
   assert.deepEqual(zhihu.resources.map(resource => resource.path), [])
   assert.equal(validate(catalog), true, ajv.errorsText(validate.errors))
-  assert.equal(validate(stable), true, ajv.errorsText(validate.errors))
   const boundary = structuredClone(catalog)
   boundary.entries[0].capabilities.captureHostCount = 512
   assert.equal(validate(boundary), true, ajv.errorsText(validate.errors))
@@ -156,48 +107,31 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const output = path.join(temporaryRoot, 'missing', 'parents', 'index.json')
   const script = path.join(repositoryRoot, 'scripts', 'generate-marketplace.mjs')
   try {
-    await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--output', output], { cwd: repositoryRoot })
+    await execFileAsync(process.execPath, [script, '--revision', revision, '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 0, "the v1 profile omits entries needing a newer contract")
-    await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--check', output], { cwd: repositoryRoot })
+    assert.equal(JSON.parse(generated).entries.length, 8, 'the index must describe every shipped extension')
+    await execFileAsync(process.execPath, [script, '--revision', revision, '--check', output], { cwd: repositoryRoot })
 
-    // --check is profile-aware: the same path checked against the other profile
-    // has to fail, or a mislabelled publish step would verify itself green.
+    // --profile is gone with the split it selected. An unknown option is
+    // refused rather than ignored, so a publish step still carrying the old
+    // flag fails loudly instead of silently generating something else.
     try {
-      await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1beta', '--check', output], { cwd: repositoryRoot })
-      assert.fail('--check accepted a v1 document as v1beta output')
+      await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--output', output], { cwd: repositoryRoot })
+      assert.fail('the CLI accepted the removed --profile option')
     } catch (error) {
-      assert.match(error.stderr, /not the deterministic v1beta marketplace output/)
+      assert.match(error.stderr, /unknown option --profile/)
     }
 
-    // The profile is required rather than defaulted, because the default would
-    // decide what gets served to every deployed gateway.
-    try {
-      await execFileAsync(process.execPath, [script, '--revision', revision, '--output', output], { cwd: repositoryRoot })
-      assert.fail('the CLI generated an index without being told which profile')
-    } catch (error) {
-      assert.match(error.stderr, /--profile is required/)
-    }
-    try {
-      await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v2', '--output', output], { cwd: repositoryRoot })
-      assert.fail('the CLI accepted an unknown profile')
-    } catch (error) {
-      assert.match(error.stderr, /profile must be one of v1, v1beta/)
-    }
-
-    // The tamper check runs against v1beta: v1 is empty now, so it carries no
-    // digest to modify, and a test that mutates nothing would pass for the
-    // wrong reason.
     const betaOutput = path.join(temporaryRoot, 'beta.json')
-    await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1beta', '--output', betaOutput], { cwd: repositoryRoot })
+    await execFileAsync(process.execPath, [script, '--revision', revision, '--output', betaOutput], { cwd: repositoryRoot })
     const beta = await readFile(betaOutput, 'utf8')
-    assert.match(beta, /"sha256": "[0-9a-f]{64}"/, 'the v1beta index must carry digests for this to test anything')
+    assert.match(beta, /"sha256": "[0-9a-f]{64}"/, 'the index must carry digests for this to test anything')
     await writeFile(betaOutput, beta.replace(/"sha256": "[0-9a-f]{64}"/, `"sha256": "${'0'.repeat(64)}"`))
     try {
-      await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1beta', '--check', betaOutput], { cwd: repositoryRoot })
+      await execFileAsync(process.execPath, [script, '--revision', revision, '--check', betaOutput], { cwd: repositoryRoot })
       assert.fail('--check accepted a modified marketplace digest')
     } catch (error) {
-      assert.match(error.stderr, /not the deterministic v1beta marketplace output/)
+      assert.match(error.stderr, /not the deterministic marketplace output/)
     }
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true })
@@ -301,12 +235,6 @@ async function expectFailure(options, pattern) {
     const first = await generateMarketplace({ root, revision })
     const second = await generateMarketplace({ root, revision })
     assert.equal(first, second)
-    // Determinism is the property `--check` rests on, and it has to hold for
-    // the profile that publishes the digest as much as for the one that does not.
-    assert.equal(
-      await generateMarketplace({ root, revision, profile: 'v1beta' }),
-      await generateMarketplace({ root, revision, profile: 'v1beta' }),
-    )
     const catalog = JSON.parse(first)
     assert.equal(catalog.apiVersion, '5gpn.io/marketplace/v1')
     assert.equal(catalog.kind, 'ExtensionMarketplace')
@@ -322,6 +250,7 @@ async function expectFailure(options, pattern) {
       actionCount: 1,
       settingCount: 1,
       networkOrigins: ['https://api.example.com'],
+      networkAny: false,
       persistentStorage: false,
       upstreamMappingCount: 1,
       routingRuleCount: 0,

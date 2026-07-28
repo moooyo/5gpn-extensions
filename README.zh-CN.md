@@ -41,7 +41,7 @@
 第一方 marketplace 以严格 JSON 发布于：
 
 ```text
-https://moooyo.github.io/5gpn-extensions/marketplace/v1/index.json
+https://moooyo.github.io/5gpn-extensions/marketplace/v2/index.json
 ```
 
 5gpn 不会预置此市场或任何其他市场。请先审查本仓库；只有在你选择信任它时，才将上方 URL 复制到 **插件市场 → 添加市场**。运营者也可以选择添加其他兼容来源。
@@ -51,7 +51,7 @@ https://moooyo.github.io/5gpn-extensions/marketplace/v1/index.json
 Marketplace 是发现元数据，不是可执行信任边界。每个条目指向常规的 `main` manifest 与本地脚本 URL，使现有显式更新检查仍能重新抓取已安装源。同时，列表记录其 40 位构建提交对应内容的精确 SHA-256 和字节数。网关必须核对下载到的 manifest 与脚本字节及其声明摘要，然后执行完整、严格的 `5gpn.io/v1` 解析；不能将列表中的描述或能力摘要当作运行时权威。脚本仍由常规不可变快照流程抓取、校验和保存。摘要不匹配时必须拒绝。
 
 GitHub Pages 在上述稳定 URL 提供当前列表。公开 JSON Schema 位于
-<https://moooyo.github.io/5gpn-extensions/marketplace/v1/schema.json>。
+<https://moooyo.github.io/5gpn-extensions/marketplace/v2/schema.json>。
 当仓库存在具备 Pages 写权限的 `PAGES_ENABLEMENT_TOKEN` secret 时，固定版本的 Pages action 会尝试首次启用站点。如果组织策略禁止该 token 或自动启用，唯一的手工前置是在 **Settings → Pages** 中进行一次设置，将 Source 选择为 **GitHub Actions**；无需手工维护发布分支或生成站点。
 
 ## 开发扩展
@@ -265,6 +265,6 @@ if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTE
 
 Marketplace 生成器只读取 `marketplace/metadata.json` 中经审查的市场元数据；名称、版本、描述、资源、摘要、大小和能力摘要均从严格扩展 manifest 与本地文件派生。对于同一个 revision，输出是确定的。生成器会创建不存在的 `--output` 父目录，`--check` 则要求逐字节完全一致。fixture 测试会编译公开的 Draft 2020-12 schema，并使用它校验真实生成的目录。Pages 工作流会重新运行所有校验和上游检查，从已检出的 `GITHUB_SHA` 生成列表、复核生成字节，并且只部署静态 marketplace 与 schema。
 
-索引由同一次构建产出两个 profile。`v1` 冻结在稳定版核心能接受的形态：它用 `DisallowUnknownFields` 解析索引，因此往里加字段并非向后兼容的增量——不认识该字段的核心会拒绝整个文档，连带丢掉整个扩展目录。`v1beta` 则携带类型化 policy 投影，供已经学会读它的核心使用。`--profile` 是必填而非有默认值的，因为默认值等于替所有已部署网关默默决定了它们会收到哪些字节。
+该构建产出一份文档、描述一套 wire contract，发布在 `marketplace/v2/`。它曾经是多份：核心用 `DisallowUnknownFields` 解析索引，因此往里加字段并非向后兼容的增量——不认识该字段的核心会拒绝整个文档、连带丢掉整个扩展目录——冻结的那份 profile 就是为了继续向旧核心提供旧形态。那些核心已经不存在，所有扩展都需要当前契约，而冻结的 profile 已经退化成一个空目录：它的失败方式是什么都不产出，而不是明说。契约版本写在发布路径里，因为那是读取方能据以行动的地方；下次契约变更时，那是一条新路径和一个明确决定，而不是一个构建开关。
 
-验证工作流把每个 profile 交给真正消费它的那个核心：`v1` 交给 5gpn `main`，`v1beta` 交给 5gpn `beta`。只对 `beta` 验证会恰好看不见这道门存在的意义——只有 `beta` 认识的字段在那里能通过，却会弄坏每一个稳定版网关。
+验证工作流把这份索引同时交给 `main` 和 `beta` 两个核心通道。只验证字段先落地的那个通道，恰恰会让它通过、然后弄坏另一个通道上的每一个网关。

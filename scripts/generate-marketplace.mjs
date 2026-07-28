@@ -14,48 +14,19 @@ const tagPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const spdxPattern = /^[A-Za-z0-9][A-Za-z0-9.+-]*$/
 const maxCaptureHosts = 512
 
-// The published index exists in two profiles, served from two paths.
+// The published index is one document describing one wire contract.
 //
-// The index is a wire contract with every deployed gateway and the core parses
-// it with DisallowUnknownFields, so a field added to it is not additive: a core
-// that does not know the field refuses the whole document and loses its
-// extension catalogue. `v1` is therefore frozen at what the stable core
-// accepts, and `v1beta` carries the typed policy projection for cores that have
-// learned to read it. One build emits both; neither is a branch.
-const PROFILES = {
-  v1: { policy: false, networkAny: false, newerContract: false },
-  v1beta: { policy: true, networkAny: true, newerContract: true },
-}
-
-// Manifest fields the frozen `v1` contract does not cover. A core that predates
-// them refuses the whole manifest — its YAML decode rejects unknown fields — so
-// an extension using one cannot be installed from a `v1` catalogue no matter
-// what the entry says about it. Listing it there anyway produces a browsable
-// entry whose only possible outcome is a confusing failure, so `v1` omits it.
-function newerContractReasons(manifest) {
-  const reasons = []
-  if (manifest.permissions?.network?.any === true) reasons.push('permissions.network.any')
-  const entries = [...new Set((manifest.actions ?? [])
-    .map((action) => action.script?.entry)
-    .filter((entry) => typeof entry === 'string' && entry !== '' && entry !== 'native'))]
-  for (const entry of entries.sort()) reasons.push(`script.entry=${entry}`)
-  // A v1-era core parses the index with DisallowUnknownFields and the manifest
-  // with KnownFields, so an action carrying a jq expression costs that core the
-  // whole catalogue rather than just this entry.
-  for (const field of ['jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody']) {
-    if ((manifest.actions ?? []).some((action) => action.script?.[field] !== undefined)) reasons.push(`script.${field}`)
-  }
-  return reasons
-}
-
-function assertProfile(profile) {
-  assert(
-    Object.hasOwn(PROFILES, profile),
-    `profile must be one of ${Object.keys(PROFILES).join(', ')}`,
-  )
-  return PROFILES[profile]
-}
-
+// It used to be several. The core parses the index with DisallowUnknownFields,
+// so a field added to it is not additive -- a core that does not know the field
+// refuses the whole document and loses its extension catalogue -- and the split
+// existed to keep serving a frozen shape to cores that predated the typed
+// policy projection. Those cores are gone, every extension needs the current
+// contract, and the frozen profile had become an empty catalogue that failed by
+// producing nothing rather than by saying so.
+//
+// The contract version lives in the published path (marketplace/v2/), which is
+// where a reader can act on it. When it next changes, that is a new path and a
+// new decision, not a build flag.
 function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0
 }
@@ -396,8 +367,7 @@ function policyProjection(manifest, directory) {
   }
 }
 
-export async function generateMarketplace({ root = repositoryRoot, revision, profile = 'v1' }) {
-  const { policy: publishesPolicy, networkAny: publishesNetworkAny, newerContract: publishesNewerContract } = assertProfile(profile)
+export async function generateMarketplace({ root = repositoryRoot, revision }) {
   assert(revisionPattern.test(revision), 'revision must be a lowercase 40-character Git commit')
   const metadataBody = await readFile(path.join(root, 'marketplace', 'metadata.json'), 'utf8')
   const metadata = JSON.parse(metadataBody)
@@ -416,23 +386,15 @@ export async function generateMarketplace({ root = repositoryRoot, revision, pro
     const manifest = parseStrictManifest(manifestBody, directory)
     assert(!ids.has(manifest.metadata.id), `${directory}: duplicate extension id ${manifest.metadata.id}`)
     ids.add(manifest.metadata.id)
-    const newerContract = newerContractReasons(manifest)
-    if (newerContract.length > 0 && !publishesNewerContract) {
-      // Announced rather than dropped silently: a catalogue that quietly loses
-      // an extension is indistinguishable from one that forgot it.
-      console.error(`${profile}: omitting ${directory} — needs ${newerContract.join(', ')}`)
-      continue
-    }
     const licensePath = path.join(root, 'LICENSES', `${definition.licenseSpdx}.txt`)
     const licenseInfo = await stat(licensePath)
     assert(licenseInfo.isFile(), `${directory}: license text ${definition.licenseSpdx}.txt is missing`)
     const documentationInfo = await stat(path.join(root, directory, 'README.md'))
     assert(documentationInfo.isFile(), `${directory}: README.md is missing`)
     const resources = await buildResources(root, directory, manifest.actions ?? [])
-    // Compiled for every profile, published by only one. The compile is the
-    // review-time gate that refuses a rule the typed overlay cannot carry, and
-    // a gate that only runs for the profile that publishes its result would let
-    // an unrepresentable rule through a `v1` build unremarked.
+    // The compile is the review-time gate that refuses a rule the typed overlay
+    // cannot carry, so it runs for every extension whether or not the result is
+    // interesting to read.
     const policy = policyProjection(manifest, directory)
     entries.push({
       id: manifest.metadata.id,
@@ -458,27 +420,21 @@ export async function generateMarketplace({ root = repositoryRoot, revision, pro
         networkOrigins: [...(manifest.permissions.network?.origins ?? [])].sort(),
         // A capability grant is broader than any list, so the catalog says so
         // rather than showing an empty origin array that reads as "no network".
-        // It rides the v1beta profile only: v1 is frozen at what the stable core
-        // accepts, and an unknown field costs that core its whole catalogue.
-        ...(publishesNetworkAny ? { networkAny: manifest.permissions.network?.any === true } : {}),
+        networkAny: manifest.permissions.network?.any === true,
         persistentStorage: manifest.permissions.persistentStorage,
         upstreamMappingCount: (manifest.traffic.upstreamMappings ?? []).length,
         routingRuleCount: (manifest.traffic.routingRules ?? []).length,
         egressGroupRequired: manifest.requirements?.egressGroup?.required ?? false,
       },
-      // Last, and only for the profile that publishes it: appending keeps the
-      // `v1` document byte-identical to what it was before this profile split.
-      ...(publishesPolicy ? { policy } : {}),
+      policy,
     })
   }
   entries.sort((left, right) => compareText(left.id, right.id))
-  // An empty profile is a real answer, not a failure: it means nothing this
-  // repository ships can run on the core that profile targets. Publishing it
-  // empty is more truthful than a 404, which reads as an outage, or than
-  // listing entries that would fail to install. It is announced so it cannot
-  // be mistaken for a build that silently dropped everything.
+  // An empty catalogue is announced rather than published quietly. Nothing
+  // omits an extension any more, so reaching zero means the repository shipped
+  // none -- a build mistake, not a contract decision.
   if (entries.length === 0) {
-    console.error(`${profile}: publishing an empty catalogue — every extension needs a newer contract`)
+    console.error('publishing an empty catalogue — this repository declared no installable extension')
   }
 
   return `${JSON.stringify({
@@ -501,26 +457,18 @@ function parseArguments(argv) {
     const option = argv[index]
     const value = argv[index + 1]
     assert(value !== undefined, `${option} requires a value`)
-    assert(['--revision', '--output', '--check', '--profile'].includes(option), `unknown option ${option}`)
+    assert(['--revision', '--output', '--check'].includes(option), `unknown option ${option}`)
     assert(options[option] === undefined, `duplicate option ${option}`)
     options[option] = value
   }
   assert(options['--revision'], '--revision is required')
-  // Required rather than defaulted. A default here is a silent choice about
-  // which bytes get published to a path every deployed gateway reads, and the
-  // two profiles are not interchangeable in either direction.
-  assert(options['--profile'], '--profile is required')
-  assertProfile(options['--profile'])
   assert(Boolean(options['--output']) !== Boolean(options['--check']), 'exactly one of --output or --check is required')
   return options
 }
 
 export async function runCLI(argv) {
   const options = parseArguments(argv)
-  const generated = await generateMarketplace({
-    revision: options['--revision'],
-    profile: options['--profile'],
-  })
+  const generated = await generateMarketplace({ revision: options['--revision'] })
   if (options['--output']) {
     const output = path.resolve(options['--output'])
     await mkdir(path.dirname(output), { recursive: true })
@@ -528,7 +476,7 @@ export async function runCLI(argv) {
     return
   }
   const existing = await readFile(path.resolve(options['--check']), 'utf8')
-  assert(existing === generated, `${options['--check']} is not the deterministic ${options['--profile']} marketplace output for ${options['--revision']}`)
+  assert(existing === generated, `${options['--check']} is not the deterministic marketplace output for ${options['--revision']}`)
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {
