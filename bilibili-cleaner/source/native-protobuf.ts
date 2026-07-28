@@ -34,6 +34,13 @@ import { SearchAllResponse } from './generated/bilibili/polymer/app/search/v1/se
 
 type HeaderValues = Record<string, string | string[]>
 
+interface NetworkOptions {
+  url: string
+  method?: string
+  headers?: Record<string, string>
+  body?: string | Uint8Array
+}
+
 interface NetworkResult {
   url: string
   status: number
@@ -65,12 +72,11 @@ interface TransformContext {
     logLevel?: 'off' | 'error' | 'warn' | 'info' | 'debug'
   }
   network?: {
-    request(options: {
-      url: string
-      method?: string
-      headers?: Record<string, string>
-      body?: string | Uint8Array
-    }): NetworkResult
+    request(options: NetworkOptions): NetworkResult
+    // Present only on runtimes that expose the asynchronous entry point. Older
+    // gateways ship `request` alone, so every caller feature-detects this and
+    // keeps a synchronous path rather than failing on them.
+    requestAsync?(options: NetworkOptions): Promise<NetworkResult>
   }
 }
 
@@ -585,24 +591,53 @@ function replaceRequestHostname(url: string, hostname: string): string {
   return replaced
 }
 
-function replayBilibili(context: TransformContext, maxAttempts = 2): NetworkResult | null {
-  if (!context.network || !context.request.body) return null
+function replayOptions(context: TransformContext, hostname: string): NetworkOptions {
+  return {
+    url: replaceRequestHostname(context.request.url, hostname),
+    method: context.request.method || 'POST',
+    headers: sanitizeRequestHeaders(context.request.headers),
+    body: context.request.body,
+  }
+}
+
+function usableReplay(context: TransformContext, url: string, response: NetworkResult): NetworkResult | null {
+  if (response.status === 200 && response.body instanceof Uint8Array) return response
+  logDebug(context, 'Bilibili replay returned an invalid response', url, response.status)
+  return null
+}
+
+function replayHosts(context: TransformContext, maxAttempts: number): string[] {
+  if (!context.network || !context.request.body) return []
   const start = BILIBILI_REPLAY_HOSTS.indexOf(requestHostname(context.request.url))
-  if (start < 0) return null
-  const end = Math.min(start + maxAttempts, BILIBILI_REPLAY_HOSTS.length)
-  for (let index = start; index < end; index += 1) {
-    const url = replaceRequestHostname(context.request.url, BILIBILI_REPLAY_HOSTS[index])
+  if (start < 0) return []
+  return BILIBILI_REPLAY_HOSTS.slice(start, Math.min(start + maxAttempts, BILIBILI_REPLAY_HOSTS.length))
+}
+
+// Walks the host list in order and stops at the first usable reply. The list is
+// a fallback chain, not a set of interchangeable mirrors, so these stay
+// sequential: issuing them together would send every later host a request the
+// first one already made unnecessary.
+function replayBilibili(context: TransformContext, maxAttempts = 2): NetworkResult | null {
+  for (const hostname of replayHosts(context, maxAttempts)) {
+    const options = replayOptions(context, hostname)
     try {
-      const response = context.network.request({
-        url,
-        method: context.request.method || 'POST',
-        headers: sanitizeRequestHeaders(context.request.headers),
-        body: context.request.body,
-      })
-      if (response.status === 200 && response.body instanceof Uint8Array) return response
-      logDebug(context, 'Bilibili replay returned an invalid response', url, response.status)
+      const usable = usableReplay(context, options.url, context.network!.request(options))
+      if (usable) return usable
     } catch (error) {
-      logDebug(context, 'Bilibili replay failed', url, String(error))
+      logDebug(context, 'Bilibili replay failed', options.url, String(error))
+    }
+  }
+  return null
+}
+
+async function replayBilibiliAsync(context: TransformContext): Promise<NetworkResult | null> {
+  for (const hostname of replayHosts(context, 1)) {
+    const options = replayOptions(context, hostname)
+    try {
+      const usable = usableReplay(context, options.url, await context.network!.requestAsync!(options))
+      if (usable) return usable
+    } catch (error) {
+      logDebug(context, 'Bilibili replay failed', options.url, String(error))
     }
   }
   return null
@@ -623,37 +658,60 @@ function syntheticResponse(
   return response
 }
 
+function skipSegmentOptions(videoId: string, cid: string): NetworkOptions {
+  return {
+    url: `https://bsbsb.top/api/skipSegments?videoID=${encodeURIComponent(videoId)}&cid=${encodeURIComponent(cid)}&category=sponsor`,
+    method: 'GET',
+    headers: {
+      origin: 'https://github.com/kokoryh/Sparkle/blob/master/release/surge/module/bilibili.sgmodule',
+      'x-ext-version': '1.0.0',
+    },
+  }
+}
+
+function parseSkipSegments(context: TransformContext, result: NetworkResult): number[][] {
+  logDebug(context, 'Bilibili SponsorBlock response', result.status, result.text || '')
+  if (result.status !== 200 || typeof result.text !== 'string') return []
+  const items = JSON.parse(result.text)
+  if (!Array.isArray(items)) return []
+  return items.reduce((segments: number[][], item: unknown) => {
+    if (!item || typeof item !== 'object') return segments
+    const value = item as { actionType?: unknown; segment?: unknown }
+    if (
+      value.actionType === 'skip' &&
+      Array.isArray(value.segment) &&
+      value.segment.length === 2 &&
+      value.segment.every(number => typeof number === 'number' && Number.isFinite(number)) &&
+      value.segment[1] - value.segment[0] >= 8
+    ) {
+      segments.push([value.segment[0], value.segment[1]])
+    }
+    return segments
+  }, [])
+}
+
+function skipSegmentsFailed(context: TransformContext, error: unknown): number[][] {
+  if (shouldLog(context, 'error')) console.error(`Bilibili SponsorBlock request failed: ${String(error)}`)
+  return []
+}
+
 function getSkipSegments(context: TransformContext, videoId: string, cid: string): number[][] {
   try {
-    const result = context.network!.request({
-      url: `https://bsbsb.top/api/skipSegments?videoID=${encodeURIComponent(videoId)}&cid=${encodeURIComponent(cid)}&category=sponsor`,
-      method: 'GET',
-      headers: {
-        origin: 'https://github.com/kokoryh/Sparkle/blob/master/release/surge/module/bilibili.sgmodule',
-        'x-ext-version': '1.0.0',
-      },
-    })
-    logDebug(context, 'Bilibili SponsorBlock response', result.status, result.text || '')
-    if (result.status !== 200 || typeof result.text !== 'string') return []
-    const items = JSON.parse(result.text)
-    if (!Array.isArray(items)) return []
-    return items.reduce((segments: number[][], item: unknown) => {
-      if (!item || typeof item !== 'object') return segments
-      const value = item as { actionType?: unknown; segment?: unknown }
-      if (
-        value.actionType === 'skip' &&
-        Array.isArray(value.segment) &&
-        value.segment.length === 2 &&
-        value.segment.every(number => typeof number === 'number' && Number.isFinite(number)) &&
-        value.segment[1] - value.segment[0] >= 8
-      ) {
-        segments.push([value.segment[0], value.segment[1]])
-      }
-      return segments
-    }, [])
+    return parseSkipSegments(context, context.network!.request(skipSegmentOptions(videoId, cid)))
   } catch (error) {
-    if (shouldLog(context, 'error')) console.error(`Bilibili SponsorBlock request failed: ${String(error)}`)
-    return []
+    return skipSegmentsFailed(context, error)
+  }
+}
+
+async function getSkipSegmentsAsync(
+  context: TransformContext,
+  videoId: string,
+  cid: string,
+): Promise<number[][]> {
+  try {
+    return parseSkipSegments(context, await context.network!.requestAsync!(skipSegmentOptions(videoId, cid)))
+  } catch (error) {
+    return skipSegmentsFailed(context, error)
   }
 }
 
@@ -684,15 +742,11 @@ function airborneDanmaku(segments: number[][]): DanmakuElem[] {
   })
 }
 
-function transformAirborne(context: TransformContext): object | null {
-  if (context.settings.sponsorBlock === false || !context.network || !context.request.body) return null
-  const request = decodeFrame(DmSegMobileReq, context.request.body)
-  if (request.type !== 1) return null
-  const replay = replayBilibili(context, 1)
-  if (!replay) return null
-  const videoId = avToBv(request.pid)
-  const cid = request.oid !== '0' ? request.oid : ''
-  const segments = getSkipSegments(context, videoId, cid)
+function airborneResponse(
+  context: TransformContext,
+  replay: NetworkResult,
+  segments: number[][],
+): object {
   let body = replay.body
   if (segments.length) {
     const response = decodeFrame(DmSegMobileReply, replay.body)
@@ -700,6 +754,42 @@ function transformAirborne(context: TransformContext): object | null {
     body = encodeFrame(DmSegMobileReply, response)
   }
   return { response: syntheticResponse(context, replay, body) }
+}
+
+// The replay and the SponsorBlock lookup answer different questions of
+// different hosts, and neither reads the other's result, so upstream issues
+// them together. Rejections are absorbed here because a promise escaping this
+// function would bypass `transform`'s error handling.
+async function transformAirborneConcurrent(
+  context: TransformContext,
+  videoId: string,
+  cid: string,
+): Promise<object | null> {
+  try {
+    const [replay, segments] = await Promise.all([
+      replayBilibiliAsync(context),
+      getSkipSegmentsAsync(context, videoId, cid),
+    ])
+    if (!replay) return null
+    return airborneResponse(context, replay, segments)
+  } catch (error) {
+    logError(context, error)
+    return null
+  }
+}
+
+function transformAirborne(context: TransformContext): object | Promise<object | null> | null {
+  if (context.settings.sponsorBlock === false || !context.network || !context.request.body) return null
+  const request = decodeFrame(DmSegMobileReq, context.request.body)
+  if (request.type !== 1) return null
+  const videoId = avToBv(request.pid)
+  const cid = request.oid !== '0' ? request.oid : ''
+  if (typeof context.network.requestAsync === 'function') {
+    return transformAirborneConcurrent(context, videoId, cid)
+  }
+  const replay = replayBilibili(context, 1)
+  if (!replay) return null
+  return airborneResponse(context, replay, getSkipSegments(context, videoId, cid))
 }
 
 function transformOptimizedRequest(context: TransformContext, path: string): object | null {
@@ -717,7 +807,7 @@ function transformOptimizedRequest(context: TransformContext, path: string): obj
   return { response: syntheticResponse(context, replay, body) }
 }
 
-function transform(context: TransformContext): object | null {
+function transform(context: TransformContext): object | Promise<object | null> | null {
   try {
     const path = requestPath(context.request.url)
     if (context.phase === 'request') {

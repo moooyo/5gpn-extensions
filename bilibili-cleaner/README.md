@@ -204,7 +204,7 @@ npm run verify:sources
 ```
 
 The expected minified bundle is 108,550 bytes with SHA-256
-`895f6a11f23ddafea3797a9458d6450950571fe6ee3971ccf33b3c0f3ff9216a`.
+`dd92209bcd63c261ba3f6dd65bfc547f07bfd4ab83937143dba1f63c7286c46c`.
 The fixed esbuild 0.25.6 build enables deterministic minification while
 retaining the SPDX banner and `legalComments: 'eof'`. A fixed footer wraps the
 minified implementation in the sole stable `function transform(context)`
@@ -305,9 +305,16 @@ process, timer, or module-loader access. It declares no persistent storage.
 - Loon exposes a device-model environment value. Native scripts do not. The
   frequent-uploader iPad exception uses the `bili-hd` user-agent prefix.
 - Loon performs its two SponsorBlock requests concurrently with a three-second
-  timeout. Native network calls are synchronous and use the runtime's fixed
-  five-second, one-MiB, call-count, and concurrency limits. Failure preserves
-  the original request.
+  timeout. The port issues them concurrently as well, through the runtime's
+  asynchronous `network.requestAsync`. Older gateways expose only the
+  synchronous `network.request`; the port detects this and falls back to
+  issuing the pair in sequence, which costs both latencies but returns the same
+  response. The per-request timeout stays the runtime's fixed five seconds
+  rather than upstream's three, alongside its one-MiB, call-count, and
+  concurrency limits. Failure preserves the original request.
+- The `grpc.biliapi.net` to `app.bilibili.com` replay fallback stays sequential
+  on both paths. It is a fallback chain rather than a set of mirrors, so the
+  second host is only asked once the first has failed.
 - Sponsor segment data from `bsbsb.top` is mutable. Network, status, parse, or
   schema failure preserves normal Bilibili behavior.
 - Client Chronos URLs are revision-pinned, but their GPL archives are not
@@ -348,7 +355,7 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=2.0.0`; `persistentStorage=false`; `settings=5`; `captureHosts=6`; `actions=11`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
+| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=5`; `captureHosts=6`; `actions=11`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, eleven actions, three network origins, five settings, and a required egress binding. |
@@ -437,4 +444,6 @@ permission, and no proxy-client compatibility global. Exercise all JSON/JQ
 branches, five mocks, HTML injection, all 14 response handlers, three request
 handlers, gzip framing, unknown-field preservation, gRPC status behavior,
 SponsorBlock success/failure, request fallback, disabled settings, and
-malformed bodies.
+malformed bodies. Cover both network entry points: that `requestAsync` starts
+the replay and the SponsorBlock lookup before either resolves, and that a
+runtime offering only `request` still produces the same response sequentially.
