@@ -4,11 +4,11 @@ kind: Extension
 metadata:
   id: io.5gpn.apple-wloc
   name: Apple WLOC Location Override
-  version: 1.1.1
-  description: Rewrites Apple Wi-Fi and cellular location responses to an operator-selected point.
+  version: 2.0.0
+  description: Runs the reviewed Yu9191/wloc scripts against Apple Wi-Fi and cellular location responses.
 
 permissions:
-  persistentStorage: false
+  persistentStorage: true
 
 traffic:
   captureHosts:
@@ -16,19 +16,37 @@ traffic:
     - gs-loc-cn.apple.com
 
 settings:
-  - key: location
-    type: location
-    label: Target location
-    description: Every authorized device using this extension receives the same configured location.
+  - key: longitude
+    type: text
+    label: Longitude
+    description: Default longitude in decimal degrees. A point saved from the online picker takes precedence.
     required: true
-    default:
-      accuracy: 25
-  - key: failClosed
-    type: boolean
-    label: Block on transformation failure
-    description: Prevents an unexpected protocol change from returning the original location response.
+    default: "113.94114"
+  - key: latitude
+    type: text
+    label: Latitude
+    description: Default latitude in decimal degrees. A point saved from the online picker takes precedence.
     required: true
-    default: true
+    default: "22.544577"
+  - key: accuracy
+    type: text
+    label: Accuracy
+    description: Reported horizontal accuracy in metres.
+    required: true
+    default: "25"
+  - key: logLevel
+    type: select
+    label: Script log level
+    description: Selects the log level used by the reviewed WLOC scripts.
+    required: true
+    options:
+      - "off"
+      - error
+      - warn
+      - info
+      - debug
+      - all
+    default: info
 
 actions:
   - id: rewrite-wloc-response
@@ -39,11 +57,26 @@ actions:
         - gs-loc-cn.apple.com
       schemes:
         - https
-      pathRegex: '^/clls/wloc(\?.*)?$'
-      statusCodes:
-        - 200
+      pathRegex: '^/clls/wloc(?:\?.*)?$'
     script:
-      source: ./wloc.js
+      source: https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc.js
+      entry: proxy-compat
       bodyMode: binary
-      timeoutMs: 1500
+      timeoutMs: 30000
       maxBodyBytes: 8388608
+
+  - id: save-wloc-settings
+    phase: request
+    match:
+      hosts:
+        - gs-loc.apple.com
+        - gs-loc-cn.apple.com
+      schemes:
+        - https
+      pathRegex: '^/wloc-settings/save(?:\?.*)?$'
+    script:
+      source: https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc-settings.js
+      entry: proxy-compat
+      bodyMode: none
+      timeoutMs: 10000
+      maxBodyBytes: 1024

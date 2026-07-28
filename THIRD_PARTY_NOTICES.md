@@ -138,9 +138,23 @@ processed on the gateway.
 
 ## Apple WLOC response transformer
 
-The bounded JavaScript WLOC protobuf transformation in `apple-wloc/wloc.js`
-is derived from the MIT-licensed `FFF686868/proxypin-wloc-spoofer` project at
-commit `edee9b955f673cc8c4a52eb0a9c687a2e25dde4a`.
+`apple-wloc` does not vendor upstream source. It loads two scripts from
+`Yu9191/wloc` at runtime under the `5gpn.io/v1` proxy-compat contract, pinned at
+commit `eec07a8dc8de6dbaee8eac1fb376e4d03020154a`: `dist/wloc.js`, 40,414 bytes,
+SHA-256 `d385c624efd59bdd2cff56bf819a770b40c4abf0f970818877f1dca4174f256a`, and
+`dist/wloc-settings.js`, 12,892 bytes, SHA-256
+`b4e9d69e69c703b3fab485a559825aaedc9e3a1fd9c06e81cb35d10bbdcd13d2`.
+
+That repository publishes no `LICENSE` file, so no license grant is asserted
+here. This repository distributes none of its bytes; the gateway fetches them
+from the immutable URLs above, which is how their author publishes them for
+proxy clients to load.
+
+Revisions through 1.1.1 shipped a bounded JavaScript port derived from the
+MIT-licensed `FFF686868/proxypin-wloc-spoofer` project at commit
+`edee9b955f673cc8c4a52eb0a9c687a2e25dde4a`. That code has been removed; its
+attribution and license text are retained below for the revisions that carried
+it.
 
 MIT License
 

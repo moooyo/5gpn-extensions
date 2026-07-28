@@ -97,21 +97,5 @@ function lengthField(field, bytes) {
   assert(result.response.body.length > 5)
 }
 
-{
-  const { transform } = await loadTransform('apple-wloc/wloc.js')
-  const location = [...varintField(1, 1), ...varintField(2, 2), ...varintField(3, 99)]
-  const wifi = [...lengthField(1, [...Buffer.from('aa:bb:cc:dd:ee:ff')]), ...lengthField(2, location)]
-  const payload = lengthField(2, wifi)
-  const frame = new Uint8Array(10 + payload.length)
-  frame[8] = payload.length >> 8
-  frame[9] = payload.length & 0xff
-  frame.set(payload, 10)
-  const result = transform({
-    response: { body: frame },
-    settings: { location: { longitude: -0.1276, latitude: 51.5072, accuracy: 25 }, failClosed: true },
-  })
-  assert(result.response.body instanceof Uint8Array)
-  assert.notDeepEqual([...result.response.body], [...frame])
-}
 
 console.log('Runtime fixtures passed')

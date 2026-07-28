@@ -30,7 +30,10 @@ assert(licenseSummary.includes('multi-licensed repository'), 'root LICENSE does 
 assert(packageMetadata.license === 'SEE LICENSE IN LICENSE', 'package.json must point to the multi-license boundary')
 const expectedExtensions = new Map([
   ['ad-platform-blocker', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
-  ['apple-wloc', { license: 'MIT', pin: 'edee9b955f673cc8c4a52eb0a9c687a2e25dde4a', licenseDigest: 'e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa' }],
+  // Yu9191/wloc publishes no LICENSE file. That is recorded rather than
+  // papered over: the README must say so, because "no upstream license digest"
+  // and "we forgot to record one" must not look the same.
+  ['apple-wloc', { license: 'MIT', pin: 'eec07a8dc8de6dbaee8eac1fb376e4d03020154a', licenseDigest: null }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '12e89d6d93d72d39eb283ef81d2b58eb204cdb58', licenseDigest: '8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b' }],
   ['httpdns-interceptor', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
@@ -298,7 +301,11 @@ for (const entry of entries) {
   assert((readme.match(/^## Verification$/gm) ?? []).length === 1, `${entry.name}: README must have exactly one verification procedure`)
   assert(readme.includes(`License: [\`${expected.license}\`]`), `${entry.name}: README has no exact license banner`)
   assert(readme.includes(expected.pin), `${entry.name}: README has no reviewed upstream pin`)
-  assert(readme.includes(expected.licenseDigest), `${entry.name}: README has no governing upstream license digest`)
+  if (expected.licenseDigest === null) {
+    assert(/upstream publishes no license file/i.test(readme), `${entry.name}: README must state that upstream publishes no license`)
+  } else {
+    assert(readme.includes(expected.licenseDigest), `${entry.name}: README has no governing upstream license digest`)
+  }
   const reuseAnnotations = reusePolicy
     .split(/\r?\n\s*\r?\n/)
     .filter((paragraph) => paragraph.includes(`${entry.name}/`))
