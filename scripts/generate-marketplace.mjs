@@ -218,7 +218,7 @@ function parseStrictManifest(body, directory) {
     assert(!actionIDs.has(action.id), `${directory}: duplicate action id ${action.id}`)
     actionIDs.add(action.id)
     assertKeys(action.match, new Set(['hosts', 'schemes', 'methods', 'pathRegex', 'statusCodes']), `${directory}: action ${action.id}.match`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'argumentFormat', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
     assert(action.script.inline === undefined, `${directory}: published actions must use immutable local script sources`)
     assertString(action.script.source, `${directory}: action ${action.id}.script.source`)
   }

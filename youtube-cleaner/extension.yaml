@@ -63,7 +63,6 @@ actions:
     script:
       source: https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.request.js
       entry: proxy-compat
-      argumentFormat: json
       bodyMode: binary
       timeoutMs: 1000
       maxBodyBytes: 4194304
@@ -79,7 +78,6 @@ actions:
     script:
       source: https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.request.js
       entry: proxy-compat
-      argumentFormat: json
       bodyMode: binary
       timeoutMs: 1000
       maxBodyBytes: 4194304
@@ -95,7 +93,6 @@ actions:
     script:
       source: https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.response.js
       entry: proxy-compat
-      argumentFormat: json
       bodyMode: binary
       timeoutMs: 10000
       maxBodyBytes: 16777216

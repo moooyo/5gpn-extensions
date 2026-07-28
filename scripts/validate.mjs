@@ -227,18 +227,18 @@ for (const entry of entries) {
     for (const host of action.match.hosts) assert(captureSet.has(host), `${entry.name}: ${action.id} host ${host} is outside captureHosts`)
     assert(Array.isArray(action.match.schemes) && action.match.schemes.every((scheme) => scheme === 'http' || scheme === 'https'), `${entry.name}: ${action.id} has invalid schemes`)
     assert(typeof action.match.pathRegex === 'string' && action.match.pathRegex.startsWith('^'), `${entry.name}: ${action.id} pathRegex must be anchored`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'argumentFormat', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
     const scriptEntry = action.script.entry ?? 'native'
     assert(scriptEntry === 'native' || scriptEntry === 'proxy-compat', `${entry.name}: ${action.id} has an unknown script entry`)
-    // Which encoding a bundle parses cannot be inferred from it, and guessing
-    // wrong is silent: at least one published bundle catches the JSON parse
-    // failure and runs on its defaults.
-    if (action.script.argumentFormat !== undefined) {
-      assert(scriptEntry === 'proxy-compat', `${entry.name}: ${action.id} sets argumentFormat without proxy-compat`)
-      assert(
-        action.script.argumentFormat === 'query' || action.script.argumentFormat === 'json',
-        `${entry.name}: ${action.id} has an unknown argumentFormat`,
-      )
+    // A jq action carries an upstream expression instead of code, so it runs
+    // declaratively and declares no script at all.
+    if (action.script.jq !== undefined) {
+      assert(typeof action.script.jq === 'string' && action.script.jq.trim() !== '', `${entry.name}: ${action.id} jq must be a non-empty expression`)
+      assert(action.script.jq.length <= 8192, `${entry.name}: ${action.id} jq expression is too long`)
+      assert(action.script.entry === undefined, `${entry.name}: ${action.id} declares both jq and an entry`)
+      assert(action.script.bodyMode === 'text', `${entry.name}: ${action.id} jq requires a text body`)
+      assert(action.script.source === undefined && action.script.inline === undefined, `${entry.name}: ${action.id} declares both jq and a script`)
+      continue
     }
     const hasSource = typeof action.script.source === 'string'
     const hasInline = typeof action.script.inline === 'string'
@@ -380,9 +380,6 @@ for (const entry of entries) {
   if (entry.name === 'youtube-cleaner') {
     assert(actions.length === 3 && manifest.settings?.length === 5 && manifest.permissions.persistentStorage && manifest.permissions.network?.origins?.length === 1 && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')
     assert(actions.every((action) => action.script.entry === 'proxy-compat'), 'youtube-cleaner: every action must run the published bundle')
-    // These bundles call JSON.parse on $argument and swallow the failure, so the
-    // wrong encoding would leave every setting silently at its default.
-    assert(actions.every((action) => action.script.argumentFormat === 'json'), 'youtube-cleaner: every action must declare the JSON argument encoding')
     // Two entries, one per upstream transformer: the request script serves both
     // request actions and the response script serves the response action.
     const bundleSources = new Set(actions.map((action) => action.script.source))

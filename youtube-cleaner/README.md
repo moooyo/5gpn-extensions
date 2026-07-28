@@ -54,17 +54,14 @@ Three actions mirror the three `[Script]` entries in the pinned module:
 | `prepare-youtube-log-event` | `youtube.request.log_event` | binary | 4 MiB / 1 s |
 | `clean-youtube-response` | `youtube.response` | binary | 16 MiB / 10 s |
 
-All three use `entry: proxy-compat`. The runtime presents itself as Surge and
-supplies `$request`, `$response`, `$argument`, `$done`, `$persistentStore`,
+All three use `entry: proxy-compat`. The runtime presents itself as Loon and
+supplies `$argument`, `$request`, `$response`, `$done`, `$persistentStore`,
 `$httpClient`, `$notification`, `$utils`, `$environment`, and `$script`. The
-bundles probe `$loon` and `$task` first and fall through to their Surge branch,
-which is the one whose network, storage, and completion shapes map onto
-capabilities this sidecar already has.
+bundles probe for a client and take their Loon branch.
 
-Settings are serialized into `$argument` as JSON, declared per action as
-`argumentFormat: json`, because that is what these bundles call `JSON.parse` on.
-The published module passes the same JSON shape. Getting this wrong is silent
-rather than loud, which is why it is declared rather than inferred.
+Settings reach the bundle as a decoded object, which is what Loon hands a
+script. Nothing is serialized into a string, so the declared types cross intact
+and there is no per-publisher encoding to get wrong.
 
 Upstream passes only `captionLang` to the initplayback entry and nothing at all
 to `log_event`; this runtime passes the full settings object to every action.
