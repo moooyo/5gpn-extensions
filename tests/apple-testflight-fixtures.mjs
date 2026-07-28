@@ -2,196 +2,17 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import vm from 'node:vm'
 import { parse } from 'yaml'
 
+// Both extensions used to ship a local transform(context): apple-wloc carried a
+// WLOC frame and protobuf wire parser, testflight carried a body rewriter. This
+// file carried a sandbox loader and a protobuf fixture builder to drive them.
+// That code is gone -- apple-wloc loads the upstream bundle and testflight
+// declares a replaceBody -- so the fixtures went with it rather than being kept
+// as a toolkit with no caller. What remains is what this repository still owns:
+// the manifest shape, the pins, and the recorded digests.
+
 const root = path.resolve(import.meta.dirname, '..')
-const encoder = new TextEncoder()
-
-async function loadTransform(relativePath) {
-  const filename = path.join(root, relativePath)
-  const source = await readFile(filename, 'utf8')
-  const messages = []
-  const sandbox = {
-    ArrayBuffer,
-    BigInt,
-    DataView,
-    JSON,
-    Math,
-    Number,
-    Object,
-    RegExp,
-    String,
-    Symbol,
-    Uint8Array,
-    console: {
-      debug: (...args) => messages.push(['debug', ...args]),
-      error: (...args) => messages.push(['error', ...args]),
-      info: (...args) => messages.push(['info', ...args]),
-      log: (...args) => messages.push(['log', ...args]),
-      warn: (...args) => messages.push(['warn', ...args]),
-    },
-  }
-  vm.createContext(sandbox)
-  new vm.Script(source, { filename }).runInContext(sandbox)
-  assert.equal(typeof sandbox.transform, 'function', `${relativePath} has no transform(context)`)
-  assert.equal(sandbox.onRequest, undefined, `${relativePath} exposes a compatibility request hook`)
-  assert.equal(sandbox.onResponse, undefined, `${relativePath} exposes a compatibility response hook`)
-  return {
-    transform: sandbox.transform,
-    messages,
-    resetMessages: () => messages.splice(0, messages.length),
-  }
-}
-
-function concat(parts) {
-  const length = parts.reduce((total, part) => total + part.length, 0)
-  const output = new Uint8Array(length)
-  let offset = 0
-  for (const part of parts) {
-    output.set(part, offset)
-    offset += part.length
-  }
-  return output
-}
-
-function encodeVarint(input) {
-  let value = BigInt.asUintN(64, BigInt(input))
-  const output = []
-  while (value >= 0x80n) {
-    output.push(Number(value & 0x7fn) | 0x80)
-    value >>= 7n
-  }
-  output.push(Number(value))
-  return new Uint8Array(output)
-}
-
-function decodeVarint(bytes, offset = 0) {
-  let value = 0n
-  for (let index = 0; index < 10; index += 1) {
-    assert(offset + index < bytes.length, 'truncated fixture varint')
-    const byte = bytes[offset + index]
-    value |= BigInt(byte & 0x7f) << BigInt(index * 7)
-    if (byte < 0x80) return { value, length: index + 1 }
-  }
-  assert.fail('oversized fixture varint')
-}
-
-function varintField(number, value) {
-  return concat([encodeVarint(BigInt(number) << 3n), encodeVarint(value)])
-}
-
-function lengthField(number, value) {
-  const bytes = new Uint8Array(value)
-  return concat([
-    encodeVarint((BigInt(number) << 3n) | 2n),
-    encodeVarint(bytes.length),
-    bytes,
-  ])
-}
-
-function fixed64Field(number, value) {
-  assert.equal(value.length, 8)
-  return concat([encodeVarint((BigInt(number) << 3n) | 1n), new Uint8Array(value)])
-}
-
-function fixed32Field(number, value) {
-  assert.equal(value.length, 4)
-  return concat([encodeVarint((BigInt(number) << 3n) | 5n), new Uint8Array(value)])
-}
-
-function parseFields(bytes) {
-  const fields = []
-  let offset = 0
-  while (offset < bytes.length) {
-    const start = offset
-    const key = decodeVarint(bytes, offset)
-    offset += key.length
-    const number = Number(key.value >> 3n)
-    const wireType = Number(key.value & 7n)
-    let value
-    let decoded
-    if (wireType === 0) {
-      decoded = decodeVarint(bytes, offset)
-      value = bytes.slice(offset, offset + decoded.length)
-      offset += decoded.length
-    } else if (wireType === 1) {
-      value = bytes.slice(offset, offset + 8)
-      offset += 8
-    } else if (wireType === 2) {
-      const length = decodeVarint(bytes, offset)
-      offset += length.length
-      value = bytes.slice(offset, offset + Number(length.value))
-      offset += Number(length.value)
-    } else if (wireType === 5) {
-      value = bytes.slice(offset, offset + 4)
-      offset += 4
-    } else {
-      assert.fail(`unsupported fixture wire type ${wireType}`)
-    }
-    assert(offset <= bytes.length, 'fixture field exceeds its message')
-    fields.push({
-      number,
-      wireType,
-      value,
-      decoded: decoded?.value,
-      raw: bytes.slice(start, offset),
-    })
-  }
-  return fields
-}
-
-function locationMessage({ latitude = 1, longitude = 2, accuracy = 99, includeAccuracy = true } = {}) {
-  const parts = [
-    varintField(1, latitude),
-    varintField(2, longitude),
-  ]
-  if (includeAccuracy) parts.push(varintField(3, accuracy))
-  parts.push(lengthField(4, new Uint8Array([0xaa, 0xbb])))
-  return concat(parts)
-}
-
-function wifiMessage(mac, locations) {
-  return concat([
-    lengthField(1, encoder.encode(mac)),
-    ...locations.map((location) => lengthField(2, location)),
-  ])
-}
-
-function cellMessage(locations) {
-  return concat(locations.map((location) => lengthField(5, location)))
-}
-
-function framed(payload, suffix = new Uint8Array()) {
-  assert(payload.length <= 65535)
-  return concat([
-    new Uint8Array([0x57, 0x4c, 0x4f, 0x43, 1, 2, 3, 4]),
-    new Uint8Array([payload.length >> 8, payload.length & 0xff]),
-    payload,
-    suffix,
-  ])
-}
-
-function framedPayload(body) {
-  const length = body[8] * 256 + body[9]
-  return body.slice(10, 10 + length)
-}
-
-function field(fields, number, wireType) {
-  const found = fields.find((candidate) => candidate.number === number && candidate.wireType === wireType)
-  assert(found, `missing field ${number}/${wireType}`)
-  return found
-}
-
-function locationValues(bytes) {
-  const fields = parseFields(bytes)
-  return {
-    latitude: BigInt.asIntN(64, field(fields, 1, 0).decoded),
-    longitude: BigInt.asIntN(64, field(fields, 2, 0).decoded),
-    accuracy: fields.find((candidate) => candidate.number === 3 && candidate.wireType === 0)?.decoded,
-    unknown: field(fields, 4, 2).raw,
-  }
-}
 
 async function readManifest(relativePath) {
   return parse(await readFile(path.join(root, relativePath), 'utf8'))
@@ -241,10 +62,10 @@ assert(!new RegExp(settingsAction.match.pathRegex).test('/wloc-settings/load'))
 assert.equal(wlocAction.match.statusCodes, undefined)
 
 // TestFlight rewrites the storefront declaratively now. The region-to-id table
-// lives in the jq program, which reads the operator's choice through $settings;
-// its behavior is executed against gojq in the sidecar's jq suite, because Node
-// has no jq. What is checked here is that the shipped program still carries
-// every reviewed region and reads the setting rather than a constant.
+// lives in the action's valueMap, which resolves the operator's choice; the
+// substitution itself is executed by the sidecar, because this repository has
+// no way to run it. What is checked here is that the shipped action still
+// carries every reviewed region and reads the setting rather than a constant.
 const testflightManifest = await readManifest('testflight-region-unlock/extension.yaml')
 const testflightAction = testflightManifest.actions[0]
 const replace = testflightAction.script.replaceBody
@@ -291,14 +112,11 @@ assert.match(testflightReadme, /ab6c3182fb2b09bcc34456f496282ec0b8e9217b/)
 assert.match(testflightReadme, /c8112507802d0690d8b94d4110945e9c782df40e/)
 assert.match(testflightReadme, /a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e/)
 assert.match(testflightReadme, /047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98/)
-for (const [readme, manifestPath, scriptPath] of [
+for (const [readme, manifestPath] of [
   [appleReadme, 'apple-wloc/extension.yaml'],
   [testflightReadme, 'testflight-region-unlock/extension.yaml'],
 ]) {
-  assert(readme.includes(sha256(await readFile(path.join(root, manifestPath)))))
-  if (scriptPath !== undefined) {
-    assert(readme.includes(sha256(await readFile(path.join(root, scriptPath)))))
-  }
+  assert(readme.includes(sha256(await readFile(path.join(root, manifestPath)))), `${manifestPath}: README does not record the current manifest digest`)
   assert(readme.includes('node tests/apple-testflight-fixtures.mjs'))
 }
 

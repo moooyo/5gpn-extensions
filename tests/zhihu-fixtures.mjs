@@ -7,6 +7,9 @@ const root = path.resolve(import.meta.dirname, '..')
 const extensionRoot = path.join(root, 'zhihu-cleaner')
 const manifest = parse(await readFile(path.join(extensionRoot, 'extension.yaml'), 'utf8'))
 
+// The seventeen HTTPDNS/QUIC configuration keys the README says
+// `clean-transport-config` removes. The list was carried here unused for a
+// while, which meant the README's count was documentation and nothing else.
 const blockedConfigKeys = [
   'coreNetworkConf_useTars',
   'httpdns_detector_use_concurrent',
@@ -26,15 +29,6 @@ const blockedConfigKeys = [
   'tquic_configuration',
   'zaSetExtraRequestHeader',
 ]
-
-
-function clean(transform, url, document) {
-  const result = transform({
-    request: { url },
-    response: { body: JSON.stringify(document) },
-  })
-  return result === null ? null : JSON.parse(result.response.body)
-}
 
 assert.equal(manifest.metadata.id, 'io.5gpn.zhihu-cleaner')
 assert.equal(manifest.metadata.version, '2.0.0')
@@ -212,5 +206,18 @@ assert(zhidaFeeds.test('/ai_ingress/knowledge/square/categories/feeds?source=ios
 assert(zhidaFeeds.test('/ai_ingress/knowledge/square/categories/feeds?categoryId=1}'))
 assert(!zhidaFeeds.test('/ai_ingress/knowledge/square/categories/feeds?categoryId=2'))
 assert(!zhidaFeeds.test('/ai_ingress/knowledge/square/categories/feeds?categoryId=12'))
+
+// gojq executes the expression, not Node, so what can be checked here is that
+// the drop list in the manifest is exactly the reviewed set: every key present,
+// no eighteenth key added, and the three object-valued fields still removed.
+const transportConfig = manifest.actions.find(action => action.id === 'clean-transport-config').script.jq
+const dropList = transportConfig.match(/def drop_keys:\s*\{(.*?)\};/s)
+assert(dropList, 'clean-transport-config must define drop_keys as an object literal')
+const droppedKeys = [...dropList[1].matchAll(/"([^"]+)"\s*:\s*true/g)].map(match => match[1]).sort()
+assert.deepEqual(droppedKeys, blockedConfigKeys.slice().sort(), 'the drop list must be the reviewed HTTPDNS/QUIC keys')
+assert.equal(droppedKeys.length, 17)
+for (const field of ['delayHttpdns', 'dnsParser', 'HTTPDNS']) {
+  assert(transportConfig.includes(field), `clean-transport-config must still remove ${field}`)
+}
 
 console.log('Zhihu fixtures passed')
