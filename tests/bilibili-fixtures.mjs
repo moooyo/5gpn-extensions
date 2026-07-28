@@ -639,6 +639,102 @@ const { transform: protobufTransform, messages: protobufLogs } = await loadTrans
 }
 
 {
+  // On a runtime exposing `requestAsync`, the replay and the SponsorBlock
+  // lookup go out together the way upstream issues them. The proof is that both
+  // are in flight before either is allowed to resolve — a sequential
+  // implementation could not have started the second one yet.
+  const requestBody = grpcFrame(concat(varintField(1, 170001), varintField(2, 123), varintField(3, 1)))
+  const replayBody = grpcFrame(new Uint8Array())
+  const url = 'https://grpc.biliapi.net/bilibili.community.service.dm.v1.DM/DmSegMobile'
+  const replayResult = {
+    url,
+    status: 200,
+    headers: { 'Content-Type': ['application/grpc'] },
+    trailers: { 'Grpc-Status': ['0'] },
+    body: replayBody,
+  }
+  const sponsorResult = {
+    url: 'https://bsbsb.top/api/skipSegments',
+    status: 200,
+    headers: {},
+    body: new Uint8Array(),
+    text: JSON.stringify([{ actionType: 'skip', segment: [10, 20] }]),
+  }
+  const asyncContext = (network, settings = { sponsorBlock: true, logLevel: 'off' }) => ({
+    phase: 'request',
+    request: { url, method: 'POST', headers: { Authorization: 'token' }, body: requestBody },
+    settings,
+    network,
+  })
+  const deferredNetwork = (replay, sponsor) => {
+    const started = []
+    const release = {}
+    return {
+      started,
+      release,
+      request() {
+        throw new Error('the synchronous entry point must not be used when requestAsync exists')
+      },
+      requestAsync(options) {
+        started.push(options.url)
+        const sponsorLookup = options.url.startsWith('https://bsbsb.top/')
+        return new Promise((resolve, reject) => {
+          release[sponsorLookup ? 'sponsor' : 'replay'] = () => {
+            const value = sponsorLookup ? sponsor : replay
+            if (value instanceof Error) reject(value)
+            else resolve(value)
+          }
+        })
+      },
+    }
+  }
+
+  const network = deferredNetwork(replayResult, sponsorResult)
+  const pending = protobufTransform(asyncContext(network))
+  assert.equal(typeof pending?.then, 'function')
+  assert.equal(network.started.length, 2)
+  assert.equal(network.started[0], url)
+  assert.match(network.started[1], /^https:\/\/bsbsb\.top\/api\/skipSegments\?videoID=BV/)
+  network.release.replay()
+  network.release.sponsor()
+  const result = await pending
+  assert.equal(result.response.status, 200)
+  assert.deepEqual(result.response.trailers, { 'Grpc-Status': ['0'] })
+  const danmaku = onlyField(grpcMessage(result.response.body), 1).value
+  assert.equal(onlyField(danmaku, 2).value, 12000n)
+  assert.equal(text(onlyField(danmaku, 10)), 'airborne:20000')
+
+  // A failed SponsorBlock lookup still returns the replayed body, and a failed
+  // replay yields no synthetic response — both as rejections rather than throws.
+  const sponsorDown = deferredNetwork(replayResult, new Error('sponsor unavailable'))
+  const sponsorPending = protobufTransform(asyncContext(sponsorDown))
+  sponsorDown.release.sponsor()
+  sponsorDown.release.replay()
+  const sponsorFailure = await sponsorPending
+  assert.deepEqual(Array.from(sponsorFailure.response.body), Array.from(replayBody))
+
+  const replayDown = deferredNetwork(new Error('replay unavailable'), sponsorResult)
+  const replayPending = protobufTransform(asyncContext(replayDown))
+  replayDown.release.replay()
+  replayDown.release.sponsor()
+  assert.equal(await replayPending, null)
+
+  // The setting still gates both entry points, and a disabled helper issues no
+  // request at all.
+  let disabledCalls = 0
+  assert.equal(
+    protobufTransform(
+      asyncContext(
+        { request() { disabledCalls += 1 }, requestAsync() { disabledCalls += 1 } },
+        { sponsorBlock: false },
+      ),
+    ),
+    null,
+  )
+  assert.equal(disabledCalls, 0)
+}
+
+{
   const requestBody = grpcFrame(new Uint8Array())
   const replayBody = grpcFrame(
     concat(
@@ -979,8 +1075,8 @@ function cleanDocument(url, document) {
 }
 
 const bundle = await readFile(path.join(root, 'bilibili-cleaner', 'protobuf.js'))
-assert.equal(bundle.length, 108550)
-assert.equal(createHash('sha256').update(bundle).digest('hex'), '895f6a11f23ddafea3797a9458d6450950571fe6ee3971ccf33b3c0f3ff9216a')
+assert.equal(bundle.length, 109247)
+assert.equal(createHash('sha256').update(bundle).digest('hex'), 'dd92209bcd63c261ba3f6dd65bfc547f07bfd4ab83937143dba1f63c7286c46c')
 const bundleSource = bundle.toString('utf8')
 assert(bundleSource.startsWith('// SPDX-License-Identifier: GPL-3.0-only AND BSD-3-Clause\n// Deterministic native build from bilibili-cleaner/source.\n'))
 assert(bundleSource.includes('Copyright 2008 Google Inc.  All rights reserved.'))

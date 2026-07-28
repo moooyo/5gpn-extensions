@@ -49,7 +49,7 @@
   },
   {
     "path": "native-protobuf.ts",
-    "bytesInOutput": 12213
+    "bytesInOutput": 12910
   },
   {
     "path": "node_modules/@protobuf-ts/runtime/build/es2015/assert.js",
