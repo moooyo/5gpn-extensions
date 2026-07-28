@@ -49,10 +49,9 @@ actions. Every artifact, size, and digest is pinned at commit
 
 Because the scripts are fetched by the gateway rather than shipped here, this
 repository distributes none of their bytes and the corresponding-source
-obligation does not attach to it. `extension.yaml`, `README.md`,
-`mock-json.js`, and `mock-grpc.js` are original works under GPL-3.0-only so the
-aggregate stays consistent with the module they accompany, and they retain
-Sparkle attribution. The two inlined jq programs are verbatim upstream text
+obligation does not attach to it. `extension.yaml` and `README.md` are original
+works under GPL-3.0-only so the aggregate stays consistent with the module they
+accompany, and they retain Sparkle attribution. The two inlined jq programs are verbatim upstream text
 under the same license.
 
 The KeleeOne snapshot was used to discover a mirrored plugin version, but its

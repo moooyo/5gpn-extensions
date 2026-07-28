@@ -214,7 +214,7 @@ For a focused review, confirm that `extension.yaml` has 277 capture-host
 entries, 201 typed routing rules, and three path-specific request actions. Every
 bounded suffix must have both its apex and `*.suffix` capture entries, every
 `actions[].match.hosts` entry must be covered by `traffic.captureHosts`,
-`block.js` must contain only the native `transform(context)` entry point, and
+the three path actions must declare `reject: true` and no script at all, and
 the three Pinduoduo actions must retain their host-specific anchored path
 predicates. Also verify that the ten keyword-only selectors and the hard-coded
 IPv4 rule are documented as routing-only for traffic already reaching the

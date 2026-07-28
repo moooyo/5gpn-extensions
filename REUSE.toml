@@ -32,31 +32,12 @@ SPDX-FileCopyrightText = "2026 moooyo"
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]
-path = "apple-wloc/wloc.js"
-precedence = "override"
-SPDX-FileCopyrightText = [
-  "2026 WLOC ProxyPin Contributors",
-  "2026 moooyo",
-]
-SPDX-License-Identifier = "MIT"
-
-[[annotations]]
 path = [
   "bilibili-cleaner/README.md",
   "bilibili-cleaner/extension.yaml",
 ]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 moooyo"
-SPDX-License-Identifier = "GPL-3.0-only"
-
-[[annotations]]
-path = [
-]
-precedence = "override"
-SPDX-FileCopyrightText = [
-  "kokoryh and Sparkle contributors",
-  "2026 moooyo",
-]
 SPDX-License-Identifier = "GPL-3.0-only"
 
 [[annotations]]

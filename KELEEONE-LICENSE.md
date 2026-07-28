@@ -16,7 +16,8 @@ The complete local legal text is stored at
 [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt).
 
 The ports are modified: Loon manifests, rules, and rewrites are translated into
-strict `5gpn.io/v1` manifests and bounded `transform(context)` implementations.
+strict `5gpn.io/v1` manifests whose actions are declarative: typed routing
+rules, `reject`, `mock`, and `jq` expressions rather than code.
 Each extension README identifies its exact upstream files, immutable URLs,
 digests, creator metadata, behavioral mapping, omitted features, and changes.
 

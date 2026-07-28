@@ -116,7 +116,11 @@ update procedure, and verification steps.
 | --- | --- | --- |
 | Acquire traffic | `traffic.captureHosts` | Exact DNS names or constrained `*.example.com` wildcards. This is the only traffic-acquisition permission and publishes DNS, certificate, and mihomo rules for ports 80 and 443 when enabled. |
 | Apply reviewed global routing | `traffic.routingRules` | Bounded typed selectors can only `REJECT` or `DIRECT` matching traffic already reaching the gateway. Exact rules share the single enable confirmation, cannot name a proxy group, and exist only while the extension and MITM master are enabled. |
-| Transform requests or responses | `actions[]` | Ordered structured matchers invoke one `transform(context)` script in the declared phase. Each action host must belong to the same extension's `captureHosts`. |
+| Transform requests or responses | `actions[]` | Ordered structured matchers select one action in the declared phase. Each action host must belong to the same extension's `captureHosts`. |
+| Block a matched path | `script.reject` | Aborts the exchange before it is sent upstream. No code. |
+| Answer with a fixed reply | `script.mock` | A declared status, headers, and `body` or `base64Body`. No code, and no request leaves the gateway. |
+| Rewrite a JSON body | `script.jq` | An upstream module's own `response-body-json-jq` expression, run by gojq without entering the JavaScript runtime. Reads operator choices through `$settings`. |
+| Run a published proxy-client bundle | `script.entry: proxy-compat` | Loads a pinned upstream script under a Loon persona. See the contract below. |
 | Read a body | `script.bodyMode` | `none`, UTF-8 `text`, or `binary` as `Uint8Array`, bounded by `maxBodyBytes`. |
 | Typed operator configuration | `settings[]` | `text`, `select`, `boolean`, `number`, and `location`; required values must be complete before enable. |
 | Persistent state | `permissions.persistentStorage: true` | Adds extension-scoped, quota-bound `context.storage`; scripts never choose a path or access the filesystem. |
@@ -193,9 +197,25 @@ script declares exactly one of `source` or `inline`, plus a timeout from 50 to
 URL-installed manifests may use relative HTTPS script sources. Locally pasted
 or uploaded manifests must use inline scripts or absolute HTTPS script URLs.
 
+### Action kinds
+
+An action declares exactly one of four kinds. Three are declarative and never
+reach the JavaScript runtime: `reject`, `mock`, and `jq`. Prefer them — every
+extension in this repository is built from those three plus `proxy-compat`, and
+none ships JavaScript.
+
+```yaml
+script: { reject: true, bodyMode: none, timeoutMs: 500, maxBodyBytes: 1024 }
+script: { mock: { status: 200, headers: { Content-Type: application/json }, body: '{}' }, bodyMode: none, ... }
+script: { jq: 'del(.data.ad_info)', bodyMode: text, ... }
+script: { source: https://…/pinned.js, entry: proxy-compat, bodyMode: text, ... }
+```
+
 ### Script contract
 
-Each script defines exactly one global entry point:
+The fourth kind is a local script. It is still supported and still reviewed
+the same way, but nothing in this repository uses it. A script defines exactly
+one global entry point:
 
 ```javascript
 function transform(context) {
@@ -277,7 +297,7 @@ or otherwise unsafe addresses.
 2. Record and verify every source and license file's raw URL, size, SHA-256,
    fetch date, creator attribution, and license before porting behavior.
 3. Translate only reviewed behavior into the strict native manifest and
-   `transform(context)` boundary. Narrow capture hosts and matchers instead of
+   declarative action kinds, or a pinned upstream bundle. Narrow capture hosts and matchers instead of
    preserving broad client-specific patterns.
 4. Declare storage, network origins, upstream mappings, and required egress
    only when used. Document what decrypted data a permitted network call could

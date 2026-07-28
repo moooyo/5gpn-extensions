@@ -90,10 +90,9 @@ preferred source.
 
 The upstream module is GPL-3.0-only. This repository does not redistribute it:
 `extension.yaml` records immutable URLs and digests, and the gateway fetches the
-bytes itself. The manifest, this documentation, `mock-json.js`, and
-`mock-grpc.js` are original works distributed under GPL-3.0-only so the
-aggregate stays consistent with the module they accompany, and they retain
-kokoryh/Sparkle attribution.
+bytes itself. The manifest and this documentation are original works
+distributed under GPL-3.0-only so the aggregate stays consistent with the
+module they accompany, and they retain kokoryh/Sparkle attribution.
 
 The two inlined jq programs are copied verbatim from the pinned commit and are
 GPL-3.0-only upstream text; their provenance is the table above.
@@ -189,13 +188,12 @@ process, timer, or module-loader access. It declares no persistent storage.
    closure, package metadata, and license from commit-pinned raw URLs.
 3. Resolve every client-visible Chronos file to one immutable commit without
    redistributing an archive that lacks corresponding preferred source.
-4. Check current published embedded component versions and retain their exact
-   npm archives, preferred source, licenses, and source manifests.
-5. Diff settings, matchers, rules, mocks, JSON/JQ behavior, Protobuf handlers,
+4. Diff settings, matchers, rules, mocks, JSON/JQ behavior, Protobuf handlers,
    webpage behavior, outbound requests, and URLs independently.
-6. Regenerate `source/generated/`, rebuild `protobuf.js`, review the dependency
-   lock and bundle projection, and update fixtures, provenance, SPDX mappings,
-   notices, and `metadata.version` together.
+5. Re-pin every script and jq program to the new commit, re-inline the two
+   `jq-path` programs, and update the recorded sizes and digests, fixtures,
+   provenance, notices, and `metadata.version` together. Nothing is vendored,
+   so adoption is a URL and a digest rather than a rebuild.
 7. Keep actions inside capture hosts, declare every origin exactly, and require
    fresh review for network, egress, routing, and execution-order changes.
 
@@ -225,11 +223,9 @@ manual review decision.
 1. Complete the playbook record separately for the LPX orchestration, JQ and
    dist behavior, all schemas and preferred source, Chronos artifacts, embedded
    npm components, settings, mocks, routes, origins, and outbound disclosure.
-2. Update every immutable pin and inventory together. Regenerate schemas,
-   rebuild `protobuf.js`, and compare the generated files,
-   `bundle-inputs.json`, dependency lock, vendored archives, and preferred
-   source byte-for-byte. `npm run verify:sources` must refetch every pinned
-   source and npm archive, compare it with the local copy, and reject inventory
+2. Update every immutable pin and inventory together.
+   `npm run verify:upstreams` must refetch every pinned script and jq program,
+   compare it with the recorded size and digest, and reject inventory
    drift before the build is accepted.
 3. Before publishing either a forward candidate or rollback, reconcile the
    bundle's aggregate SPDX expression and retained component notices with the

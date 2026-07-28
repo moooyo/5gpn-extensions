@@ -47,8 +47,8 @@ review, so no newer source commit was substituted.
 
 This native extension port is adapted material from KeleeOne's
 Block_HTTPDNS.lpx at the pinned commit above. The original Loon rule format was
-changed into a strict 5gpn.io/v1 manifest and a native transform(context)
-request-abort script. Its 58 canonical domain rules and 59 canonical IPv4/IPv6
+changed into a strict 5gpn.io/v1 manifest whose path actions declare
+`reject: true` and carry no code. Its 58 canonical domain rules and 59 canonical IPv4/IPv6
 rules are retained as typed routing declarations. Every exact-domain routing
 target is also declared as a capture host so that the rule can acquire supported
 traffic instead of merely waiting for traffic already present in mihomo. The
@@ -74,9 +74,10 @@ and was verified on `2026-07-22`.
 
 The original .lpx file is a Loon rule list. 5gpn does not parse or emulate that
 format. This extension expresses the supported residual rules as a strict
-native manifest and one transform(context) script. Every action is a request
-action with bodyMode none; block.js returns { abort: true }, so a matched
-request fails closed before it is sent upstream.
+native manifest and no code at all. Every action is a request action with
+bodyMode none and `reject: true`, so a matched request fails closed before it
+is sent upstream. Earlier revisions carried a 57-byte script whose whole body
+was `return { abort: true }`.
 
 | Native action | Upstream rule | Native matcher |
 | --- | --- | --- |

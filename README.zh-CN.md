@@ -78,7 +78,11 @@ example-cleaner/
 | --- | --- | --- |
 | 获取流量 | `traffic.captureHosts` | 精确 DNS 名称或受限的 `*.example.com` 通配符。这是唯一的流量获取权限，启用时会为端口 80 和 443 发布 DNS、证书和 mihomo 规则。 |
 | 应用已审查的全局路由 | `traffic.routingRules` | 有界类型化选择器只能对已经到达网关的命中流量执行 `REJECT` 或 `DIRECT`。精确规则与插件共用一次启用确认，不能命名代理组，且仅在插件和 MITM 总开关均启用时存在。 |
-| 转换请求或响应 | `actions[]` | 有序的结构化匹配器会在声明的阶段调用一个 `transform(context)` 脚本。每个操作主机都必须属于同一扩展的 `captureHosts`。 |
+| 转换请求或响应 | `actions[]` | 有序的结构化匹配器在声明的阶段选中一个动作。每个动作主机都必须属于同一扩展的 `captureHosts`。 |
+| 拦截匹配的路径 | `script.reject` | 在请求发往上游之前中止。无代码。 |
+| 返回固定响应 | `script.mock` | 声明状态码、响应头,以及 `body` 或 `base64Body`。无代码,且请求不会离开网关。 |
+| 改写 JSON 响应体 | `script.jq` | 直接携带上游模块自己的 `response-body-json-jq` 表达式,由 gojq 执行,完全不进 JavaScript 运行时。可通过 `$settings` 读取操作员选择。 |
+| 运行已发布的代理客户端 bundle | `script.entry: proxy-compat` | 以 Loon 人格加载钉住的上游脚本。 |
 | 读取正文 | `script.bodyMode` | `none`、UTF-8 `text`，或以 `Uint8Array` 表示的 `binary`，并受 `maxBodyBytes` 限制。 |
 | 类型化运营者配置 | `settings[]` | `text`、`select`、`boolean`、`number` 和 `location`；启用前必须完整填写必填值。 |
 | 持久状态 | `permissions.persistentStorage: true` | 添加受扩展作用域和配额限制的 `context.storage`；脚本绝不能选择路径或访问文件系统。 |
@@ -209,7 +213,7 @@ traffic:
 
 1. 选择权威上游仓库和不可变提交。不得将扩展商店或镜像的根许可证视为比更具体的原始文件许可证更有权威性。
 2. 移植行为前，记录并验证每个源文件和许可证文件的原始 URL、大小、SHA-256、获取日期、创作者署名和许可证。
-3. 仅将经审查的行为转换为严格的原生清单和 `transform(context)` 边界。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
+3. 仅将经审查的行为转换为严格的原生清单。优先使用声明式动作(`reject`/`mock`/`jq`)——本仓库的八个扩展全部由它们和 `proxy-compat` 构成,不含任何 JavaScript。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
 4. 仅在使用时声明存储、网络源、上游映射和所需出口。记录获准的网络调用可能泄露哪些已解密数据。
 5. 添加正向、无操作、格式错误输入和边界测试样例。保留无关字段，并在部分转换不安全时以拒绝方式失败（fail closed）。
 6. 运行目录验证器和当前核心解析器门禁：

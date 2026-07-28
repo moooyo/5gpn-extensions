@@ -48,8 +48,8 @@ The reviewed native snapshot is:
 This native port is adapted material based on `mihoyo-typ/KeleeOne` and is
 provided under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0
 International license (`CC BY-NC-SA 4.0`). It has been modified from the
-pinned Loon plugin to use the strict 5gpn manifest, typed settings,
-operator-owned egress binding, and the native `transform(context)` runtime.
+pinned Loon plugin to use the strict 5gpn manifest, typed settings, an
+operator-owned egress binding, and a declarative `script.jq` rewrite.
 
 The source file's `#!author` metadata credits 可莉🅥 (`iKeLee`) and links to
 <https://github.com/luestr/ProxyResource/blob/main/README.md>. That supplied
@@ -69,7 +69,7 @@ and was reverified on `2026-07-22`.
 | --- | --- |
 | `DOMAIN, testflight.apple.com, PROXY` | `traffic.captureHosts` contains only `testflight.apple.com`; `requirements.egressGroup.required` forces an explicit operator binding instead of naming `PROXY`. |
 | Rewrite URL `^https?://testflight.apple.com/v\d/accounts/.+?/install$` | One request action matches only `testflight.apple.com`, HTTP or HTTPS, exactly one version digit, a non-empty account path, and no query string. Host and scheme are native matcher fields while the path expression preserves the pinned URL boundary. |
-| Exact `request-body-replace-regex` for `"storefrontId" : "dddddd-dd,dd",` | `rewrite-storefront.js` checks this exact upstream syntax first and reproduces its whitespace-normalizing replacement through `transform(context)` with `bodyMode: text`. A bounded native fallback accepts other JSON whitespace and a final property without a trailing comma. |
+| Exact `request-body-replace-regex` for `"storefrontId" : "dddddd-dd,dd",` | A `script.jq` action assigns `.storefrontId` from a region table keyed by the `storefront` setting, which it reads through `$settings`. This is a deliberate substitution, not a reproduction: upstream replaces bytes with a regex, while jq parses the request body and re-serializes it, so key order and whitespace are normalized rather than preserved. The rewrite is semantically identical and byte-wise is not. A body with no `storefrontId`, or an unrecognized region, is left untouched rather than having a value invented. |
 | Hard-coded `143441-19,29` | The required typed `storefront` select defaults to `US`, preserving upstream behavior, and exposes a finite reviewed region map. |
 | `[MitM] hostname=testflight.apple.com` | The exact host is the sole capture permission and therefore the sole interception certificate and traffic-rule host. |
 | Loon metadata | Name and purpose become native metadata; attribution and update provenance remain in this README. |
@@ -148,10 +148,9 @@ standard extension sandbox.
    commit URL and record its byte length, SHA-256, and fetch date.
 3. Diff the new file against the pinned source. Review metadata, `[Rule]`,
    `[Rewrite]`, and `[MitM]` independently.
-4. Map every behavioral change to strict native fields or to
-   `rewrite-storefront.js`. Keep every action host within `captureHosts`, keep
-   the egress requirement operator-owned, and document anything intentionally
-   omitted.
+4. Map every behavioral change to strict native fields or to the jq program.
+   Keep every action host within `captureHosts`, keep the egress requirement
+   operator-owned, and document anything intentionally omitted.
 5. Recheck the storefront table if the replacement value or format changed.
    Bump `metadata.version` for any immutable manifest or script change.
 6. Refresh the local manifest and script SHA-256 values, then update this
@@ -187,7 +186,6 @@ Refresh local artifact digests with PowerShell:
 
 ```powershell
 Get-FileHash testflight-region-unlock/extension.yaml -Algorithm SHA256
-Get-FileHash testflight-region-unlock/rewrite-storefront.js -Algorithm SHA256
 ```
 
 ## Migration and rollback

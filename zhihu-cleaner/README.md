@@ -54,8 +54,7 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `9cd01abfefd0d494385f95cd424ac66eab0b05b26e4f6b1ea671377a557aad87` |
-| Synthetic JSON response transform | `zhihu-cleaner/mock-json.js` — SHA-256 `ee60aea99548c5b466cbe0beaeaac554284082503239e3890d8d66c81095b352` |
+| Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `cfcfb777bbc47e8f0c5c53931714a3194377722ddac59ec474b031ea998657b2` |
 | Authorization record | `zhihu-cleaner/AUTHORIZATION.md` — SHA-256 `e1d5d51f898539dfcc96b698adebbf84efbdf7d584b6cf3e1a3e26dd6ff2dc22` |
 
 ## Authorization, license, and attribution
@@ -82,7 +81,7 @@ license is 19,018 bytes with SHA-256
 
 The upstream contains 26 rewrite directives: 11 synthetic empty-object
 responses and 15 JSON response transformations. The synthetic responses become
-three request actions backed by `mock-json.js`. Each JSON transformation becomes
+five declared `script.mock` actions. Each JSON transformation becomes
 its own `script.jq` action carrying the expression directly, so where this port
 agrees with upstream the published program is what runs, and where it diverges
 the divergence is visible as one readable expression rather than buried in a
@@ -91,7 +90,7 @@ dispatch table. Nothing here expands the capture boundary.
 | Upstream behavior | Native 5gpn mapping |
 | --- | --- |
 | `[MitM]` hosts `api.zhihu.com`, `m-cloud.zhihu.com`, `page-info.zhihu.com`, `www.zhihu.com`, and `zhida.zhihu.com` | The same five exact names are the complete `traffic.captureHosts` list. No wildcard or accidental `api.com`/`page-info.com` alternative is acquired. Five host-scoped UDP/443 reject rules additionally force QUIC fallback on preserved/custom gateway configurations. |
-| Eleven upstream `reject-dict` directives plus the current `/root/window` navigation entry | Three request actions group the API, web, and Zhida path sets. `mock-json.js` verifies the host, normalized path, multi-digit versions, and order-independent query values before returning status 200, `Content-Type: application/json`, and body `{}`. The duplicated token on the upstream `commercial_api` line is normalized to one synthetic response; `/root/window` is an explicit compatibility addition requested to remove the Kanshan entry. |
+| Eleven upstream `reject-dict` directives plus the current `/root/window` navigation entry | Five request actions declare a status 200, `Content-Type: application/json`, `{}` reply. Three group the API, web, and Zhida path sets by host and path. The two that upstream conditions on query values -- `next-render`, which needs `id` and `type=answer`, and Zhida's `feeds`, which needs `categoryId=1` -- are their own actions with the condition in the pattern, because a declared mock cannot decline after matching. RE2 has no lookahead, so both parameter orders are enumerated and the percent-encoded brace is matched explicitly. The duplicated token on the upstream `commercial_api` line is normalized to one synthetic response; `/root/window` is an explicit compatibility addition requested to remove the Kanshan entry. |
 | `m-cloud` configuration `drop_keys` JQ program | `clean-m-cloud-config` removes the same 17 HTTPDNS/QUIC config keys and removes `delayHttpdns`, `dnsParser`, and `HTTPDNS` only from retained object-valued configs. Arrays, scalars, and unrelated fields remain unchanged. |
 | Root-tab whitelist | The pinned upstream whitelist retained `ring_tab`. As a deliberate compatibility change, `clean-root-tab` handles both current `/root/tab` and versioned `/root/tab/vN` paths, keeps only `follow`, `recommend`, and `hot`, clears `ring_list`, and sets an existing `tab_ext.is_show_ring` flag to `false`. This removes the top Rings entry while preserving tab order and unrelated response fields. |
 | Two `topstory/recommend` JQ directives | The current API returns normal `type=feed` objects rather than only `ComponentCard`. The hardened branch therefore preserves unknown/normal items, removes only explicit ad/commercial markers, and still removes `children` entries whose `id` is `ring`. |
@@ -104,8 +103,9 @@ dispatch table. Nothing here expands the capture boundary.
 | Loon metadata | Name and purpose become native metadata. Creator, version-date caveat, immutable bytes, authorization, and update provenance remain in this README. |
 
 The upstream has no external `[Script]` dependency, and neither does this port.
-`mock-json.js` is the only JavaScript left; every response transform is a jq
-expression the sidecar runs without entering the JavaScript runtime at all.
+This directory ships no JavaScript at all: every synthetic reply is declared and
+every response transform is a jq expression, and neither enters the JavaScript
+runtime.
 
 Those expressions are verified against gojq -- the engine that runs them -- in
 the sidecar's own jq suite. This repository checks their structure and their
@@ -211,7 +211,6 @@ Refresh local artifact digests with:
 
 ```powershell
 Get-FileHash zhihu-cleaner/extension.yaml -Algorithm SHA256
-Get-FileHash zhihu-cleaner/mock-json.js -Algorithm SHA256
 ```
 
 ## Migration and rollback

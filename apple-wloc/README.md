@@ -147,24 +147,23 @@ capture path, not through an outbound request from the script.
 1. Review the upstream repository and its license before taking any change.
    Use the pinned commit as the baseline; do not silently track its branch
    head.
-2. Compare an upstream candidate against the 5gpn port. Port only relevant
-   binary-format logic; do not import ProxyPin runtime APIs, picker pages,
-   session state, network access, or bundled dependencies.
-3. Preserve the native manifest contract: capture hosts are explicit, scripts
-   receive no ambient network access, and the `location` setting remains the
-   only source of target coordinates.
+2. Re-pin both scripts to the new immutable commit and record their sizes and
+   digests in the table above. Nothing is vendored, so a candidate is adopted
+   by changing a URL and its recorded digest, not by porting code.
+3. Re-read the upstream `[Argument]` block. The four settings are its types and
+   defaults verbatim, and a renamed key stops applying silently rather than
+   failing.
 4. Update provenance here and in `THIRD_PARTY_NOTICES.md` if the source
-   project or pinned commit changes. Keep the source header in `wloc.js`
-   accurate.
-5. Refresh the canonical source record after every manifest or script change,
-   then review the diff and run the verification commands below.
+   project or pinned commit changes, including the statement that upstream
+   publishes no license file.
+5. Refresh the canonical record after every manifest change, then review the
+   diff and run the verification commands below.
 
 Refresh the revision and SHA-256 values with PowerShell:
 
 ```powershell
 git rev-parse HEAD
 Get-FileHash -LiteralPath apple-wloc/extension.yaml -Algorithm SHA256
-Get-FileHash -LiteralPath apple-wloc/wloc.js -Algorithm SHA256
 ```
 
 To independently refresh the pinned upstream-script digest without checking
@@ -256,15 +255,11 @@ npm run verify:upstreams
 if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
-The focused fixture runs the script only through `transform(context)` and
-checks the manifest boundary, Wi-Fi and both cellular mappings, signed
-coordinates, accuracy clamping, unknown-field and suffix preservation,
-one-digit MAC octets, repeated singular MAC-field ordering, partial
-malformed-entry skips, exact offset-zero framing, and both `failClosed` modes.
-For a runtime change, also run the complete core repository gates required by
-its `AGENTS.md` and perform authorised end-to-end validation following the
-Apple WLOC checklist in
-[`tests/integration-smoke.md`](https://github.com/moooyo/5gpn/blob/beta/tests/integration-smoke.md).
+The focused fixture checks the manifest boundary: both actions, the four
+settings against upstream's `[Argument]` block, the pinned immutable commit,
+and the three accepted costs recorded above. It cannot check what the scripts
+do -- they are upstream's and are fetched at runtime -- so `verify:upstreams`
+enforcing their digests is what binds which bytes run.
 
 ## Limitations
 
