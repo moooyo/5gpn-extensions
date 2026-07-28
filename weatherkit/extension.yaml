@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Enhancer
-  version: 3.1.0
+  version: 3.2.0
   description: Runs the reviewed NSRingo WeatherKit release bundle against Apple WeatherKit responses.
 
 permissions:
@@ -16,6 +16,12 @@ traffic:
   captureHosts:
     - weatherkit.apple.com
   routingRules:
+    - action: reject
+      domain: weather-analytics-events.apple.com
+    - action: reject
+      domainSuffix: tthr.apple.com
+    - action: reject
+      domain: tether.edge.apple
     - action: reject
       domain: weatherkit.apple.com
       network: udp

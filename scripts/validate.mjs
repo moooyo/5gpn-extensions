@@ -425,7 +425,7 @@ for (const entry of entries) {
   }
   if (entry.name === 'weatherkit') {
     assert(
-      actions.length === 2 && manifest.settings?.length === 9 && manifest.permissions.persistentStorage && manifest.permissions.network?.any === true && routingRules.length === 1,
+      actions.length === 2 && manifest.settings?.length === 9 && manifest.permissions.persistentStorage && manifest.permissions.network?.any === true && routingRules.length === 4,
       'weatherkit: reviewed proxy-compat capability set is incomplete',
     )
     assert(actions.every((action) => action.script.entry === 'proxy-compat'), 'weatherkit: every action must run the published bundle')

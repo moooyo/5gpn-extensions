@@ -118,7 +118,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     networkAny: true,
     persistentStorage: true,
     upstreamMappingCount: 0,
-    routingRuleCount: 1,
+    routingRuleCount: 4,
     egressGroupRequired: false,
   })
   // The core derives this list from every action that names a script source and

@@ -12,14 +12,17 @@ const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '3.1.0')
+assert.equal(manifest.metadata.version, '3.2.0')
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
-assert.deepEqual(manifest.traffic.routingRules, [{
-  action: 'reject',
-  domain: 'weatherkit.apple.com',
-  network: 'udp',
-  destinationPort: 443,
-}])
+// Three of these are upstream's exact-name rejects, which revisions before
+// 3.2.0 simply omitted. The fourth approximates upstream's ASN-plus-QUIC rule;
+// the README records why the ASN form is declined rather than adopted.
+assert.deepEqual(manifest.traffic.routingRules, [
+  { action: 'reject', domain: 'weather-analytics-events.apple.com' },
+  { action: 'reject', domainSuffix: 'tthr.apple.com' },
+  { action: 'reject', domain: 'tether.edge.apple' },
+  { action: 'reject', domain: 'weatherkit.apple.com', network: 'udp', destinationPort: 443 },
+])
 
 // The broader grants are the whole point of this revision, so they are asserted
 // explicitly rather than left to the generic validator.

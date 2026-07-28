@@ -75,9 +75,19 @@ actions plus one host-scoped transport rule:
    `/api/v1/availability/` with a text body.
 2. `weather-data` runs the bundle against status-200 GET responses under
    `/api/v2/weather/` with a binary body.
-3. The routing rule rejects UDP destination port 443 only for
-   `weatherkit.apple.com`, encouraging fallback to interceptable TCP. It is a
-   narrower approximation of the upstream ASN-plus-QUIC rule.
+3. Four routing rules. Three are upstream's exact-name rejects for
+   `weather-analytics-events.apple.com`, `tthr.apple.com`, and
+   `tether.edge.apple`; revisions before 3.2.0 simply omitted them. The fourth
+   rejects UDP destination port 443 for `weatherkit.apple.com`, encouraging
+   fallback to interceptable TCP.
+
+   That fourth rule remains a narrower approximation of upstream's
+   `AND,((OR,((IP-ASN,714),(IP-ASN,6185))),(PROTOCOL,QUIC))`. Routing rules can
+   now select on `ipASN`, so the ASN half is expressible, but adopting it is
+   declined on purpose: it would reject traffic to every address in two Apple
+   autonomous systems, far outside the one host this extension captures, and
+   mihomo has no `PROTOCOL,QUIC` matcher to narrow it back down with. Widening
+   one extension's reach that far is not a change to make silently.
 
 Both actions use `entry: proxy-compat`. The runtime presents itself as Loon,
 supplies `$request`, `$response`, `$argument`, `$done`, `$persistentStore`,
@@ -196,7 +206,7 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.weatherkit`; bump `metadata.version` for every manifest or pinned-bundle change. |
-| Current manifest | `version=3.1.0`; `persistentStorage=true`; `settings=9`; `captureHosts=1`; `actions=2`; `routingRules=1`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=3.2.0`; `persistentStorage=true`; `settings=9`; `captureHosts=1`; `actions=2`; `routingRules=4`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the bundle caches provider lookups in the extension-scoped store. |
 | Settings | Preserve the eight upstream argument keys and types when possible. A normal same-ID update retains only values that remain valid under the candidate. |
 | Script contract | Both actions use `entry: proxy-compat`. Changing an action back to the native contract requires a new reviewed script, not a manifest edit. |
