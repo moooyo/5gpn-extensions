@@ -14,60 +14,75 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/apple-wloc/extensi
 
 This public raw URL is installable directly. For a private fork, use the Console's local-add/upload flow or an operator-controlled public HTTPS mirror; never embed repository credentials in an extension URL.
 
-## Source and provenance
+## What changed, and why
 
-`wloc.js` is a 5gpn port derived from the WLOC protobuf-response transformer
-in [`FFF686868/proxypin-wloc-spoofer`][upstream] at the immutable commit
-[`edee9b955f673cc8c4a52eb0a9c687a2e25dde4a`][upstream-commit]. The upstream
-project is MIT licensed; its attribution and license text are retained in this
-repository's [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
+Earlier revisions ported one transformer out of
+`FFF686868/proxypin-wloc-spoofer`, an MIT-licensed **ProxyPin** script. That is
+a different interception tool, not a proxy-client module, so the port was a
+translation rather than an adoption, and it carried only the response rewrite.
 
-That commit remains the latest `main` head reviewed on `2026-07-22`. The
-transformer and import manifest bytes at that head are unchanged since source
-commit [`ab4d55ceed0593ad1ad8f3424088c291f7db748f`][upstream-source-commit];
-the later commits change only documentation and assets.
+This revision runs `Yu9191/wloc`, which publishes proxy-client modules for Loon,
+Surge, Quantumult X, Stash, and Shadowrocket, and covers more:
 
-The provenance is supported by all of the following repository records:
+- an online point picker at `https://wloc-pages.pages.dev/` whose saved
+  coordinates take precedence over the manifest defaults, delivered by a second
+  request-phase script on `/wloc-settings/save`
+- a configurable reported accuracy and log level
+- GCJ-02 to WGS84 conversion for mainland Apple Maps
 
-- `wloc.js` identifies that project in its source header.
-- `THIRD_PARTY_NOTICES.md` records the same repository and commit.
-- 5gpn commit `9449c54d6e1bb0a50e27cb13694775f83b661fa8` introduced this
-  extension and its JavaScript port.
+Three costs were accepted rather than discovered later:
 
-This is not a byte-for-byte copy of the upstream ProxyPin script. 5gpn keeps
-the bounded binary parsing and field-rewrite approach, but replaces the
-ProxyPin-specific runtime, picker, session storage, bundled `pako`, response
-headers, and gzip handling with the native extension contract and the
-interception runtime's bounded decoded `Uint8Array` response body.
+1. **Upstream ships no `LICENSE` file.** The repository has none, so by default
+   all rights are reserved. This extension does not redistribute the scripts:
+   the gateway fetches them from the immutable URLs below, which is how their
+   author publishes them for proxy clients to load. That is an implicit grant to
+   fetch and run, not permission to vendor or relicense, and it is a weaker
+   position than the MIT provenance the previous revision had.
+2. **`failClosed` is gone.** That was a local safety behavior with no upstream
+   equivalent: an unexpected protocol change now returns the original location
+   response instead of blocking it.
+3. **The typed `location` setting is gone.** The scripts read `longitude`,
+   `latitude`, and `accuracy` as separate argument keys, so the manifest
+   declares them separately and the console no longer offers a single
+   coordinate picker for them. Upstream's own picker page replaces it.
 
-At the time this document was written, the canonical 5gpn source record was:
+## Pinned upstream
 
-| Item | Canonical value |
-| --- | --- |
-| Core migration baseline | `moooyo/5gpn@7ca3eb93b7cd552ff3f32adfd9eca4b177d772db` |
-| Manifest | `apple-wloc/extension.yaml` — SHA-256 `ed223d3ad6b476be6ae62508f452f93198266d2ab6b9044318a210a25e1251d1` |
-| Script | `apple-wloc/wloc.js` — SHA-256 `ebc545511ccb8e66c05bd40198d357ea38d9f62f0aece7a37fc9639a905e94a8` |
-| Upstream script | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/proxypin_wloc_compat_v2.js` — 45,072 bytes — SHA-256 `d8ae57eb8696af05413e3fbbf0bd57513a4f649407a1d0a7bb891916482fca70` |
-| Upstream ProxyPin import manifest | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/proxypin-scripts.json` — 46,561 bytes — SHA-256 `016168f87274e55b285bad2f1073567782818f1710f6bd4df8e56f1712e406c0` |
-| Upstream license | `https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/LICENSE` — MIT — 1,083 bytes — SHA-256 `e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa` |
-| Upstream copyright | `Copyright (c) 2026 WLOC ProxyPin Contributors` |
-| Upstream fetch date | `2026-07-22` |
+Reviewed at commit
+[`eec07a8dc8de6dbaee8eac1fb376e4d03020154a`](https://github.com/Yu9191/wloc/tree/eec07a8dc8de6dbaee8eac1fb376e4d03020154a)
+on `2026-07-28`. The published module points its `script-path` values at the
+mutable `main` branch; both entries below are re-pinned to that immutable
+commit, and `npm run verify:upstreams` re-downloads and enforces each digest.
 
-The recorded 5gpn revision is provenance, not a release pin. For an installed
-extension, the Console's reviewed immutable snapshot digest is the authority.
+| Artifact | Immutable raw URL | Size | SHA-256 |
+| --- | --- | ---: | --- |
+| Loon plugin (argument and script source) | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/modules/wloc.lpx` | 1,258 bytes | `1fb451616fb17242849f72490f016afcdb8aa81a0b086f6dd5f94e1af3d58ee1` |
+| WLOC response transformer | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc.js` | 40,414 bytes | `d385c624efd59bdd2cff56bf819a770b40c4abf0f970818877f1dca4174f256a` |
+| Settings-save request script | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc-settings.js` | 12,892 bytes | `b4e9d69e69c703b3fab485a559825aaedc9e3a1fd9c06e81cb35d10bbdcd13d2` |
 
 ## License and attribution
 
-The upstream transformer and this adapted port are distributed under the MIT
-License. The upstream copyright and permission notice are retained verbatim in
-[`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md). The project MIT text for
-new repository material is in [`LICENSES/MIT.txt`](../LICENSES/MIT.txt), and
-the file-level mapping is in [`REUSE.toml`](../REUSE.toml).
+Upstream publishes no license file. This repository distributes none of its
+bytes: `extension.yaml` records the URLs and digests above and the gateway
+fetches them. The manifest and this documentation are original works under MIT,
+and retain Yu9191 attribution.
 
-The upstream script embeds pako, but this native port does not copy or bundle
-pako. HTTP content decoding is performed by the 5gpn interception runtime, so
-the upstream pako and zlib notices do not apply to files distributed in this
-extension.
+The previous revision's port derived from the MIT-licensed
+`FFF686868/proxypin-wloc-spoofer` at commit
+`edee9b955f673cc8c4a52eb0a9c687a2e25dde4a`. That code has been removed;
+`THIRD_PARTY_NOTICES.md` retains the attribution for the revisions that shipped
+it.
+
+## Settings and the picker
+
+The four settings are the upstream `[Argument]` block: `longitude`, `latitude`,
+and `accuracy` as text inputs and `logLevel` as a select, with upstream's own
+defaults. They reach the scripts as the decoded object Loon supplies.
+
+A coordinate saved through the picker page is stored in extension-scoped
+persistent storage by the `save-wloc-settings` action and takes precedence over
+these defaults, which is why this revision declares `persistentStorage: true`
+where the previous one declared none.
 
 ## Algorithm and format boundary
 
@@ -108,44 +123,24 @@ tests below validate a deliberate update.
 
 ## Port mapping
 
-| Upstream ProxyPin capability | 5gpn equivalent |
+| Upstream Loon entry | 5gpn action |
 | --- | --- |
-| URL matching for the two Apple WLOC endpoints | `traffic.captureHosts` plus the response action's HTTPS host and path matcher |
-| Request hook that returns the original WLOC request unchanged | No request action is declared; the native interception runtime forwards the request body unchanged |
-| ProxyPin response hook and raw body | Native `transform(context)` with `bodyMode: binary` and `context.response.body` |
-| ProxyPin picker/session target | Required generic `location` setting, rendered by the Console map picker |
-| ProxyPin gzip decoding via bundled `pako` | 5gpn interception runtime's bounded content-decoding pipeline; no bundled script library |
-| ProxyPin diagnostic response headers | Sandboxed `console.info` / `console.warn` output |
-| ProxyPin permissive error return | `failClosed` setting: enabled by default, or return the original response only when explicitly disabled |
+| `Apple WLOC` response script | `rewrite-wloc-response`, `entry: proxy-compat`, binary body, 30 s |
+| `WLOC Settings` request script | `save-wloc-settings`, `entry: proxy-compat`, no body, 10 s |
+| `[MITM] hostname` | The same two exact names as `traffic.captureHosts` |
+| `[Argument]` block | The four settings above, with upstream's types and defaults |
 
-The manifest declares no network origins, no persistent storage, no upstream
-mapping, and no required egress-group binding. Captured upstream traffic still
-returns through the authenticated mihomo interception egress path.
+The manifest declares no network origins, no upstream mapping, and no required
+egress-group binding. The scripts reach no third party: the picker page is
+opened by the operator in a browser and its coordinate arrives through the
+capture path, not through an outbound request from the script.
 
-## Upstream parity and native safety differences
+## Canonical record
 
-The pinned transformer's offset-zero frame, last-declared Wi-Fi identifier
-recognition, root field mapping, per-entry malformed-location skip, suffix
-preservation, and framing length rewrite are covered by independent fixtures.
-The following differences are intentional:
-
-- The required typed `location` replaces the upstream picker, session state,
-  and Shenzhen fallback. Native setting validation bounds longitude and
-  latitude before enable, and the script checks them again defensively.
-- Negative coordinates are encoded as signed `int64` two's-complement varints.
-  The pinned script's Number-based writer rejects them, but a global typed
-  location setting must support the full valid coordinate range.
-- Field numbers, varints, and fixed-width fields receive strict protobuf,
-  uint64, and message-boundary validation. The pinned Number parser is less
-  strict and cannot represent the entire uint64 range safely.
-- A syntactically valid response that contains no patchable location is an
-  error. The pinned script reports success even when it changes no location.
-- Transformation errors fail closed by default. Setting `failClosed` to false
-  reproduces the upstream permissive pass-through behavior without diagnostic
-  response headers.
-- The action runs only on successful HTTPS responses. It preserves the original
-  status and ordinary headers; bounded content decoding and framing headers are
-  owned by the interception runtime.
+| Item | Canonical value |
+| --- | --- |
+| Manifest | `apple-wloc/extension.yaml` — SHA-256 `094090b278a8394838881735de5c8de80fc6d9ffbab72fab8dce4bee2e879f63` |
+| Upstream fetch date | `2026-07-28` |
 
 ## Maintenance and updates
 
@@ -203,8 +198,8 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.apple-wloc`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=1.1.1`; `persistentStorage=false`; `settings=2`; `captureHosts=2`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
-| State class | Stateless. `persistentStorage` is false. |
+| Current manifest | `version=2.0.0`; `persistentStorage=true`; `settings=4`; `captureHosts=2`; `actions=2`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| State class | Stateful. `persistentStorage` is false. |
 | Settings | Keep `location` as a required `location` value and `failClosed` as a required boolean whenever possible. Valid same-key, same-type values survive a normal update. |
 | Sensitive values | Record whether `location` is complete, but never copy its coordinates into a migration record, issue, or log. |
 | Reviewed capability baseline | Two capture hosts, one response action, no network origins, routing rules, upstream mappings, or required egress binding. |

@@ -19,31 +19,48 @@ requirement. It exposes the five settings declared by the pinned Loon plugin,
 requests no persistent storage, and asks for three exact network origins for
 the SponsorBlock and request-optimization helpers.
 
+## What changed, and why
+
+Earlier revisions hand-ported this module: a generated protobuf runtime, a
+vendored dependency set, a deterministic esbuild pipeline, and roughly a hundred
+pinned build artifacts, all so that a GPL bundle could be redistributed with its
+corresponding preferred source. Every upstream revision meant re-deriving that
+tree.
+
+The runtime now hosts the contract these scripts are written against, and it
+runs jq, so this extension carries the upstream module rather than a
+reimplementation of it. Five actions load the pinned scripts; eleven carry the
+pinned rewrite expressions verbatim; five keep local synthetic responses,
+because a `mock-response-body` directive has no script and no input document to
+transform.
+
+Nothing GPL is redistributed any more. The scripts are fetched by the gateway
+from immutable raw URLs and pinned by digest, so this repository references them
+instead of shipping their bytes, and the corresponding-source obligation that
+required the build tree no longer applies. `bilibili-cleaner/source/` is gone.
+
 ## Pinned upstream artifacts
 
-The authoritative orchestration is `release/loon/plugin/bilibili.lpx` from
-`kokoryh/Sparkle` commit
-`12e89d6d93d72d39eb283ef81d2b58eb204cdb58`, committed on `2026-07-20`.
-The artifact set was fetched and verified on `2026-07-22`.
+Reviewed at commit
+[`12e89d6d93d72d39eb283ef81d2b58eb204cdb58`](https://github.com/kokoryh/Sparkle/tree/12e89d6d93d72d39eb283ef81d2b58eb204cdb58).
+The published module points its `script-path` and `jq-path` values at the
+mutable `master` branch; every entry below is re-pinned to that immutable
+commit, and `npm run verify:upstreams` re-downloads and enforces each digest.
 
-| Artifact | Immutable source | Size | SHA-256 | Local disposition |
-| --- | --- | ---: | --- | --- |
-| Loon plugin | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/release/loon/plugin/bilibili.lpx` | 6,966 bytes | `07f9c95c3e1fd511b50c0fab790a023415945ca322fb66927266c60f666ea1c6` | Authoritative settings, matchers, mocks, rules, and script ordering |
-| JSON transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.json.js` | 19,068 bytes | `5d3e6ecdbdc301f55e68e08185a9d00a70e13d2c48858ff9c6f7e3ca303bcfa7` | Live-response behavior used by the LPX is ported in `clean-json.js`; unrelated application routes remain excluded |
-| Protobuf request transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.request.js` | 62,893 bytes | `3902dc936736125d18d3c3da1d5564832d5fe80bb4d2df041f51cf16d80c3da1` | Reimplemented from preferred source in `source/native-protobuf.ts` |
-| Protobuf response transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.response.js` | 94,862 bytes | `e5989151c9e0a51a835a651543e903af287604a11d70368e043f3528939092ea` | Reimplemented from preferred source in `source/native-protobuf.ts` |
-| Webpage transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/webpage.bilibili.js` | 5,033 bytes | `13e98f5443a5ca85ddb7e8088f0a44d16bde11ee4c8668f26d83f80515fcc0d6` | Functional text-injection port in `inject-live-page.js` |
-| Account JQ program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.mine.jq` | 7,636 bytes | `10ca10375b19193fd280deedb7f6219cdce804ea3813ab5fa4f692d02a3238e5` | Fully mapped in `clean-json.js` |
-| Tab JQ program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.tab.jq` | 2,091 bytes | `820ef567586a069375f2853db70973a212f391ff0d9008d00fc3b06166bfde26` | Fully mapped in `clean-json.js` |
-| Sparkle package metadata | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/package.json` | 769 bytes | `b98a8915af5a85c681e21cdb973a739083ebf25001e0c0df3d6ab459666f878e` | Original dependency and build-tool version evidence |
-| Sparkle GPL license | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/LICENSE` | 35,148 bytes | `8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b` | Governing upstream license |
+| Artifact | Immutable raw URL | Size | SHA-256 |
+| --- | --- | ---: | --- |
+| Sparkle GPL license | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/LICENSE` | 35,148 bytes | `8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b` |
+| Loon plugin (rule and directive source) | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/release/loon/plugin/bilibili.lpx` | 6,966 bytes | `07f9c95c3e1fd511b50c0fab790a023415945ca322fb66927266c60f666ea1c6` |
+| Protobuf request transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.request.js` | 62,893 bytes | `3902dc936736125d18d3c3da1d5564832d5fe80bb4d2df041f51cf16d80c3da1` |
+| Protobuf response transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.response.js` | 94,862 bytes | `e5989151c9e0a51a835a651543e903af287604a11d70368e043f3528939092ea` |
+| Live JSON transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.json.js` | 19,068 bytes | `5d3e6ecdbdc301f55e68e08185a9d00a70e13d2c48858ff9c6f7e3ca303bcfa7` |
+| Activity webpage transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/webpage.bilibili.js` | 5,033 bytes | `13e98f5443a5ca85ddb7e8088f0a44d16bde11ee4c8668f26d83f80515fcc0d6` |
+| Tab replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.tab.jq` | 2,091 bytes | `820ef567586a069375f2853db70973a212f391ff0d9008d00fc3b06166bfde26` |
+| My-page replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.mine.jq` | 7,636 bytes | `10ca10375b19193fd280deedb7f6219cdce804ea3813ab5fa4f692d02a3238e5` |
 
-The LPX loads JQ and generated script URLs from mutable `master`. This port
-never loads them at runtime; every behavior above is reviewed against the
-immutable commit. The LPX now uses the JSON bundle only for the three live
-response families. Its separate locale-sensitive account implementation and
-`showCreatorHub` argument are not LPX behavior and remain deliberately
-excluded; account and tab responses continue to follow the pinned JQ programs.
+The two `jq-path` programs are inlined into `extension.yaml` rather than fetched
+at runtime, because a jq action carries its expression in the manifest. Their
+bytes are recorded above so a review can diff the inlined copy against upstream.
 
 ## Chronos client artifacts
 
@@ -69,207 +86,40 @@ The archives are fetched by the Bilibili client, not by
 because the Chronos repository does not include their complete corresponding
 preferred source.
 
-## Protobuf preferred source
-
-`protobuf.js` is a deterministic generated bundle. Its complete preferred
-source and build inputs are included in [`source/`](source/README.md):
-
-- `native-protobuf.ts` contains the native `transform(context)` adapter and all
-  request and response mutations;
-- `proto/` contains all 15 pinned schema inputs;
-- `generated/` contains all 15 corresponding `protobuf-ts` outputs;
-- `package.json` and `package-lock.json` pin the npm dependency graph;
-- the generation and bundling inputs are retained beside the adapter;
-- `vendor/` retains the exact published runtime archives;
-- `vendor-src/` retains the embedded components' preferred TypeScript source;
-  and
-- `licenses/` retains the applicable Apache-2.0, MIT, and BSD-3-Clause terms.
-
-`source/upstream-sparkle/` retains the complete Sparkle source dependency
-closure used to audit and port the two Protobuf bundles. Every path below uses
-this immutable raw prefix:
-
-```text
-https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/
-```
-
-| Path below the immutable prefix | Size | SHA-256 |
-| --- | ---: | --- |
-| `add-pure-annotations.ts` | 1,013 bytes | `ea26a3fafae245af845aeca213235abe7f2756190cf01e1cd365cab5b7015361` |
-| `buf.gen.yaml` | 170 bytes | `aae392b40d5f5733f015184df1929b19b64ed165c1cba7c18e875b31e2e44f4c` |
-| `buf.yaml` | 62 bytes | `6df9257f48534e841a931fe7d2fabfeb6f2fd698d3728d9f9a0f26ef5a7237b5` |
-| `build.ts` | 4,905 bytes | `2549c1cf76043aa39e124ac37d40df25c53762e8a4f1ac9923740d23b14ab488` |
-| `package.json` | 769 bytes | `b98a8915af5a85c681e21cdb973a739083ebf25001e0c0df3d6ab459666f878e` |
-| `src/core/application.ts` | 464 bytes | `ea98e5150077a12383f2ddfb6ce3545a293463b2ca2609e4feb74e62a8f9ad68` |
-| `src/core/compose.ts` | 404 bytes | `c8d367fe16bacedf13c081912da0b59492d5ebd20ef5edf4d8e64850d5431c69` |
-| `src/core/context.ts` | 9,765 bytes | `0ae34929739cd765a6dc1457e06330c6ba4aee51df6660e4cbb8212bfcb44086` |
-| `src/core/layer.ts` | 326 bytes | `50cd4bc141a1cdf92f1b08134ecb8bea97a5555a95a9227fab35344543e1042a` |
-| `src/core/logger.ts` | 1,338 bytes | `b13fdf7ac983a877ec7c643d5be1f471b3938fefb36ca78169bd82fa7097927c` |
-| `src/core/middleware.ts` | 2,300 bytes | `3205ddbc208d1b1761361801e3ce566b3d1586537c46e59630bf9da559ba6184` |
-| `src/core/process.ts` | 479 bytes | `4337f528697794b8aa969e36b78defe91f355ea4f17e340810a3a49529f337ff` |
-| `src/core/router.ts` | 2,850 bytes | `6757c3be8271f13f9dad5a9a5e3282a2f086b57c60efc01f709ede1eed922584` |
-| `src/script/bilibili/protobuf/deprecated-handler.ts` | 2,407 bytes | `77a22d40127a7fa299b271aaca1d5cf19ca109bc9bd0f86bd61e79879c3b8eb7` |
-| `src/script/bilibili/protobuf/handler.ts` | 16,379 bytes | `16c505dce1d5b0e63b4840e6208375e55c1f476ba1ddd640135610a70dde1b7b` |
-| `src/script/bilibili/protobuf/middleware.ts` | 1,244 bytes | `9e89e6b6969bcc5f0d8e6883ecf1c2a954242bf33622aff6b7c6e75c94df9a16` |
-| `src/script/bilibili/protobuf/request/app.ts` | 399 bytes | `9ed5468308c4e682a3a5a867d66fe047ad7a59bf5df15dd94589f69d1caee70b` |
-| `src/script/bilibili/protobuf/request/main.ts` | 41 bytes | `ac21441904ad3752a68d1cb1cfcea4a7806b1a4ea5edf49e8df03ee02d0f1a6b` |
-| `src/script/bilibili/protobuf/request/router.ts` | 1,036 bytes | `87b8a3429e58a01212e33f44a0f7b8ef28140543cd8e5e4e0c4d72ed155c4c6d` |
-| `src/script/bilibili/protobuf/response/app.ts` | 401 bytes | `ab4d0bd15b413ea862c34b8e28865362531c2b36a87517618368cdf7cb68a213` |
-| `src/script/bilibili/protobuf/response/main.ts` | 41 bytes | `ac21441904ad3752a68d1cb1cfcea4a7806b1a4ea5edf49e8df03ee02d0f1a6b` |
-| `src/script/bilibili/protobuf/response/router.ts` | 1,817 bytes | `82a00e7898759d55a7812d3c9ea1fc3137535b215e49d6eb603aab2ef601cea2` |
-| `src/service/sponsor-block.service.ts` | 820 bytes | `d387a77620d5789337f3a533714887fb17ab7b75eddb56130aaae64cea8ced94` |
-| `src/types/common.d.ts` | 891 bytes | `f4f017e8dcc1f06f499dd55999b23a51177d0ad3190f70ac1b87e53ccadfc54d` |
-| `src/types/context.d.ts` | 1,398 bytes | `757afc322ec20f3e065629a52d9cb3974f45acb70af77c5bc0d73d405ab76186` |
-| `src/types/global.d.ts` | 953 bytes | `2259faa98a0a1857f47daff6a04c4f2bdc3bbfeabea4a4f7b46480e20c494709` |
-| `src/types/loon.d.ts` | 1,079 bytes | `ab1fe2b335e1cd2333f388db65390e2b9242066c129f15f3df525d19f2dfae08` |
-| `src/types/quantumult-x.d.ts` | 1,473 bytes | `d51a2ef813690849cd5a3f096a78fe5340d943a48c85e0fd717d0909656dfc1c` |
-| `src/types/surge.d.ts` | 2,414 bytes | `d45b1966269999767efa6cba4f28d80200e1cc14e28dc696715ff3e0a402a1ad` |
-| `src/utils/assert.ts` | 132 bytes | `c294a6c23e208e8b6ecbfcc7aa4693d7e95a70c53119b41623d83a5b79d1fa9a` |
-| `src/utils/bilibili.ts` | 1,420 bytes | `43f483e37555f7deade2f6721ef3329acd1dc6f8aa11ece1dae9cbac39c2fcc2` |
-| `src/utils/binary.ts` | 371 bytes | `29201c8ee74534d71f26a04b9a822bdbffcb0274de2c0a40cf9fd085b35c25ec` |
-| `src/utils/index.ts` | 2,746 bytes | `45bac1a7ebc7e8b86c7964f1c13dfa0c83b508f557460086d5fe09af6d1af901` |
-| `tsconfig.json` | 583 bytes | `3f4b2deb2588884226e41d75ecfb79aef4c2292c85caa10c17fa907f97681f23` |
-
-The schema inputs were fetched from the same Sparkle commit on `2026-07-22`:
-`source/proto/SHA256SUMS` binds the local copies to the same digests and the
-source verifier rejects missing, extra, or changed schema files.
-
-| Immutable schema source | Size | SHA-256 |
-| --- | ---: | --- |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/card/v1/card.proto` | 349 bytes | `36f0ba3b85a65c67d15c3ea50f6eb2219353dd5c41ae6ae59b42fb1fa5c0fcbb` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/dynamic/v2/dynamic.proto` | 552 bytes | `82e03f0a60302466628bc26cd7371f33fefc1ccc88dfbcc3169a20e37e0b7753` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/interface/v1/search.proto` | 217 bytes | `c80036b21029732b468e52b7b8cc42c621e22603d2fb0995c5654817e39d96ea` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/interface/v1/teenagers.proto` | 235 bytes | `83b85b1c1bd96fc29ee5ad7219bcee1f5202b69bb88b65855f7fa9535650d196` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/playerunite/pgcanymodel/pgcanymodel.proto` | 290 bytes | `4177103b5af303f423f528a381e2f2897219b7e99354717ef1f173ab332b6b7f` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/playerunite/v1/player.proto` | 527 bytes | `4fab0148d3d3ee4a15075af04ad11966c17b4fa60af61e686ebd4d62dcc2eacd` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/playurl/v1/playurl.proto` | 432 bytes | `016100ae935f10be786b60b61f9bb40af9dcd54b82938e58a81bbf250be74a53` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/show/popular/v1/popular.proto` | 177 bytes | `15e413c142be474e0ac2604fd5747665cdc74d9816937b3962ea054a8d855d1f` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/view/v1/view.proto` | 770 bytes | `a1d2d0cd256e38315bd5f077cbdb4f3cfe64e2c5dcf7c696413faffadca90aac` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/app/viewunite/v1/view.proto` | 1,499 bytes | `50b338f373423c5d263108c5bf05ae09227f6cfb913ceffde3b1c62e39427df6` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/community/service/dm/v1/dm.proto` | 994 bytes | `b95ba7c2fa93f1a8b123a62d5d7ce308d9a559e754d782fe4f1cbb485f8d44cf` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/main/community/reply/v1/reply.proto` | 643 bytes | `0ed3885c40a212798b0691617028b16eec56e66b82c499e1967618f9c6384880` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/pgc/gateway/player/v2/playurl.proto` | 1,217 bytes | `fe53fd828d9abe7ec3be756f02ab110d4532342979b7ad66fbcb37aa90456525` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/playershared/playershared.proto` | 935 bytes | `23cfb49342f77f402a2c2c209ba39e102a3fa85f1bbe8d2b13303d2b0109e23a` |
-| `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/proto/bilibili/polymer/app/search/v1/search.proto` | 162 bytes | `452ec59582c48f5f6346ad403c81c376a82ff13c960f276e18648e2c01466fea` |
-
-## Embedded components and deterministic build
-
-The generated Protobuf artifacts include Apache-2.0 `protobuf-ts` 2.11.1
-runtime code. Its current published version tag resolves to commit
-`3f14440c5e52dd8223ac1919ad7f44e31432c667`. The pinned license is
-`https://raw.githubusercontent.com/timostamm/protobuf-ts/3f14440c5e52dd8223ac1919ad7f44e31432c667/LICENSE`
-— 10,140 bytes — SHA-256
-`5e3400b93bbb099e83e52bab885e7441750673c21f97988ca3f1240639b63283`.
-
-The native bundle uses the current published `fflate` 0.8.3 for bounded gzip
-decoding. Its annotated `v0.8.3` tag peels to commit
-`dcb3714a6c25db3a2748641019c5277413d09714`. The pinned license is
-`https://raw.githubusercontent.com/101arrowz/fflate/dcb3714a6c25db3a2748641019c5277413d09714/LICENSE`
-— 1,069 bytes — SHA-256
-`0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551`.
-
-| Embedded npm archive | Size | SHA-256 |
-| --- | ---: | --- |
-| `https://registry.npmjs.org/@protobuf-ts/runtime/-/runtime-2.11.1.tgz` | 54,285 bytes | `3bb18cb373565b5c95e466c1db76e4b1d8166b62276a15e3547c36f9e25b502b` |
-| `https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz` | 173,034 bytes | `38c2cd824402407b43153c782274aec2ea83ea688e4aa0b743c5f2c305857d92` |
-
-The preferred-source inventory is stored in
-`source/vendor-src/SOURCE_MANIFEST.tsv`. Paths below `fflate/` map to:
-
-```text
-https://raw.githubusercontent.com/101arrowz/fflate/dcb3714a6c25db3a2748641019c5277413d09714/
-```
-
-Paths below `protobuf-ts/` map to:
-
-```text
-https://raw.githubusercontent.com/timostamm/protobuf-ts/3f14440c5e52dd8223ac1919ad7f44e31432c667/
-```
-
-The native build deliberately keeps its previously reviewed build-only
-toolchain (`@bufbuild/buf` 1.55.1, `@protobuf-ts/plugin` 2.11.1, esbuild
-0.25.6, and TypeScript 5.8.3) because those versions remain sufficient to
-reproduce the generated output; they are not embedded runtime behavior.
-All registry URLs and integrity values are fixed in `source/package-lock.json`.
-
-Rebuild with:
-
-```powershell
-Set-Location bilibili-cleaner/source
-npm ci
-npm run generate
-npm run build
-npx tsc --noEmit
-npm run verify:sources
-```
-
-The expected minified bundle is 108,550 bytes with SHA-256
-`dd92209bcd63c261ba3f6dd65bfc547f07bfd4ab83937143dba1f63c7286c46c`.
-The fixed esbuild 0.25.6 build enables deterministic minification while
-retaining the SPDX banner and `legalComments: 'eof'`. A fixed footer wraps the
-minified implementation in the sole stable `function transform(context)`
-entry point without exposing another global capability. Source maps remain
-disabled: the complete preferred TypeScript, generated schemas, vendor source,
-lockfile, and exact build inputs are distributed beside the bundle, and the
-runtime has no source-map consumer. The output contains no timestamp or
-absolute source path. No toolchain or `node_modules` directory is installed on
-the gateway.
-
 ## License and attribution
 
-Sparkle's `package.json` identifies `kokoryh` as author, and the repository is
-licensed under GNU GPL version 3. No “or later” grant is supplied, so this
-extension uses the conservative SPDX identifier `GPL-3.0-only`.
+The upstream module is GPL-3.0-only. This repository does not redistribute it:
+`extension.yaml` records immutable URLs and digests, and the gateway fetches the
+bytes itself. The manifest, this documentation, `mock-json.js`, and
+`mock-grpc.js` are original works distributed under GPL-3.0-only so the
+aggregate stays consistent with the module they accompany, and they retain
+kokoryh/Sparkle attribution.
 
-The native JavaScript, native TypeScript, and schema-derived generated
-TypeScript are distributed under `GPL-3.0-only`. The final combined
-`protobuf.js` is mapped as `GPL-3.0-only AND BSD-3-Clause` because it retains
-Google's 2008 BSD-licensed `goog-varint` implementation. The raw bundle embeds
-that complete copyright, three conditions, and disclaimer in its deterministic
-banner. The exact standalone text is retained as
-`source/licenses/goog-varint-BSD-3-Clause.txt`.
+The two inlined jq programs are copied verbatim from the pinned commit and are
+GPL-3.0-only upstream text; their provenance is the table above.
 
-The bundle also incorporates Apache-2.0 `protobuf-ts` runtime material and MIT
-`fflate` material; their component notices and source inputs remain available
-beside the GPL preferred source. The published `protobuf-ts` runtime package
-declares `(Apache-2.0 AND BSD-3-Clause)` because it contains both Google's
-`goog-varint.ts` and Daniel Wirtz's BSD-licensed `protobufjs-utf8.ts`.
-`source/bundle-inputs.json` proves that `protobufjs-utf8.ts` is removed from
-the final bundle by tree shaking, while `goog-varint.js` is retained.
-
-KeleeOne mirrors several Sparkle files and was only a discovery catalog. Its
-repository-level CC license cannot replace Sparkle's original GPL license, so
-no KeleeOne CC claim applies to this directory.
+Earlier revisions vendored a generated protobuf runtime, a Google BSD-3-Clause
+varint implementation, and an MIT fflate archive to satisfy the
+corresponding-source obligation for a redistributed bundle. None of that is
+present any more.
 
 ## Port mapping
 
-| Pinned Loon behavior | Native 5gpn mapping |
-| --- | --- |
-| Six MITM hosts | Six exact `traffic.captureHosts`; `www.bilibili.com` replaces the obsolete `live.bilibili.com` capture. |
-| Five LPX reject rules | Four exact-domain rejects plus `AND(DOMAIN-SUFFIX chat.bilibili.com, OR(p2p, stun, tracker))` as one typed rule. |
-| `DOMAIN,bsbsb.top,PROXY` | `requirements.egressGroup.required: true`; the operator must select an existing mihomo group and the script cannot name or change it. |
-| Five plugin arguments | Five required typed settings with pinned names and defaults. |
-| Request mocks | Synthetic JSON and gRPC responses, including Splash List, `patch/tab/v2`, `PlayPause`, and `ViewEndPage`. |
-| `/pgc/page/channel` JQ | Response-side removal of `TIP` modules and reviewed Bilibili activity banners. |
-| JSON and JQ response operations | Pinned account/tab JQ plus route-specific live feed, room, user, and tracker behavior in `clean-json.js`. |
-| Protobuf request transformer | SponsorBlock DmSeg replay plus optional pre-cleaned View and MainList replay, with reviewed fallback from `grpc.biliapi.net` to `app.bilibili.com`. |
-| Protobuf response transformer | All 14 current response handlers, including iPad RelatesFeed, video-mentions removal, QoE removal, and comment-keyword filtering. |
-| Webpage transformer | Injects the pinned client-side tree traversal into `www.bilibili.com` activity pages without sandbox `DOMParser`. |
-| Proxy-client globals | Replaced by `transform(context)`, typed settings, explicit binary bodies, console logging, and origin-scoped synchronous network calls. |
+Twenty-one actions, in three kinds:
 
-The five gRPC mocks preserve the pinned binary frames and return the pinned
-`Grpc-Status: 0` response header. Protobuf handling preserves unknown fields
-and existing gRPC trailers, accepts the pinned single-frame gzip convention,
-and emits one uncompressed frame with a corrected length prefix. When the
-request declares `x-bili-moss-engine-type: 1` and no trailers exist, the native
-port adds the pinned gRPC status header. Gzip input is streamed in one-KiB
-chunks and rejected once the decompressed Protobuf message exceeds eight MiB.
+| Kind | Count | What it carries |
+| --- | ---: | --- |
+| `entry: proxy-compat` | 5 | The pinned `dist/` scripts: the protobuf request transformer on both request paths, the protobuf response transformer, the live JSON transformer, and the activity webpage transformer. |
+| `script.jq` | 11 | The pinned `[Rewrite]` expressions, including the two `jq-path` programs inlined. |
+| local script | 5 | `mock-json.js` and `mock-grpc.js`, for the `mock-response-body` and `reject-dict` directives. A synthetic response has no input document, so there is nothing for jq to transform and no upstream script to load. |
 
-The DmSegMobile, View, and MainList request paths share one native action
-because their hosts, scheme, method, script, body mode, timeout, and body limit
-are identical. The anchored path alternation preserves the script's endpoint
-dispatch while snapshotting the 108,550-byte bundle only once for request
-handling.
+The five settings are unchanged and already match the upstream `[Argument]`
+names, so they reach the scripts as the decoded object Loon supplies.
+
+The upstream `bilibili.skin` entry loads `bili-suit-diy.js` from a second
+repository, `kokoryh/Script`. That repository is not pinned here. The skin
+response is instead handled by the `clean-app-skin` jq action, which applies the
+Loon plugin's own `response-body-json-del data.common_equip` directive.
 
 ## Network permission, egress, and data disclosure
 
@@ -355,8 +205,8 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=5`; `captureHosts=6`; `actions=11`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
-| State class | Stateless. `persistentStorage` is false. |
+| Current manifest | `version=3.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=21`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
+| State class | Stateful. `persistentStorage` is false. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, eleven actions, three network origins, five settings, and a required egress binding. |
 | Operator state | A normal same-ID update retains valid settings, egress binding, `capture_dns`, and execution position. Review all of them before enable. |
@@ -407,43 +257,27 @@ data-safe because the extension is stateless, but it loses settings, egress,
 
 ## Verification
 
-Run:
-
 ```powershell
-node tests/bilibili-fixtures.mjs
-if ($LASTEXITCODE -ne 0) { throw "Bilibili fixtures failed with exit code $LASTEXITCODE" }
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run verify:upstreams
 if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
-
-Push-Location bilibili-cleaner/source
-try {
-  npm ci
-  if ($LASTEXITCODE -ne 0) { throw "Bilibili npm ci failed with exit code $LASTEXITCODE" }
-  npm run generate
-  if ($LASTEXITCODE -ne 0) { throw "Bilibili generation failed with exit code $LASTEXITCODE" }
-  npm run build
-  if ($LASTEXITCODE -ne 0) { throw "Bilibili build failed with exit code $LASTEXITCODE" }
-  npx tsc --noEmit
-  if ($LASTEXITCODE -ne 0) { throw "Bilibili type check failed with exit code $LASTEXITCODE" }
-  npm run verify:sources
-  if ($LASTEXITCODE -ne 0) { throw "Bilibili source verification failed with exit code $LASTEXITCODE" }
-  git diff --exit-code -- ../protobuf.js generated bundle-inputs.json
-  if ($LASTEXITCODE -ne 0) { throw 'Bilibili generated artifacts differ from the reviewed source' }
-} finally {
-  Pop-Location
-}
 ```
 
-Then confirm six capture hosts, five routing rules, eleven actions, five
-settings, three exact network origins, required operator egress, no storage
-permission, and no proxy-client compatibility global. Exercise all JSON/JQ
-branches, five mocks, HTML injection, all 14 response handlers, three request
-handlers, gzip framing, unknown-field preservation, gRPC status behavior,
-SponsorBlock success/failure, request fallback, disabled settings, and
-malformed bodies. Cover both network entry points: that `requestAsync` starts
-the replay and the SponsorBlock lookup before either resolves, and that a
-runtime offering only `request` still produces the same response sequentially.
+`verify:upstreams` re-downloads every artifact in the pinned table and enforces
+its size and digest, so a changed upstream fails the gate rather than being
+adopted silently. That includes the two jq programs, which is what keeps the
+inlined copies honest.
+
+What this repository can no longer assert is what the scripts do. The previous
+revision shipped protobuf fixtures over local code; that code is gone, and
+running upstream's own bundle against fabricated frames would test upstream
+rather than this manifest. The jq expressions are executed against gojq -- the
+engine that runs them -- in the sidecar's jq suite; Node has no jq, so they
+cannot be executed here.
+
+Before relying on the airborne helper, exercise it on a device while reviewing
+sidecar logs: it reaches `bsbsb.top` and replays to `grpc.biliapi.net`, and
+neither is covered by any fixture.

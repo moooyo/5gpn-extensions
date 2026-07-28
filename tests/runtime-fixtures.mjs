@@ -82,78 +82,12 @@ function lengthField(field, bytes) {
 }
 
 {
-  const { transform } = await loadTransform('zhihu-cleaner/clean-json.js')
-  const result = transform({
-    request: { url: 'https://api.zhihu.com/questions/42/feeds?include=all' },
-    response: { body: JSON.stringify({ ad_info: {}, keep: true }) },
-  })
-  assert.deepEqual(JSON.parse(result.response.body), { keep: true })
-}
-
-{
-  const { transform } = await loadTransform('youtube-cleaner/request-handler.js')
-  const result = transform({
-    request: {
-      url: 'https://r1.googlevideo.com/initplayback?a=1&ack=1',
-      headers: {},
-      body: new Uint8Array(lengthField(3, lengthField(5, [1, 2, 3]))),
-    },
-    settings: { captionLang: 'off' },
-    storage: {
-      get() { return null },
-      set() { return true },
-    },
-  })
-  assert.equal(result.response.status, 200)
-}
-
-{
-  const { transform } = await loadTransform('youtube-cleaner/clean-player.js')
-  const unrelated = lengthField(1, [0x01])
-  const player = new Uint8Array([
-    ...unrelated,
-    ...lengthField(7, [0x02]),
-    ...lengthField(68, [0x03]),
-  ])
-  const result = transform({
-    request: { url: 'https://youtubei.googleapis.com/youtubei/v1/player' },
-    response: { body: player },
-  })
-  assert.deepEqual([...result.response.body], unrelated)
-}
-
-{
   const { transform } = await loadTransform('bilibili-cleaner/mock-json.js')
   const result = transform({})
   assert.equal(result.response.status, 200)
   assert.deepEqual(JSON.parse(result.response.body), {})
 }
 
-{
-  const { transform } = await loadTransform('bilibili-cleaner/clean-json.js')
-  const result = transform({
-    request: { url: 'https://app.bilibili.com/x/v2/feed/index' },
-    response: {
-      body: JSON.stringify({
-        code: 0,
-        data: {
-          items: [
-            { id: 'ad', card_goto: 'av', card_type: 'small_cover_v2', ad_info: {} },
-            { id: 'keep', card_goto: 'av', card_type: 'small_cover_v2' },
-          ],
-        },
-      }),
-    },
-  })
-  assert.deepEqual(JSON.parse(result.response.body).data.items, [{ id: 'keep', card_goto: 'av', card_type: 'small_cover_v2' }])
-
-  const tabResult = transform({
-    request: { url: 'https://app.bilibili.com/x/resource/show/tab/v2' },
-    response: { body: JSON.stringify({ code: 0, data: {} }) },
-  })
-  const tabData = JSON.parse(tabResult.response.body).data
-  assert.deepEqual(tabData.tab.map((item) => item.id), [731, 477, 478, 3502, 3503])
-}
 
 {
   const { transform } = await loadTransform('bilibili-cleaner/mock-grpc.js')
@@ -163,21 +97,5 @@ function lengthField(field, bytes) {
   assert(result.response.body.length > 5)
 }
 
-{
-  const { transform } = await loadTransform('apple-wloc/wloc.js')
-  const location = [...varintField(1, 1), ...varintField(2, 2), ...varintField(3, 99)]
-  const wifi = [...lengthField(1, [...Buffer.from('aa:bb:cc:dd:ee:ff')]), ...lengthField(2, location)]
-  const payload = lengthField(2, wifi)
-  const frame = new Uint8Array(10 + payload.length)
-  frame[8] = payload.length >> 8
-  frame[9] = payload.length & 0xff
-  frame.set(payload, 10)
-  const result = transform({
-    response: { body: frame },
-    settings: { location: { longitude: -0.1276, latitude: 51.5072, accuracy: 25 }, failClosed: true },
-  })
-  assert(result.response.body instanceof Uint8Array)
-  assert.notDeepEqual([...result.response.body], [...frame])
-}
 
 console.log('Runtime fixtures passed')

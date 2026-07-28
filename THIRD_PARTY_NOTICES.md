@@ -83,14 +83,29 @@ text governing the combined Bilibili work is retained in
 
 ## YouTube Cleaner
 
-`youtube-cleaner` is derived from the Apache-2.0 `Maasea/sgmodule` YouTube
-module, request script, and response script at commit
-`65075cdb388fc5e3094afd7e7314c67b243f3525`. No upstream `NOTICE` file exists
-at that commit. The local implementation is a bounded native rewrite and does
-not embed the upstream generated runtimes. The external
-`init-stream.maasea.workers.dev` service is not distributed by this repository
-and its implementation is not present in the pinned upstream tree. The port
-retains Maasea attribution and the Apache-2.0 license.
+`youtube-cleaner` does not vendor upstream source. It loads the two Apache-2.0
+`Maasea/sgmodule` YouTube transformers at runtime and executes them under the
+`5gpn.io/v1` proxy-compat script contract. The reviewed artifacts are pinned at
+commit `65075cdb388fc5e3094afd7e7314c67b243f3525`:
+`Script/Youtube/youtube.request.js`, 44,024 bytes, SHA-256
+`3ecca15e06e76a31720092c581180f648ef2c45e494644941ba985c878efbb26`, and
+`Script/Youtube/youtube.response.js`, 132,973 bytes, SHA-256
+`f98483d5f5017514f82502253c0db5ce2d4ffb7839887aa2cadc22666f5a7f12`. No upstream
+`NOTICE` file exists at that commit.
+
+Because the bundles are fetched rather than copied, this repository distributes
+none of their bytes and adds no derived work of them. The bundles embed an
+Apache-2.0 `protobuf-ts` runtime and a CC0-1.0 TextEncoder/TextDecoder
+polyfill; neither is present here. `youtube-cleaner/extension.yaml` and
+`youtube-cleaner/README.md` are original and Apache-2.0, and retain Maasea
+attribution.
+
+Earlier revisions shipped a bounded native rewrite of these transformers under
+this heading. That code has been removed; the pinned bundles are now the
+implementation.
+
+The external `init-stream.maasea.workers.dev` service is not distributed by this
+repository and its implementation is not present in the pinned upstream tree.
 
 ## WeatherKit release bundle
 
@@ -123,9 +138,23 @@ processed on the gateway.
 
 ## Apple WLOC response transformer
 
-The bounded JavaScript WLOC protobuf transformation in `apple-wloc/wloc.js`
-is derived from the MIT-licensed `FFF686868/proxypin-wloc-spoofer` project at
-commit `edee9b955f673cc8c4a52eb0a9c687a2e25dde4a`.
+`apple-wloc` does not vendor upstream source. It loads two scripts from
+`Yu9191/wloc` at runtime under the `5gpn.io/v1` proxy-compat contract, pinned at
+commit `eec07a8dc8de6dbaee8eac1fb376e4d03020154a`: `dist/wloc.js`, 40,414 bytes,
+SHA-256 `d385c624efd59bdd2cff56bf819a770b40c4abf0f970818877f1dca4174f256a`, and
+`dist/wloc-settings.js`, 12,892 bytes, SHA-256
+`b4e9d69e69c703b3fab485a559825aaedc9e3a1fd9c06e81cb35d10bbdcd13d2`.
+
+That repository publishes no `LICENSE` file, so no license grant is asserted
+here. This repository distributes none of its bytes; the gateway fetches them
+from the immutable URLs above, which is how their author publishes them for
+proxy clients to load.
+
+Revisions through 1.1.1 shipped a bounded JavaScript port derived from the
+MIT-licensed `FFF686868/proxypin-wloc-spoofer` project at commit
+`edee9b955f673cc8c4a52eb0a9c687a2e25dde4a`. That code has been removed; its
+attribution and license text are retained below for the revisions that carried
+it.
 
 MIT License
 

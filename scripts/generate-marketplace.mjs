@@ -39,6 +39,10 @@ function newerContractReasons(manifest) {
     .map((action) => action.script?.entry)
     .filter((entry) => typeof entry === 'string' && entry !== '' && entry !== 'native'))]
   for (const entry of entries.sort()) reasons.push(`script.entry=${entry}`)
+  // A v1-era core parses the index with DisallowUnknownFields and the manifest
+  // with KnownFields, so an action carrying a jq expression costs that core the
+  // whole catalogue rather than just this entry.
+  if ((manifest.actions ?? []).some((action) => action.script?.jq !== undefined)) reasons.push('script.jq')
   return reasons
 }
 
@@ -218,8 +222,16 @@ function parseStrictManifest(body, directory) {
     assert(!actionIDs.has(action.id), `${directory}: duplicate action id ${action.id}`)
     actionIDs.add(action.id)
     assertKeys(action.match, new Set(['hosts', 'schemes', 'methods', 'pathRegex', 'statusCodes']), `${directory}: action ${action.id}.match`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
     assert(action.script.inline === undefined, `${directory}: published actions must use immutable local script sources`)
+    // A jq action carries an expression rather than a script, so it contributes
+    // no resource to the index and has no source to pin.
+    if (action.script.jq !== undefined) {
+      assertString(action.script.jq, `${directory}: action ${action.id}.script.jq`)
+      assert(action.script.source === undefined, `${directory}: action ${action.id} declares both jq and a source`)
+      assert(action.script.bodyMode === 'text', `${directory}: action ${action.id} jq requires a text body`)
+      continue
+    }
     assertString(action.script.source, `${directory}: action ${action.id}.script.source`)
   }
   assert(actions.length + mappings.length > 0, `${directory}: at least one action or mapping is required`)
@@ -283,8 +295,11 @@ async function buildResources(root, directory, actions) {
   // A remote bundle therefore belongs here with the digest the gateway will
   // compute: omitting it because this repository does not ship the bytes makes
   // the entry uninstallable rather than more honest.
-  const local = actions.filter((action) => !isAbsoluteScriptSource(action.script.source))
-  const remote = actions.filter((action) => isAbsoluteScriptSource(action.script.source))
+  // A jq action names no script, so it contributes no resource: there is
+  // nothing for the gateway to fetch or for a digest to pin.
+  const scripted = actions.filter((action) => action.script.source !== undefined)
+  const local = scripted.filter((action) => !isAbsoluteScriptSource(action.script.source))
+  const remote = scripted.filter((action) => isAbsoluteScriptSource(action.script.source))
   const paths = [...new Set(local.map((action) => safeResourcePath(action.script.source, directory)))].sort()
   const resources = []
   for (const relative of paths) {

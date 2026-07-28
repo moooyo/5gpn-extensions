@@ -64,11 +64,11 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   // v1 contract does not cover. Anything else disappearing is a bug, not a
   // policy, so the omission set is asserted by name rather than by count.
   const omitted = catalog.entries.filter((entry) => !stableIDs.has(entry.id)).map((entry) => entry.id)
-  assert.deepEqual(omitted, ['io.5gpn.weatherkit'], 'unexpected entries are missing from the v1 profile')
-  for (const id of omitted) {
-    const entry = catalog.entries.find((candidate) => candidate.id === id)
-    assert.equal(entry.capabilities.networkAny, true, `${id} was omitted from v1 without needing a newer contract`)
-  }
+  assert.deepEqual(
+    omitted,
+    ['io.5gpn.apple-wloc', 'io.5gpn.bilibili-cleaner', 'io.5gpn.weatherkit', 'io.5gpn.youtube-cleaner', 'io.5gpn.zhihu-cleaner'],
+    'unexpected entries are missing from the v1 profile',
+  )
 
   // v1 is frozen at what the stable core accepts, and it parses the index with
   // DisallowUnknownFields: an unknown field costs that core its whole catalogue.
@@ -101,13 +101,15 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
       `${entry.id}: a reviewed routing rule did not survive into the typed projection`)
   }
   const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
-  assert.equal(bilibili.capabilities.actionCount, 11)
-  assert.equal(bilibili.resources.filter(resource => resource.path === 'protobuf.js').length, 1)
+  assert.equal(bilibili.capabilities.actionCount, 21)
+  // Eleven of bilibili's actions are jq expressions and five load pinned
+  // upstream scripts, so the only local resources left are the two mocks.
+  assert.deepEqual(bilibili.resources.map(resource => resource.path).filter(p => !p.includes('/')), ['mock-grpc.js', 'mock-json.js'])
   const weatherkit = catalog.entries.find(entry => entry.id === 'io.5gpn.weatherkit')
   assert.deepEqual(weatherkit.capabilities, {
     captureHostCount: 1,
     actionCount: 2,
-    settingCount: 8,
+    settingCount: 9,
     networkOrigins: [],
     networkAny: true,
     persistentStorage: true,
@@ -125,12 +127,14 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     size: 251617,
   }])
   const zhihu = catalog.entries.find(entry => entry.id === 'io.5gpn.zhihu-cleaner')
-  assert.equal(zhihu.version, '1.2.0')
+  assert.equal(zhihu.version, '2.0.0')
   assert.deepEqual(
     [zhihu.capabilities.captureHostCount, zhihu.capabilities.actionCount, zhihu.capabilities.routingRuleCount],
-    [5, 6, 5],
+    [5, 16, 5],
   )
-  assert.deepEqual(zhihu.resources.map(resource => resource.path), ['clean-json.js', 'mock-json.js'])
+  // Thirteen of zhihu's sixteen actions are jq expressions, which name no
+  // script and so contribute no resource for the gateway to fetch or pin.
+  assert.deepEqual(zhihu.resources.map(resource => resource.path), ['mock-json.js'])
   assert.equal(validate(catalog), true, ajv.errorsText(validate.errors))
   assert.equal(validate(stable), true, ajv.errorsText(validate.errors))
   const boundary = structuredClone(catalog)
@@ -150,7 +154,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   try {
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 7, "the v1 profile omits entries needing a newer contract")
+    assert.equal(JSON.parse(generated).entries.length, 3, "the v1 profile omits entries needing a newer contract")
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--check', output], { cwd: repositoryRoot })
 
     // --check is profile-aware: the same path checked against the other profile

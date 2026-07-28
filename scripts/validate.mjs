@@ -30,7 +30,10 @@ assert(licenseSummary.includes('multi-licensed repository'), 'root LICENSE does 
 assert(packageMetadata.license === 'SEE LICENSE IN LICENSE', 'package.json must point to the multi-license boundary')
 const expectedExtensions = new Map([
   ['ad-platform-blocker', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
-  ['apple-wloc', { license: 'MIT', pin: 'edee9b955f673cc8c4a52eb0a9c687a2e25dde4a', licenseDigest: 'e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa' }],
+  // Yu9191/wloc publishes no LICENSE file. That is recorded rather than
+  // papered over: the README must say so, because "no upstream license digest"
+  // and "we forgot to record one" must not look the same.
+  ['apple-wloc', { license: 'MIT', pin: 'eec07a8dc8de6dbaee8eac1fb376e4d03020154a', licenseDigest: null }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '12e89d6d93d72d39eb283ef81d2b58eb204cdb58', licenseDigest: '8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b' }],
   ['httpdns-interceptor', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b', licenseDigest: '047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98' }],
@@ -227,9 +230,19 @@ for (const entry of entries) {
     for (const host of action.match.hosts) assert(captureSet.has(host), `${entry.name}: ${action.id} host ${host} is outside captureHosts`)
     assert(Array.isArray(action.match.schemes) && action.match.schemes.every((scheme) => scheme === 'http' || scheme === 'https'), `${entry.name}: ${action.id} has invalid schemes`)
     assert(typeof action.match.pathRegex === 'string' && action.match.pathRegex.startsWith('^'), `${entry.name}: ${action.id} pathRegex must be anchored`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
     const scriptEntry = action.script.entry ?? 'native'
     assert(scriptEntry === 'native' || scriptEntry === 'proxy-compat', `${entry.name}: ${action.id} has an unknown script entry`)
+    // A jq action carries an upstream expression instead of code, so it runs
+    // declaratively and declares no script at all.
+    if (action.script.jq !== undefined) {
+      assert(typeof action.script.jq === 'string' && action.script.jq.trim() !== '', `${entry.name}: ${action.id} jq must be a non-empty expression`)
+      assert(action.script.jq.length <= 32768, `${entry.name}: ${action.id} jq expression is too long`)
+      assert(action.script.entry === undefined, `${entry.name}: ${action.id} declares both jq and an entry`)
+      assert(action.script.bodyMode === 'text', `${entry.name}: ${action.id} jq requires a text body`)
+      assert(action.script.source === undefined && action.script.inline === undefined, `${entry.name}: ${action.id} declares both jq and a script`)
+      continue
+    }
     const hasSource = typeof action.script.source === 'string'
     const hasInline = typeof action.script.inline === 'string'
     assert(hasSource !== hasInline, `${entry.name}: ${action.id} must declare exactly one script source`)
@@ -288,7 +301,11 @@ for (const entry of entries) {
   assert((readme.match(/^## Verification$/gm) ?? []).length === 1, `${entry.name}: README must have exactly one verification procedure`)
   assert(readme.includes(`License: [\`${expected.license}\`]`), `${entry.name}: README has no exact license banner`)
   assert(readme.includes(expected.pin), `${entry.name}: README has no reviewed upstream pin`)
-  assert(readme.includes(expected.licenseDigest), `${entry.name}: README has no governing upstream license digest`)
+  if (expected.licenseDigest === null) {
+    assert(/upstream publishes no license file/i.test(readme), `${entry.name}: README must state that upstream publishes no license`)
+  } else {
+    assert(readme.includes(expected.licenseDigest), `${entry.name}: README has no governing upstream license digest`)
+  }
   const reuseAnnotations = reusePolicy
     .split(/\r?\n\s*\r?\n/)
     .filter((paragraph) => paragraph.includes(`${entry.name}/`))
@@ -308,46 +325,19 @@ for (const entry of entries) {
   }
   if (entry.name === 'bilibili-cleaner') {
     assert(migrationSection.includes('| License review gate |'), 'bilibili-cleaner: migration contract has no aggregate-license review gate')
-    assert(actions.length === 11 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3 && manifest.requirements?.egressGroup?.required === true, 'bilibili-cleaner: pinned LPX capability set is incomplete')
-    const sourceRoot = path.join(directory, 'source')
-    const finalBundle = await readFile(path.join(directory, 'protobuf.js'), 'utf8')
-    assert(finalBundle.startsWith('// SPDX-License-Identifier: GPL-3.0-only AND BSD-3-Clause\n'), 'bilibili-cleaner: final bundle SPDX expression is incomplete')
-    assert(finalBundle.includes('Copyright 2008 Google Inc.  All rights reserved.'), 'bilibili-cleaner: final bundle omits the Google BSD copyright')
-    assert(finalBundle.includes('THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS'), 'bilibili-cleaner: final bundle omits the Google BSD disclaimer')
-    const componentDigests = new Map([
-      ['licenses/fflate-MIT.txt', '0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551'],
-      ['licenses/goog-varint-BSD-3-Clause.txt', '182a1bc8985a586e8e0ca3b5a3af1ff3c28bd3475833a07f50b42b53dd7ac889'],
-      ['licenses/protobuf-ts-Apache-2.0.txt', '5e3400b93bbb099e83e52bab885e7441750673c21f97988ca3f1240639b63283'],
-      ['licenses/protobufjs-BSD-3-Clause.txt', '331ff828cd69efbb82098684450a752a05f05cd4b8f181f4829ba14795d1b5ca'],
-    ])
-    for (const [relativePath, expectedDigest] of componentDigests) {
-      const content = await readFile(path.join(sourceRoot, ...relativePath.split('/')))
-      assert(createHash('sha256').update(content).digest('hex') === expectedDigest, `bilibili-cleaner: ${relativePath} digest changed`)
+    assert(actions.length === 21 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3 && manifest.requirements?.egressGroup?.required === true, 'bilibili-cleaner: pinned LPX capability set is incomplete')
+    // Nothing GPL is redistributed any more: the scripts are fetched by the
+    // gateway from immutable URLs. What has to stay true is that no upstream
+    // bytes crept back into the directory, and that every script action still
+    // points at the reviewed commit.
+    const shipped = (await relativeFiles(directory)).filter((name) => name.endsWith('.js')).sort()
+    assert(shipped.length === 2 && shipped[0] === 'mock-grpc.js' && shipped[1] === 'mock-json.js', `bilibili-cleaner: unexpected JavaScript in the directory: ${shipped.join(', ')}`)
+    const compat = actions.filter((action) => action.script.entry === 'proxy-compat')
+    assert(compat.length === 5, 'bilibili-cleaner: the five upstream transformers must all be loaded')
+    for (const action of compat) {
+      assert(action.script.source.startsWith('https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/'), `bilibili-cleaner: ${action.id} is not the reviewed immutable commit`)
     }
-    const bundleInputs = JSON.parse(await readFile(path.join(sourceRoot, 'bundle-inputs.json'), 'utf8'))
-    const bundlePaths = bundleInputs.map((input) => input.path)
-    assert(bundlePaths.some((inputPath) => inputPath.startsWith('node_modules/@protobuf-ts/runtime/')), 'bilibili-cleaner: protobuf-ts runtime is absent from the bundle projection')
-    assert(bundlePaths.some((inputPath) => inputPath.endsWith('/goog-varint.js')), 'bilibili-cleaner: Google BSD varint code is absent from the bundle projection')
-    assert(bundlePaths.some((inputPath) => inputPath.startsWith('node_modules/fflate/')), 'bilibili-cleaner: fflate is absent from the bundle projection')
-    assert(!bundlePaths.some((inputPath) => inputPath.endsWith('/protobufjs-utf8.js')), 'bilibili-cleaner: BSD protobufjs UTF-8 code unexpectedly reached the final bundle')
-    assert(reuseParagraphFor('bilibili-cleaner/protobuf.js', 'GPL-3.0-only AND BSD-3-Clause'), 'bilibili-cleaner: final bundle compound mapping is missing')
-    assert(reuseParagraphFor('bilibili-cleaner/source/licenses/goog-varint-BSD-3-Clause.txt', 'BSD-3-Clause'), 'bilibili-cleaner: Google BSD notice mapping is missing')
-    assert(reuseParagraphFor('bilibili-cleaner/source/generated/**', 'GPL-3.0-only'), 'bilibili-cleaner: generated source GPL mapping is missing')
-    assert(reuseParagraphFor('bilibili-cleaner/source/upstream-sparkle/**', 'GPL-3.0-only'), 'bilibili-cleaner: Sparkle source GPL mapping is missing')
-    assert(reuseParagraphFor('bilibili-cleaner/source/vendor-src/fflate/**', 'MIT'), 'bilibili-cleaner: fflate MIT mapping is missing')
-    assert(reuseParagraphFor('bilibili-cleaner/source/vendor/fflate-0.8.3.tgz', 'MIT'), 'bilibili-cleaner: fflate archive MIT mapping is missing')
-    const protobufSourceRoot = path.join(sourceRoot, 'vendor-src', 'protobuf-ts')
-    for (const relativePath of await relativeFiles(protobufSourceRoot)) {
-      const reusePath = `bilibili-cleaner/source/vendor-src/protobuf-ts/${relativePath}`
-      const expectedLicense = relativePath === 'packages/runtime/src/protobufjs-utf8.ts' || relativePath === 'packages/runtime/src/goog-varint.ts' ? 'BSD-3-Clause' : 'Apache-2.0'
-      assert(reuseParagraphFor(reusePath, expectedLicense), `bilibili-cleaner: ${relativePath} ${expectedLicense} mapping is missing`)
-    }
-    assert(reuseParagraphFor('bilibili-cleaner/source/vendor/protobuf-ts-runtime-2.11.1.tgz', 'Apache-2.0 AND BSD-3-Clause'), 'bilibili-cleaner: runtime archive compound mapping is missing')
-    const reuseParagraphs = reusePolicy.split(/\r?\n\s*\r?\n/)
-    const bundleAnnotation = reuseParagraphs.find((paragraph) => paragraph.includes('"bilibili-cleaner/protobuf.js"')) ?? ''
-    const runtimeArchiveAnnotation = reuseParagraphs.find((paragraph) => paragraph.includes('"bilibili-cleaner/source/vendor/protobuf-ts-runtime-2.11.1.tgz"')) ?? ''
-    assert(bundleAnnotation.includes('"2008 Google Inc."'), 'bilibili-cleaner: final bundle Google copyright mapping is missing')
-    assert(runtimeArchiveAnnotation.includes('"2008 Google Inc."'), 'bilibili-cleaner: runtime archive Google copyright mapping is missing')
+    assert(actions.filter((action) => typeof action.script.jq === 'string').length === 11, 'bilibili-cleaner: the eleven reviewed rewrite expressions are incomplete')
   }
   if (entry.name === 'ad-platform-blocker') {
     assert(routingRules.length === 201, 'ad-platform-blocker: reviewed upstream routing rules are incomplete')
@@ -369,13 +359,25 @@ for (const entry of entries) {
   }
   if (entry.name === 'youtube-cleaner') {
     assert(actions.length === 3 && manifest.settings?.length === 5 && manifest.permissions.persistentStorage && manifest.permissions.network?.origins?.length === 1 && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')
+    assert(actions.every((action) => action.script.entry === 'proxy-compat'), 'youtube-cleaner: every action must run the published bundle')
+    // Two entries, one per upstream transformer: the request script serves both
+    // request actions and the response script serves the response action.
+    const bundleSources = new Set(actions.map((action) => action.script.source))
+    assert(bundleSources.size === 2, 'youtube-cleaner: actions must pin exactly the two upstream transformers')
+    for (const source of bundleSources) {
+      assert(source.startsWith('https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/'), `youtube-cleaner: ${source} is not the reviewed immutable commit`)
+    }
   }
   if (entry.name === 'weatherkit') {
     assert(
-      actions.length === 2 && manifest.settings?.length === 8 && manifest.permissions.persistentStorage && manifest.permissions.network?.any === true && routingRules.length === 1,
+      actions.length === 2 && manifest.settings?.length === 9 && manifest.permissions.persistentStorage && manifest.permissions.network?.any === true && routingRules.length === 1,
       'weatherkit: reviewed proxy-compat capability set is incomplete',
     )
     assert(actions.every((action) => action.script.entry === 'proxy-compat'), 'weatherkit: every action must run the published bundle')
+    // Without this the bundle's switch reads persistent storage and discards
+    // $argument, so every other setting on the page silently does nothing.
+    const storage = manifest.settings.find((setting) => setting.key === 'Storage')
+    assert(storage?.default === '$argument' && storage.options?.length === 1, 'weatherkit: settings must be declared as reaching the bundle through $argument')
     // The bundle is remote, so the README record and the verifier are what bind
     // which bytes run. Both must name the same release.
     const bundleSources = new Set(actions.map((action) => action.script.source))
@@ -387,7 +389,8 @@ for (const entry of entries) {
   }
   if (entry.name === 'zhihu-cleaner') {
     assert(captureHosts.length === 5, 'zhihu-cleaner: reviewed capture hosts are incomplete')
-    assert(actions.length === 6 && actions.filter((action) => action.phase === 'request').length === 3 && actions.filter((action) => action.phase === 'response').length === 3, 'zhihu-cleaner: reviewed action set is incomplete')
+    assert(actions.length === 16 && actions.filter((action) => action.phase === 'request').length === 3 && actions.filter((action) => action.phase === 'response').length === 13, 'zhihu-cleaner: reviewed action set is incomplete')
+    assert(actions.filter((action) => action.phase === 'response').every((action) => typeof action.script.jq === 'string'), 'zhihu-cleaner: every response action must be a jq expression, not a script')
     assert((manifest.settings?.length ?? 0) === 0 && !manifest.permissions.persistentStorage && (manifest.permissions.network?.origins?.length ?? 0) === 0 && routingRules.length === 5 && mappings.length === 0 && manifest.requirements?.egressGroup?.required !== true, 'zhihu-cleaner: unexpected permission or routing expansion')
     assert(routingRules.every((rule) => rule.action === 'reject' && rule.network === 'udp' && rule.destinationPort === 443 && captureSet.has(rule.domain)), 'zhihu-cleaner: UDP/443 fallback rules are incomplete')
   }
@@ -434,6 +437,4 @@ for (const surface of [
 assert(migrationPlaybook.includes('## Repeatable port migration'), 'migration playbook has no repeatable port procedure')
 assert(migrationPlaybook.includes('## Repeatable installed rollout'), 'migration playbook has no installed rollout procedure')
 assert(migrationPlaybook.includes('## Repeatable rollback'), 'migration playbook has no rollback procedure')
-assert((await stat(path.join(root, 'bilibili-cleaner', 'protobuf.js'))).isFile(), 'bilibili-cleaner: deterministic protobuf bundle is missing')
-assert((await stat(path.join(root, 'bilibili-cleaner', 'source', 'package-lock.json'))).isFile(), 'bilibili-cleaner: corresponding GPL build inputs are missing')
 console.log(`Validated ${extensionNames.length} extensions: ${extensionNames.join(', ')}`)

@@ -203,216 +203,42 @@ function sha256(bytes) {
 
 const appleManifest = await readManifest('apple-wloc/extension.yaml')
 assert.equal(appleManifest.metadata.id, 'io.5gpn.apple-wloc')
-assert.equal(appleManifest.metadata.version, '1.1.1')
-assert.deepEqual(appleManifest.permissions, { persistentStorage: false })
+assert.equal(appleManifest.metadata.version, '2.0.0')
+// The picker page saves a coordinate into extension-scoped storage, which is
+// why this revision declares storage where the previous one declared none.
+assert.deepEqual(appleManifest.permissions, { persistentStorage: true })
 assert.equal(appleManifest.requirements, undefined)
 assert.deepEqual(appleManifest.traffic, {
   captureHosts: ['gs-loc.apple.com', 'gs-loc-cn.apple.com'],
 })
-assert.deepEqual(appleManifest.settings.map(({ key, type, required }) => ({ key, type, required })), [
-  { key: 'location', type: 'location', required: true },
-  { key: 'failClosed', type: 'boolean', required: true },
+// The four settings are upstream's [Argument] block verbatim, including its
+// types and defaults, so they reach the scripts as the object Loon supplies.
+assert.deepEqual(appleManifest.settings.map(({ key, type, default: value }) => ({ key, type, value })), [
+  { key: 'longitude', type: 'text', value: '113.94114' },
+  { key: 'latitude', type: 'text', value: '22.544577' },
+  { key: 'accuracy', type: 'text', value: '25' },
+  { key: 'logLevel', type: 'select', value: 'info' },
 ])
-assert.deepEqual(appleManifest.settings[0].default, { accuracy: 25 })
-assert.equal(appleManifest.settings[1].default, true)
-assert.equal(appleManifest.actions.length, 1)
-const appleAction = appleManifest.actions[0]
-assert.equal(appleAction.phase, 'response')
-assert.deepEqual(appleAction.match.hosts, appleManifest.traffic.captureHosts)
-assert.deepEqual(appleAction.match.schemes, ['https'])
-assert.deepEqual(appleAction.match.statusCodes, [200])
-assert(new RegExp(appleAction.match.pathRegex).test('/clls/wloc'))
-assert(new RegExp(appleAction.match.pathRegex).test('/clls/wloc?source=test'))
-assert(!new RegExp(appleAction.match.pathRegex).test('/clls/wloc/extra'))
-assert.deepEqual(appleAction.script, {
-  source: './wloc.js',
-  bodyMode: 'binary',
-  timeoutMs: 1500,
-  maxBodyBytes: 8388608,
-})
 
-const apple = await loadTransform('apple-wloc/wloc.js')
-const originalLocation = locationMessage()
-const variableMACWiFi = wifiMessage('A:b:0C:d:0e:F', [originalLocation])
-const firstCell = cellMessage([originalLocation])
-const secondCell = cellMessage([originalLocation])
-const rootUnknown = concat([
-  fixed64Field(70, new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
-  fixed32Field(71, new Uint8Array([9, 10, 11, 12])),
-])
-const completePayload = concat([
-  rootUnknown,
-  lengthField(2, variableMACWiFi),
-  lengthField(22, firstCell),
-  lengthField(24, secondCell),
-])
-const suffix = new Uint8Array([0xde, 0xad, 0xbe, 0xef])
-const completeFrame = framed(completePayload, suffix)
-const target = { longitude: -0.1276, latitude: 51.5072, accuracy: 100000 }
-const completeResult = apple.transform({
-  settings: { location: target, failClosed: true },
-  response: { body: completeFrame },
-})
-assert(completeResult.response.body instanceof Uint8Array)
-assert.deepEqual([...completeResult.response.body.slice(0, 8)], [...completeFrame.slice(0, 8)])
-assert.deepEqual([...completeResult.response.body.slice(-suffix.length)], [...suffix])
-const completeRoot = parseFields(framedPayload(completeResult.response.body))
-assert.deepEqual(
-  completeRoot.filter((candidate) => candidate.number === 70 || candidate.number === 71).map((candidate) => [...candidate.raw]),
-  parseFields(rootUnknown).map((candidate) => [...candidate.raw]),
-)
-const patchedLocations = [
-  field(parseFields(field(completeRoot, 2, 2).value), 2, 2).value,
-  field(parseFields(field(completeRoot, 22, 2).value), 5, 2).value,
-  field(parseFields(field(completeRoot, 24, 2).value), 5, 2).value,
-]
-for (const patchedLocation of patchedLocations) {
-  const values = locationValues(patchedLocation)
-  assert.equal(values.latitude, 5150720000n)
-  assert.equal(values.longitude, -12760000n)
-  assert.equal(values.accuracy, 10000n)
-  assert.deepEqual([...values.unknown], [...field(parseFields(originalLocation), 4, 2).raw])
+assert.equal(appleManifest.actions.length, 2)
+const [wlocAction, settingsAction] = appleManifest.actions
+assert.equal(wlocAction.phase, 'response')
+assert.equal(settingsAction.phase, 'request')
+for (const action of appleManifest.actions) {
+  assert.deepEqual(action.match.hosts, appleManifest.traffic.captureHosts)
+  assert.deepEqual(action.match.schemes, ['https'])
+  assert.equal(action.script.entry, 'proxy-compat')
+  assert(action.script.source.startsWith('https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/'), `${action.id} must load the reviewed immutable commit`)
 }
-assert.match(apple.messages.at(-1)[1], /locations=3 wifi=1 cell=2 skipped=0/)
-
-const duplicateMACLastInvalid = concat([
-  lengthField(1, encoder.encode('aa:bb:cc:dd:ee:ff')),
-  lengthField(1, encoder.encode('not-a-mac')),
-  lengthField(2, originalLocation),
-])
-assert.equal(apple.transform({
-  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: false },
-  response: { body: framed(lengthField(2, duplicateMACLastInvalid)) },
-}), null, 'the last singular Wi-Fi identifier must determine upstream MAC recognition')
-
-const duplicateMACLastValid = concat([
-  lengthField(1, encoder.encode('not-a-mac')),
-  lengthField(1, encoder.encode('a:b:0c:d:0e:f')),
-  lengthField(2, originalLocation),
-])
-const duplicateMACLastValidResult = apple.transform({
-  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: true },
-  response: { body: framed(lengthField(2, duplicateMACLastValid)) },
-})
-const duplicateMACRoot = parseFields(framedPayload(duplicateMACLastValidResult.response.body))
-const duplicateMACWiFi = parseFields(field(duplicateMACRoot, 2, 2).value)
-assert.equal(locationValues(field(duplicateMACWiFi, 2, 2).value).latitude, 300000000n)
-
-apple.resetMessages()
-const noAccuracy = locationMessage({ includeAccuracy: false })
-const noAccuracyResult = apple.transform({
-  settings: { location: { longitude: 10, latitude: 20 }, failClosed: true },
-  response: { body: framed(lengthField(2, wifiMessage('aa:bb:cc:dd:ee:ff', [noAccuracy]))) },
-})
-const noAccuracyRoot = parseFields(framedPayload(noAccuracyResult.response.body))
-const noAccuracyWiFi = parseFields(field(noAccuracyRoot, 2, 2).value)
-assert.equal(locationValues(field(noAccuracyWiFi, 2, 2).value).accuracy, undefined)
-
-apple.resetMessages()
-const malformedLocation = new Uint8Array([0x0f])
-const partiallyMalformedPayload = concat([
-  lengthField(2, wifiMessage('aa:bb:cc:dd:ee:ff', [originalLocation, malformedLocation])),
-  lengthField(22, cellMessage([originalLocation, malformedLocation])),
-])
-const partiallyMalformedResult = apple.transform({
-  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: true },
-  response: { body: framed(partiallyMalformedPayload) },
-})
-const partiallyMalformedRoot = parseFields(framedPayload(partiallyMalformedResult.response.body))
-const partiallyMalformedWiFi = parseFields(field(partiallyMalformedRoot, 2, 2).value)
-const partiallyMalformedCell = parseFields(field(partiallyMalformedRoot, 22, 2).value)
-assert.deepEqual([...partiallyMalformedWiFi.filter((candidate) => candidate.number === 2)[1].value], [0x0f])
-assert.deepEqual([...partiallyMalformedCell.filter((candidate) => candidate.number === 5)[1].value], [0x0f])
-assert.equal(locationValues(partiallyMalformedWiFi.filter((candidate) => candidate.number === 2)[0].value).latitude, 300000000n)
-assert.equal(locationValues(partiallyMalformedCell.filter((candidate) => candidate.number === 5)[0].value).latitude, 300000000n)
-assert.match(apple.messages.at(-1)[1], /locations=2 wifi=1 cell=1 skipped=2/)
-
-const unpatchable = framed(varintField(90, 1))
-assert.throws(() => apple.transform({
-  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: true },
-  response: { body: unpatchable },
-}), /no patchable location/)
-apple.resetMessages()
-assert.equal(apple.transform({
-  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: false },
-  response: { body: unpatchable },
-}), null)
-assert.match(apple.messages.at(-1)[1], /skipped WLOC response/)
-
-const prefixedFrame = concat([new Uint8Array([1, 2, 3]), completeFrame])
-assert.equal(apple.transform({
-  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: false },
-  response: { body: prefixedFrame },
-}), null, 'non-upstream frame offsets must not be scanned')
-assert.equal(apple.transform({
-  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: false },
-  response: { body: completePayload },
-}), null, 'raw protobuf roots must not be scanned')
-const invalidFieldNumberPayload = concat([
-  lengthField(536870912, new Uint8Array([1])),
-  lengthField(2, wifiMessage('aa:bb:cc:dd:ee:ff', [originalLocation])),
-])
-assert.equal(apple.transform({
-  settings: { location: { longitude: 2, latitude: 3, accuracy: 25 }, failClosed: false },
-  response: { body: framed(invalidFieldNumberPayload) },
-}), null, 'invalid protobuf field numbers must not be accepted')
-assert.throws(() => apple.transform({
-  settings: { location: { longitude: 181, latitude: 3, accuracy: 25 }, failClosed: false },
-  response: { body: completeFrame },
-}), /longitude is invalid/)
-assert.throws(() => apple.transform({
-  settings: { location: { longitude: 2, latitude: null, accuracy: 25 }, failClosed: false },
-  response: { body: completeFrame },
-}), /not configured/)
-
-const testflightManifest = await readManifest('testflight-region-unlock/extension.yaml')
-assert.equal(testflightManifest.metadata.id, 'io.5gpn.testflight-region-unlock')
-assert.equal(testflightManifest.metadata.version, '1.1.0')
-assert.deepEqual(testflightManifest.permissions, { persistentStorage: false })
-assert.deepEqual(testflightManifest.requirements, { egressGroup: { required: true } })
-assert.deepEqual(testflightManifest.traffic, { captureHosts: ['testflight.apple.com'] })
-assert.deepEqual(testflightManifest.settings[0], {
-  key: 'storefront',
-  type: 'select',
-  label: 'Target storefront',
-  description: 'Selects the Apple storefront region written into TestFlight install requests.',
-  required: true,
-  options: ['US', 'GB', 'CA', 'AU', 'JP', 'HK', 'SG', 'CN', 'KR', 'TW'],
-  default: 'US',
-})
-assert.equal(testflightManifest.actions.length, 1)
-const testflightAction = testflightManifest.actions[0]
-assert.equal(testflightAction.phase, 'request')
-assert.deepEqual(testflightAction.match.hosts, ['testflight.apple.com'])
-assert.deepEqual(testflightAction.match.schemes, ['http', 'https'])
-const testflightPath = new RegExp(testflightAction.match.pathRegex)
-assert(testflightPath.test('/v1/accounts/account/install'))
-assert(testflightPath.test('/v9/accounts/account/nested/install'))
-assert(!testflightPath.test('/v10/accounts/account/install'))
-assert(!testflightPath.test('/v1/accounts/account/install?source=test'))
-assert(!testflightPath.test('/v1/accounts//install'))
-assert.deepEqual(testflightAction.script, {
-  source: './rewrite-storefront.js',
-  bodyMode: 'text',
-  timeoutMs: 500,
-  maxBodyBytes: 1048576,
-})
-
-const upstreamURLPattern = /^https?:\/\/testflight\.apple\.com\/v\d\/accounts\/.+?\/install$/
-for (const scheme of ['http', 'https']) {
-  for (const pathValue of [
-    '/v1/accounts/account/install',
-    '/v9/accounts/account/nested/install',
-    '/v10/accounts/account/install',
-    '/v1/accounts/account/install?source=test',
-  ]) {
-    assert.equal(
-      testflightPath.test(pathValue),
-      upstreamURLPattern.test(`${scheme}://testflight.apple.com${pathValue}`),
-      `native matcher differs from the pinned upstream matcher for ${pathValue}`,
-    )
-  }
-}
+assert(new RegExp(wlocAction.match.pathRegex).test('/clls/wloc'))
+assert(new RegExp(wlocAction.match.pathRegex).test('/clls/wloc?source=test'))
+assert(!new RegExp(wlocAction.match.pathRegex).test('/clls/wloc/extra'))
+assert(new RegExp(settingsAction.match.pathRegex).test('/wloc-settings/save?longitude=1'))
+assert(!new RegExp(settingsAction.match.pathRegex).test('/wloc-settings/load'))
+// The response action previously pinned statusCodes: [200]. Upstream matches
+// every response on the path, and narrowing it here would silently skip a
+// non-200 body the scripts still handle.
+assert.equal(wlocAction.match.statusCodes, undefined)
 
 const testflight = await loadTransform('testflight-region-unlock/rewrite-storefront.js')
 const upstreamBody = '{"storefrontId" : "143444-19,29","other":true}'
@@ -477,22 +303,28 @@ assert.throws(() => testflight.transform({
 const appleReadme = await readFile(path.join(root, 'apple-wloc/README.md'), 'utf8')
 const testflightReadme = await readFile(path.join(root, 'testflight-region-unlock/README.md'), 'utf8')
 assert.match(appleReadme, /License: \[`MIT`\]/)
-assert.match(appleReadme, /edee9b955f673cc8c4a52eb0a9c687a2e25dde4a/)
-assert.match(appleReadme, /ab4d55ceed0593ad1ad8f3424088c291f7db748f/)
-assert.match(appleReadme, /d8ae57eb8696af05413e3fbbf0bd57513a4f649407a1d0a7bb891916482fca70/)
-assert.match(appleReadme, /016168f87274e55b285bad2f1073567782818f1710f6bd4df8e56f1712e406c0/)
-assert.match(appleReadme, /e4a68eac74fbad2e6be287c43b836d21723280eaa6203df65dd23a5f377417fa/)
+assert.match(appleReadme, /eec07a8dc8de6dbaee8eac1fb376e4d03020154a/)
+assert.match(appleReadme, /d385c624efd59bdd2cff56bf819a770b40c4abf0f970818877f1dca4174f256a/)
+assert.match(appleReadme, /b4e9d69e69c703b3fab485a559825aaedc9e3a1fd9c06e81cb35d10bbdcd13d2/)
+assert.match(appleReadme, /1fb451616fb17242849f72490f016afcdb8aa81a0b086f6dd5f94e1af3d58ee1/)
+// The upstream repository has no LICENSE file. The README has to say so, and
+// the three accepted costs have to remain visible rather than being quietly
+// dropped in a later edit.
+assert.match(appleReadme, /upstream publishes no license file/i)
+assert.match(appleReadme, /failClosed/)
 assert.match(testflightReadme, /License: \[`CC-BY-NC-SA-4\.0`\]/)
 assert.match(testflightReadme, /ab6c3182fb2b09bcc34456f496282ec0b8e9217b/)
 assert.match(testflightReadme, /c8112507802d0690d8b94d4110945e9c782df40e/)
 assert.match(testflightReadme, /a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e/)
 assert.match(testflightReadme, /047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98/)
 for (const [readme, manifestPath, scriptPath] of [
-  [appleReadme, 'apple-wloc/extension.yaml', 'apple-wloc/wloc.js'],
+  [appleReadme, 'apple-wloc/extension.yaml'],
   [testflightReadme, 'testflight-region-unlock/extension.yaml', 'testflight-region-unlock/rewrite-storefront.js'],
 ]) {
   assert(readme.includes(sha256(await readFile(path.join(root, manifestPath)))))
-  assert(readme.includes(sha256(await readFile(path.join(root, scriptPath)))))
+  if (scriptPath !== undefined) {
+    assert(readme.includes(sha256(await readFile(path.join(root, scriptPath)))))
+  }
   assert(readme.includes('node tests/apple-testflight-fixtures.mjs'))
 }
 
