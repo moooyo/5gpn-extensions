@@ -154,9 +154,11 @@ supplies its token.
   (`weatherkit.pages.dev`, `dev.weatherkit.pages.dev`, `weather.nanocat.cloud`)
   are not used. Responses are processed on the gateway, not by a third-party
   server.
-- BoxJS, cross-extension location caches, and the upstream `Storage` setting
-  that selects a BoxJS-backed configuration source are not exposed; settings
-  come from the manifest.
+- BoxJS and cross-extension location caches are not exposed. The upstream
+  `Storage` key is declared, but pinned to its `$argument` branch and nothing
+  else, so settings come from the manifest rather than from a BoxJS-backed
+  configuration source. See the settings note above for why it has to be
+  declared at all.
 - No server-side entitlement is created. Apple can still refuse or omit a
   requested dataset.
 - The bundle is a remote asset. Its behavior can change with a new release, and

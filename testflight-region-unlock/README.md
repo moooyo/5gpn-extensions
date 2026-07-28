@@ -95,21 +95,34 @@ must be rechecked independently during future updates.
 
 ## Upstream parity and native extensions
 
-The pinned single-digit URL matcher and exact body pattern are executable test
-fixtures, not only documentation examples. With the default `US` setting, an
-upstream-formatted body is rewritten byte-for-byte as the LPX directive would
-rewrite it. The following native extensions are deliberate:
+Upstream is a single `request-body-replace-regex` directive: it matches
+`"storefrontId"\x20:\x20"\d{6}-\d{2},\d{2}",` and rewrites it to
+`"storefrontId":"143441-19,29",`. That pattern accepts exactly one spelling —
+a single space either side of the colon, and a trailing comma. The native
+action carries the same kind of expression,
+`"storefrontId"\s*:\s*"[0-9]{6}-[0-9]{2},[0-9]{2}"`, and replaces it with
+`"storefrontId":"{{settings.storefront}}"`. On an upstream-formatted body the
+two produce the same bytes, and everything the pattern does not match survives
+byte for byte, including key order and whitespace.
+
+The following native extensions are deliberate:
 
 - The selected storefront replaces the pinned hard-coded US value. US remains
   the default and the only value sourced from the pinned LPX.
-- When the exact upstream body syntax is absent, a second bounded pattern may
-  match arbitrary JSON whitespace and does not require a trailing comma. It
-  still changes only the first six-digit storefront value and never parses or
-  restructures the rest of the body.
-- An already-correct value in the native fallback is logged as an informational
-  no-op instead of being reported as an unrecognized field.
+- The native pattern is a superset of upstream's: it accepts arbitrary
+  whitespace around the colon and does not require the trailing comma that
+  upstream's fixed `\x20` spelling demands. It stops at the closing quote, so
+  the comma or whitespace that follows is left alone rather than rewritten.
+  Earlier revisions ran a local script that tried the exact upstream syntax
+  first and a documented fallback second; this is those two folded into one
+  expression.
+- A body with no `storefrontId`, or a region absent from the action's
+  `valueMap`, is left untouched rather than having a value invented. Nothing is
+  reported when that happens: earlier revisions logged an already-correct value
+  as an informational no-op, and a declarative action has no script to log
+  from.
 - The upstream `PROXY` name becomes a required operator-owned egress binding;
-  neither the manifest nor the script can select the group.
+  neither the manifest nor an action can select the group.
 
 ## Deliberately not ported and limitations
 
@@ -121,10 +134,8 @@ rewrite it. The following native extensions are deliberate:
 - Only traffic for `testflight.apple.com` on the native interception ports 80
   and 443 is acquired. The extension does not alter DNS policy for other Apple
   hosts.
-- The transform gives the exact upstream body syntax precedence, then applies
-  the documented native fallback. It changes only the first recognized
-  `storefrontId`; an absent or changed field is logged and left untouched, and
-  a missing field is never synthesized.
+- The action changes only the first recognized `storefrontId`. An absent or
+  changed field is left untouched, and a missing field is never synthesized.
 - Storefront selection and network exit selection are independent operator
   choices. A mismatched, unavailable, or Apple-rejected egress can still make
   installation fail.
@@ -136,9 +147,9 @@ rewrite it. The following native extensions are deliberate:
   release. Certificate pinning, protocol changes, or traffic outside the
   native interception boundary can prevent transformation.
 
-The script requests no persistent storage and no origin-scoped network
-permission. It can see only the matched request projection supplied by the
-standard extension sandbox.
+This extension requests no persistent storage and no origin-scoped network
+permission, and it runs no code: the substitution is declared in the manifest,
+so there is no script with a view of the request at all.
 
 ## Updating from upstream
 

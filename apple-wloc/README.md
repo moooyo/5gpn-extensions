@@ -86,40 +86,23 @@ where the previous one declared none.
 
 ## Algorithm and format boundary
 
-The extension intercepts successful HTTPS responses from only
-`gs-loc.apple.com` and `gs-loc-cn.apple.com` at `/clls/wloc`. It treats the
-response as an observed WLOC binary framing followed by protobuf wire-format
-messages; Apple has not provided a public schema or stability contract for
-this response.
+The extension intercepts HTTPS responses from only `gs-loc.apple.com` and
+`gs-loc-cn.apple.com` at `/clls/wloc`, hands the body to the pinned upstream
+transformer as binary, and bounds it at 8 MiB and 30 seconds. Apple publishes
+no schema or stability contract for that response; it is an observed binary
+framing followed by protobuf wire-format messages.
 
-The port performs the following bounded transformation:
+What the transformer does inside those bounds is upstream's, and this
+repository does not re-specify it. Earlier revisions could: they shipped a
+local frame and protobuf parser, and the numbered steps that used to stand here
+described that parser, down to a typed `location` setting that no longer
+exists. Running the upstream bundle means the recorded digest is what binds the
+behavior. No line-by-line audit of `dist/wloc.js` is claimed here.
 
-1. Like the pinned upstream transformer, it requires the observed frame at
-   offset zero: an eight-byte prefix, a two-byte big-endian payload length,
-   and the protobuf payload. It does not scan arbitrary offsets or accept a
-   bare protobuf root.
-2. It parses only protobuf wire types 0, 1, 2, and 5, preserving every raw
-   field it does not change.
-3. In a candidate location message, varint fields 1 and 2 are latitude and
-   longitude scaled by `1e8`; optional field 3 is accuracy. It replaces those
-   values with the configured `location` setting. Accuracy follows the
-   upstream 1–10000 metre bound and defaults to 25 when omitted.
-4. It reaches candidate locations through the observed root-field mapping:
-   Wi-Fi entries at field 2 (identified by the upstream one-or-two-hex-digit
-   MAC-octet syntax) and cellular entries at fields 22 and 24, with nested
-   location field 2 or 5 respectively. Repeated Wi-Fi identifier field 1 uses
-   the upstream protobuf singular-field behavior: the last declaration decides
-   whether the entry is recognized as Wi-Fi.
-5. A malformed nested location is preserved while other valid entries continue
-   to be patched, matching the upstream partial-skip behavior. Malformed root
-   framing and payloads still fail the whole action.
-6. It rewrites the framing length when needed, requires at least one actual
-   location patch, and never invents a success response.
-
-This mapping is an implementation observation inherited from the cited
-upstream transformer, not an Apple protocol specification. Treat a changed
-Apple response as incompatible until captured authorised test traffic and the
-tests below validate a deliberate update.
+Treat a changed Apple response as incompatible until captured authorised test
+traffic validates a deliberate update. A protocol change does not fail loudly:
+`failClosed` was a local safety behavior with no upstream equivalent, so an
+unrecognized response is returned unchanged rather than blocked.
 
 ## Port mapping
 

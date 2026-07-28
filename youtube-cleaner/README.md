@@ -76,8 +76,10 @@ The pinned request bundle sends a matched encrypted playback request to:
 https://init-stream.maasea.workers.dev/
 ```
 
-The native port reproduces that behavior with a request URL patch, not with
-`context.network.request`. The rewritten query discloses the cached
+The bundle does this itself. On a cache hit it calls `$done({url})` with
+`https://init-stream.maasea.workers.dev/?ck=<clientKey>&target=<original URL>`
+plus its own parameters, so the gateway follows a rewritten request URL rather
+than the script making an outbound call. That query discloses the cached
 `clientKey`, the complete original `initplayback` URL, the selected caption
 language, and the pinned module's fixed boolean defaults to that service. The
 original URL can contain playback tokens and other request metadata. The
@@ -96,9 +98,10 @@ The Worker implementation, deployment revision, build inputs, and license are
 not present in the pinned `Maasea/sgmodule` tree. This repository does not copy
 or claim to reproduce that service. Its behavior can change independently of
 the immutable JavaScript pin, and its availability and privacy properties are
-an external trust decision. Repository fixtures verify the URL construction,
-cache transitions, protobuf paths, and failover response, but they do not prove
-that the live Worker decrypts and cleans every real YouTube Onesie stream.
+an external trust decision. No fixture here covers any of it: the URL
+construction described above was read out of the pinned bundle rather than
+asserted by a test, and nothing in this repository proves the live Worker
+decrypts and cleans real YouTube Onesie streams.
 
 The manifest declares the Worker as an exact `permissions.network.origins`
 entry. The native runtime requires that reviewed origin before allowing this
@@ -123,9 +126,9 @@ host mapping or typed mihomo routing rule.
 | `captionLang` | text | `off` | Uses a bounded language code such as `en` or `zh-Hans`, or disables caption rewriting. The value is also disclosed to the external Worker on matched Onesie requests. |
 | `debug` | boolean | `false` | Logs bounded transformation counters without response or key content. |
 
-The caption port preserves the pinned track-selection behavior, including its
-observable English-priority behavior, and replaces the advertised translation
-language list with the pinned eleven entries.
+Caption handling — the track-selection order, its observable English priority,
+and the advertised translation language list — is the bundle's own behavior and
+is not re-specified here.
 
 ## Persistent state
 
@@ -137,15 +140,17 @@ The extension uses two bounded storage values:
   learned from complete config responses.
 
 Malformed JSON, unknown platform keys, invalid base64, storage failure, and
-oversized values fail closed. A mismatched or missing initplayback key returns
-the pinned empty response; a mismatch also removes only the affected platform
-entry so a later `config` or `log_event` response can repopulate it.
+oversized values are the bundle's own error paths, not a contract this
+repository enforces. A mismatched or missing initplayback key returns its
+pinned empty response; a mismatch also removes only the affected platform entry
+so a later `config` or `log_event` response can repopulate it.
 
 The storage API has no compare-and-swap transaction. Concurrent YouTube and
 YouTube Music key updates, or an update racing an initplayback cache removal,
 can overwrite the other platform slot after both actions read the same older
-value. A later complete config response repopulates the missing slot; clearing
-`YouTubeConfig` forces both platforms to relearn their keys.
+value. That is a property of the storage API rather than of the bundle. A later
+complete config response repopulates the missing slot; clearing `YouTubeConfig`
+forces both platforms to relearn their keys.
 
 ## Pinned upstream
 
