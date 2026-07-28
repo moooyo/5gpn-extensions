@@ -104,9 +104,9 @@ The manifest declares the Worker as an exact `permissions.network.origins`
 entry. The native runtime requires that reviewed origin before allowing this
 cross-origin request patch, and the single enable confirmation warns that all
 data visible to the scripts could be sent there. This permission also exposes
-the synchronous `context.network.request` capability for the Worker origin to
-every script in this extension, although the current implementation never
-calls it. That broader same-origin capability is part of the operator's trust
+the `context.network.request` and `context.network.requestAsync` capabilities
+for the Worker origin to every script in this extension, although the bundles
+never call them. That broader same-origin capability is part of the operator's trust
 decision and must not be interpreted as proof that the Worker is safe.
 
 No operator egress group is required by the reviewed module behavior. An

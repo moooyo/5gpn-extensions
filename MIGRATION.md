@@ -171,7 +171,8 @@ provenance, raw URLs, hashes, fetch dates, port mapping, limitations, fixtures,
 license texts, notices, `REUSE.toml`, generators, and every hard-coded pin in
 the same change.
 
-Runtime code must continue to expose only `transform(context)`. Keep action
+A declarative action carries no runtime code at all. A native script, if one
+is ever added, must continue to expose only `transform(context)`. Keep action
 hosts within `captureHosts` and declare storage, network origins, mappings,
 routing, and egress only when the candidate needs them.
 

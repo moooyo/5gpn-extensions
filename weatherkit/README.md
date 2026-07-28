@@ -79,10 +79,10 @@ actions plus one host-scoped transport rule:
    `weatherkit.apple.com`, encouraging fallback to interceptable TCP. It is a
    narrower approximation of the upstream ASN-plus-QUIC rule.
 
-Both actions use `entry: proxy-compat`. The runtime presents itself as Surge,
+Both actions use `entry: proxy-compat`. The runtime presents itself as Loon,
 supplies `$request`, `$response`, `$argument`, `$done`, `$persistentStore`,
-`$httpClient`, `$environment`, and `$script`, and completes the action when the
-bundle calls `$done`. Settings reach the bundle as the decoded object Loon supplies. The bundle's own
+`$httpClient`, `$notification`, `$utils`, `$environment`, and `$script`, and
+completes the action when the bundle calls `$done`. Settings reach the bundle as the decoded object Loon supplies. The bundle's own
 parser expands dotted keys, so `Weather.Provider` arrives flat and is read as
 `Settings.Weather.Provider`.
 

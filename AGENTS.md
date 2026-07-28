@@ -13,7 +13,9 @@
 - Keep action hosts inside the extension's declared capture hosts. Declare
   storage, network origins, and required operator egress explicitly and only
   when the implementation needs them.
-- Native scripts expose only `transform(context)`. Do not add ambient `fetch`,
+- Prefer a declarative action -- `reject`, `mock`, or `jq` -- over a script;
+  no extension here ships JavaScript. A native script, if one is ever added,
+  exposes only `transform(context)`. Do not add ambient `fetch`,
   filesystem, process, timer, module-loader, Loon, Surge, Quantumult X, or
   other compatibility APIs.
 - Treat every upstream license as a hard boundary. An original file-level
