@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto'
 import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
+import { parse } from 'yaml'
 
 const root = path.resolve(import.meta.dirname, '..')
 const directories = await readdir(root, { withFileTypes: true })
 let verified = 0
+let inlined = 0
 
 function referenceBlocks(readme, url) {
   const lines = readme.split(/\r?\n/)
@@ -40,6 +42,21 @@ function blockRecordsArtifact(block, digest, size) {
   return block.includes(digest) && new RegExp(`\\b${size}\\s+bytes\\b`).test(withoutSeparators)
 }
 
+// A jq program is the one upstream artifact this repository does not fetch at
+// run time: a jq action carries its expression in the manifest, so the bytes
+// are copied in. Downloading the file and checking it against the README digest
+// only proves upstream has not moved; it says nothing about whether the copy
+// still matches. Both halves are needed, and this is the second one.
+function inlinedJQPrograms(manifest) {
+  return (manifest?.actions ?? [])
+    .flatMap((action) => (typeof action?.script?.jq === 'string' ? [action] : []))
+    .map((action) => ({ id: action.id, jq: normalizeJQ(action.script.jq) }))
+}
+
+function normalizeJQ(text) {
+  return text.replaceAll('\r\n', '\n').trimEnd()
+}
+
 for (const directory of directories) {
   if (!directory.isDirectory()) continue
   const readmePath = path.join(root, directory.name, 'README.md')
@@ -57,6 +74,12 @@ for (const directory of directories) {
   for (const match of readme.matchAll(/https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/releases\/download\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.@-]+/g)) {
     urls.add(match[0].replace(/[.,;:]+$/, ''))
   }
+  let programs = []
+  try {
+    programs = inlinedJQPrograms(parse(await readFile(path.join(root, directory.name, 'extension.yaml'), 'utf8')))
+  } catch {
+    programs = []
+  }
   for (const url of urls) {
     const response = await fetch(url, { redirect: url.includes('/releases/download/') ? 'follow' : 'error' })
     if (!response.ok) throw new Error(`${directory.name}: upstream fetch returned ${response.status} for ${url}`)
@@ -67,8 +90,16 @@ for (const directory of directories) {
     }
     verified += 1
     console.log(`${directory.name}: ${digest} ${url}`)
+    if (!url.endsWith('.jq')) continue
+    const upstream = normalizeJQ(Buffer.from(body).toString('utf8'))
+    const carrier = programs.find((program) => program.jq === upstream)
+    if (carrier === undefined) {
+      throw new Error(`${directory.name}: no action carries ${url} verbatim; the inlined copy has drifted from upstream`)
+    }
+    inlined += 1
+    console.log(`${directory.name}: ${carrier.id} carries ${path.posix.basename(new URL(url).pathname)} verbatim`)
   }
 }
 
 if (verified === 0) throw new Error('no pinned upstream URLs were verified')
-console.log(`Verified ${verified} pinned upstream artifacts`)
+console.log(`Verified ${verified} pinned upstream artifacts and ${inlined} inlined jq programs`)
