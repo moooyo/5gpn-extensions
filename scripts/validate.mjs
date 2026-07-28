@@ -273,6 +273,12 @@ for (const entry of entries) {
     assert(Array.isArray(action.match.schemes) && action.match.schemes.every((scheme) => scheme === 'http' || scheme === 'https'), `${entry.name}: ${action.id} has invalid schemes`)
     assert(typeof action.match.pathRegex === 'string' && action.match.pathRegex.startsWith('^'), `${entry.name}: ${action.id} pathRegex must be anchored`)
     assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
+    // The repository-level no-JavaScript gate below only sees `.js` files, so an
+    // inline body would carry JavaScript in the YAML past it and past the
+    // forbidden-pattern lint, which only reads a local file. The published
+    // marketplace already refuses `inline`; refuse it here too, where the error
+    // arrives before a manifest is built rather than after.
+    assert(action.script.inline === undefined, `${entry.name}: ${action.id} must load a script from a source, not inline it`)
     const scriptEntry = action.script.entry ?? 'native'
     assert(scriptEntry === 'native' || scriptEntry === 'proxy-compat', `${entry.name}: ${action.id} has an unknown script entry`)
     // Three declarative kinds carry what the published modules declare and run
@@ -340,18 +346,20 @@ for (const entry of entries) {
       continue
     }
     const hasSource = typeof action.script.source === 'string'
-    const hasInline = typeof action.script.inline === 'string'
-    assert(hasSource !== hasInline, `${entry.name}: ${action.id} must declare exactly one script source`)
+    assert(hasSource, `${entry.name}: ${action.id} must declare a script source`)
     if (scriptEntry === 'proxy-compat') {
       // A published bundle is fetched by URL and is not ours to lint: it is
       // async, it defines no transform(context), and it uses the proxy-client
       // globals on purpose. Its provenance is bound by the README instead, and
       // `npm run verify:upstreams` downloads it and enforces that record.
-      assert(hasSource, `${entry.name}: ${action.id} must load its bundle from a URL`)
       const parsed = new URL(action.script.source)
       assert(parsed.protocol === 'https:', `${entry.name}: ${action.id} bundle source must be HTTPS`)
       assert(readme.includes(action.script.source), `${entry.name}: ${action.id} bundle is not recorded in the README`)
-    } else if (hasSource) {
+    } else {
+      // No extension currently ships a local script, and the repository-level
+      // gate below keeps it that way. This branch is the contract a reintroduced
+      // one would have to meet, kept so that adding it is a deliberate decision
+      // against a stated boundary rather than an unreviewed new capability.
       assert(action.script.source.startsWith('./') && !action.script.source.includes('..'), `${entry.name}: ${action.id} must use a local relative script`)
       const scriptPath = path.join(directory, action.script.source.slice(2))
       const script = await readFile(scriptPath, 'utf8')
