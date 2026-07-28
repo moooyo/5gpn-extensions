@@ -199,18 +199,6 @@ precedence = "override"
 SPDX-FileCopyrightText = "2026 moooyo"
 SPDX-License-Identifier = "Apache-2.0"
 
-[[annotations]]
-path = [
-  "youtube-cleaner/clean-player.js",
-  "youtube-cleaner/request-handler.js",
-]
-precedence = "override"
-SPDX-FileCopyrightText = [
-  "Maasea and sgmodule contributors",
-  "2026 moooyo",
-]
-SPDX-License-Identifier = "Apache-2.0"
-
 # Exact immutable artifact provenance and source metadata credits are retained
 # in each extension README and in THIRD_PARTY_NOTICES.md. They are not promoted
 # to unverified copyright claims.

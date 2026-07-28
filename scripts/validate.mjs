@@ -227,9 +227,19 @@ for (const entry of entries) {
     for (const host of action.match.hosts) assert(captureSet.has(host), `${entry.name}: ${action.id} host ${host} is outside captureHosts`)
     assert(Array.isArray(action.match.schemes) && action.match.schemes.every((scheme) => scheme === 'http' || scheme === 'https'), `${entry.name}: ${action.id} has invalid schemes`)
     assert(typeof action.match.pathRegex === 'string' && action.match.pathRegex.startsWith('^'), `${entry.name}: ${action.id} pathRegex must be anchored`)
-    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
+    assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'argumentFormat', 'timeoutMs', 'maxBodyBytes']), `${entry.name}: ${action.id}.script`)
     const scriptEntry = action.script.entry ?? 'native'
     assert(scriptEntry === 'native' || scriptEntry === 'proxy-compat', `${entry.name}: ${action.id} has an unknown script entry`)
+    // Which encoding a bundle parses cannot be inferred from it, and guessing
+    // wrong is silent: at least one published bundle catches the JSON parse
+    // failure and runs on its defaults.
+    if (action.script.argumentFormat !== undefined) {
+      assert(scriptEntry === 'proxy-compat', `${entry.name}: ${action.id} sets argumentFormat without proxy-compat`)
+      assert(
+        action.script.argumentFormat === 'query' || action.script.argumentFormat === 'json',
+        `${entry.name}: ${action.id} has an unknown argumentFormat`,
+      )
+    }
     const hasSource = typeof action.script.source === 'string'
     const hasInline = typeof action.script.inline === 'string'
     assert(hasSource !== hasInline, `${entry.name}: ${action.id} must declare exactly one script source`)
@@ -369,6 +379,17 @@ for (const entry of entries) {
   }
   if (entry.name === 'youtube-cleaner') {
     assert(actions.length === 3 && manifest.settings?.length === 5 && manifest.permissions.persistentStorage && manifest.permissions.network?.origins?.length === 1 && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')
+    assert(actions.every((action) => action.script.entry === 'proxy-compat'), 'youtube-cleaner: every action must run the published bundle')
+    // These bundles call JSON.parse on $argument and swallow the failure, so the
+    // wrong encoding would leave every setting silently at its default.
+    assert(actions.every((action) => action.script.argumentFormat === 'json'), 'youtube-cleaner: every action must declare the JSON argument encoding')
+    // Two entries, one per upstream transformer: the request script serves both
+    // request actions and the response script serves the response action.
+    const bundleSources = new Set(actions.map((action) => action.script.source))
+    assert(bundleSources.size === 2, 'youtube-cleaner: actions must pin exactly the two upstream transformers')
+    for (const source of bundleSources) {
+      assert(source.startsWith('https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/'), `youtube-cleaner: ${source} is not the reviewed immutable commit`)
+    }
   }
   if (entry.name === 'weatherkit') {
     assert(

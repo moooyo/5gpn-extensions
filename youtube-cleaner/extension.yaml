@@ -4,8 +4,8 @@ kind: Extension
 metadata:
   id: io.5gpn.youtube-cleaner
   name: YouTube Application Cleaner
-  version: 3.0.0
-  description: Cleans YouTube responses and prepares the reviewed external Onesie playback path.
+  version: 4.0.0
+  description: Runs the reviewed Maasea YouTube Enhance scripts against YouTube responses and the Onesie playback path.
 
 permissions:
   persistentStorage: true
@@ -40,13 +40,13 @@ settings:
   - key: captionLang
     type: text
     label: Preferred caption language
-    description: Uses a bounded language code such as en or zh-Hans, or off to disable caption rewriting.
+    description: Uses a Google Translate language code such as en or zh-Hans, or off to disable caption translation.
     required: true
     default: "off"
   - key: debug
     type: boolean
     label: Debug logging
-    description: Logs bounded endpoint transformation counters without logging response content.
+    description: Enables the upstream scripts' own verbose logging.
     required: true
     default: false
 
@@ -61,7 +61,9 @@ actions:
         - https
       pathRegex: '^/initplayback.+&ack.*$'
     script:
-      source: ./request-handler.js
+      source: https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.request.js
+      entry: proxy-compat
+      argumentFormat: json
       bodyMode: binary
       timeoutMs: 1000
       maxBodyBytes: 4194304
@@ -75,10 +77,12 @@ actions:
         - https
       pathRegex: '^/youtubei/v1/log_event(\?.*)?$'
     script:
-      source: ./request-handler.js
-      bodyMode: none
-      timeoutMs: 250
-      maxBodyBytes: 1024
+      source: https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.request.js
+      entry: proxy-compat
+      argumentFormat: json
+      bodyMode: binary
+      timeoutMs: 1000
+      maxBodyBytes: 4194304
 
   - id: clean-youtube-response
     phase: response
@@ -89,7 +93,9 @@ actions:
         - https
       pathRegex: '^/youtubei/v1/(browse|next|player|search|reel/reel_watch_sequence|guide|account/get_setting|get_watch|log_event|config)(\?.*)?$'
     script:
-      source: ./clean-player.js
+      source: https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.response.js
+      entry: proxy-compat
+      argumentFormat: json
       bodyMode: binary
       timeoutMs: 10000
       maxBodyBytes: 16777216

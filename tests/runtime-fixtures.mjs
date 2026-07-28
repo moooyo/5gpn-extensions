@@ -91,38 +91,6 @@ function lengthField(field, bytes) {
 }
 
 {
-  const { transform } = await loadTransform('youtube-cleaner/request-handler.js')
-  const result = transform({
-    request: {
-      url: 'https://r1.googlevideo.com/initplayback?a=1&ack=1',
-      headers: {},
-      body: new Uint8Array(lengthField(3, lengthField(5, [1, 2, 3]))),
-    },
-    settings: { captionLang: 'off' },
-    storage: {
-      get() { return null },
-      set() { return true },
-    },
-  })
-  assert.equal(result.response.status, 200)
-}
-
-{
-  const { transform } = await loadTransform('youtube-cleaner/clean-player.js')
-  const unrelated = lengthField(1, [0x01])
-  const player = new Uint8Array([
-    ...unrelated,
-    ...lengthField(7, [0x02]),
-    ...lengthField(68, [0x03]),
-  ])
-  const result = transform({
-    request: { url: 'https://youtubei.googleapis.com/youtubei/v1/player' },
-    response: { body: player },
-  })
-  assert.deepEqual([...result.response.body], unrelated)
-}
-
-{
   const { transform } = await loadTransform('bilibili-cleaner/mock-json.js')
   const result = transform({})
   assert.equal(result.response.status, 200)

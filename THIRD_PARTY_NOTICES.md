@@ -83,14 +83,29 @@ text governing the combined Bilibili work is retained in
 
 ## YouTube Cleaner
 
-`youtube-cleaner` is derived from the Apache-2.0 `Maasea/sgmodule` YouTube
-module, request script, and response script at commit
-`65075cdb388fc5e3094afd7e7314c67b243f3525`. No upstream `NOTICE` file exists
-at that commit. The local implementation is a bounded native rewrite and does
-not embed the upstream generated runtimes. The external
-`init-stream.maasea.workers.dev` service is not distributed by this repository
-and its implementation is not present in the pinned upstream tree. The port
-retains Maasea attribution and the Apache-2.0 license.
+`youtube-cleaner` does not vendor upstream source. It loads the two Apache-2.0
+`Maasea/sgmodule` YouTube transformers at runtime and executes them under the
+`5gpn.io/v1` proxy-compat script contract. The reviewed artifacts are pinned at
+commit `65075cdb388fc5e3094afd7e7314c67b243f3525`:
+`Script/Youtube/youtube.request.js`, 44,024 bytes, SHA-256
+`3ecca15e06e76a31720092c581180f648ef2c45e494644941ba985c878efbb26`, and
+`Script/Youtube/youtube.response.js`, 132,973 bytes, SHA-256
+`f98483d5f5017514f82502253c0db5ce2d4ffb7839887aa2cadc22666f5a7f12`. No upstream
+`NOTICE` file exists at that commit.
+
+Because the bundles are fetched rather than copied, this repository distributes
+none of their bytes and adds no derived work of them. The bundles embed an
+Apache-2.0 `protobuf-ts` runtime and a CC0-1.0 TextEncoder/TextDecoder
+polyfill; neither is present here. `youtube-cleaner/extension.yaml` and
+`youtube-cleaner/README.md` are original and Apache-2.0, and retain Maasea
+attribution.
+
+Earlier revisions shipped a bounded native rewrite of these transformers under
+this heading. That code has been removed; the pinned bundles are now the
+implementation.
+
+The external `init-stream.maasea.workers.dev` service is not distributed by this
+repository and its implementation is not present in the pinned upstream tree.
 
 ## WeatherKit release bundle
 
