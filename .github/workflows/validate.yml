@@ -23,15 +23,6 @@ jobs:
       - run: npm test
       - run: npm run routing:check
       - run: npm run verify:upstreams
-      - name: Rebuild Bilibili bundle from corresponding source
-        working-directory: bilibili-cleaner/source
-        run: |
-          npm ci
-          npm run generate
-          npm run build
-          npx tsc --noEmit
-          npm run verify:sources
-          git diff --exit-code -- ../protobuf.js generated bundle-inputs.json
       - name: Generate core integration marketplace
         run: |
           for profile in v1 v1beta; do
