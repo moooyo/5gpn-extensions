@@ -1,2 +1,3 @@
+# Text is normalised to LF in the repository and in the working tree, so a
+# digest recorded for a file matches whatever a checkout produces.
 * text=auto eol=lf
-bilibili-cleaner/source/vendor-src/** whitespace=-trailing-space,-blank-at-eof

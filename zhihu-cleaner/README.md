@@ -54,7 +54,7 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `cfcfb777bbc47e8f0c5c53931714a3194377722ddac59ec474b031ea998657b2` |
+| Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `ca499c675ba6ef2046d162d2f851ab6f60989b8c5cdcd0f6f51fced4288246b9` |
 | Authorization record | `zhihu-cleaner/AUTHORIZATION.md` — SHA-256 `e1d5d51f898539dfcc96b698adebbf84efbdf7d584b6cf3e1a3e26dd6ff2dc22` |
 
 ## Authorization, license, and attribution

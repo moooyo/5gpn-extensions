@@ -41,7 +41,7 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `9efdc3b23b688ca29e5de4f1c0666d4c0a27abf2d0eaa357079478cd04ee70e5` |
+| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `a9116776c2cd37d21a2c4c99888821b87ad1bc504acb528a630a99f5edba16bf` |
 
 ## License and attribution
 
