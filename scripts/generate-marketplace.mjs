@@ -23,8 +23,23 @@ const maxCaptureHosts = 512
 // accepts, and `v1beta` carries the typed policy projection for cores that have
 // learned to read it. One build emits both; neither is a branch.
 const PROFILES = {
-  v1: { policy: false, networkAny: false },
-  v1beta: { policy: true, networkAny: true },
+  v1: { policy: false, networkAny: false, newerContract: false },
+  v1beta: { policy: true, networkAny: true, newerContract: true },
+}
+
+// Manifest fields the frozen `v1` contract does not cover. A core that predates
+// them refuses the whole manifest — its YAML decode rejects unknown fields — so
+// an extension using one cannot be installed from a `v1` catalogue no matter
+// what the entry says about it. Listing it there anyway produces a browsable
+// entry whose only possible outcome is a confusing failure, so `v1` omits it.
+function newerContractReasons(manifest) {
+  const reasons = []
+  if (manifest.permissions?.network?.any === true) reasons.push('permissions.network.any')
+  const entries = [...new Set((manifest.actions ?? [])
+    .map((action) => action.script?.entry)
+    .filter((entry) => typeof entry === 'string' && entry !== '' && entry !== 'native'))]
+  for (const entry of entries.sort()) reasons.push(`script.entry=${entry}`)
+  return reasons
 }
 
 function assertProfile(profile) {
@@ -351,7 +366,7 @@ function policyProjection(manifest, directory) {
 }
 
 export async function generateMarketplace({ root = repositoryRoot, revision, profile = 'v1' }) {
-  const { policy: publishesPolicy, networkAny: publishesNetworkAny } = assertProfile(profile)
+  const { policy: publishesPolicy, networkAny: publishesNetworkAny, newerContract: publishesNewerContract } = assertProfile(profile)
   assert(revisionPattern.test(revision), 'revision must be a lowercase 40-character Git commit')
   const metadataBody = await readFile(path.join(root, 'marketplace', 'metadata.json'), 'utf8')
   const metadata = JSON.parse(metadataBody)
@@ -370,6 +385,13 @@ export async function generateMarketplace({ root = repositoryRoot, revision, pro
     const manifest = parseStrictManifest(manifestBody, directory)
     assert(!ids.has(manifest.metadata.id), `${directory}: duplicate extension id ${manifest.metadata.id}`)
     ids.add(manifest.metadata.id)
+    const newerContract = newerContractReasons(manifest)
+    if (newerContract.length > 0 && !publishesNewerContract) {
+      // Announced rather than dropped silently: a catalogue that quietly loses
+      // an extension is indistinguishable from one that forgot it.
+      console.error(`${profile}: omitting ${directory} — needs ${newerContract.join(', ')}`)
+      continue
+    }
     const licensePath = path.join(root, 'LICENSES', `${definition.licenseSpdx}.txt`)
     const licenseInfo = await stat(licensePath)
     assert(licenseInfo.isFile(), `${directory}: license text ${definition.licenseSpdx}.txt is missing`)

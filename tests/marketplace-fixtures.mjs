@@ -43,10 +43,13 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   }
 
   // The two profiles are one document differing by the fields v1 has not
-  // learned. Stripping them has to reproduce the other exactly — otherwise the
-  // split has quietly become a second way of describing the catalogue, and the
-  // v1 readers would be the last to find out.
+  // learned, plus the entries v1 cannot describe at all. Stripping the first
+  // and removing the second has to reproduce v1 exactly — otherwise the split
+  // has quietly become a second way of describing the catalogue, and the v1
+  // readers would be the last to find out.
+  const stableIDs = new Set(stable.entries.map((entry) => entry.id))
   const strippedBeta = structuredClone(catalog)
+  strippedBeta.entries = strippedBeta.entries.filter((entry) => stableIDs.has(entry.id))
   for (const entry of strippedBeta.entries) {
     delete entry.policy
     delete entry.capabilities.networkAny
@@ -54,8 +57,18 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   assert.deepEqual(
     strippedBeta,
     stable,
-    'the profiles differ by more than the beta-only projections',
+    'the profiles differ by more than the beta-only projections and omitted entries',
   )
+
+  // An entry is omitted from v1 only when its manifest uses a field the frozen
+  // v1 contract does not cover. Anything else disappearing is a bug, not a
+  // policy, so the omission set is asserted by name rather than by count.
+  const omitted = catalog.entries.filter((entry) => !stableIDs.has(entry.id)).map((entry) => entry.id)
+  assert.deepEqual(omitted, ['io.5gpn.weatherkit'], 'unexpected entries are missing from the v1 profile')
+  for (const id of omitted) {
+    const entry = catalog.entries.find((candidate) => candidate.id === id)
+    assert.equal(entry.capabilities.networkAny, true, `${id} was omitted from v1 without needing a newer contract`)
+  }
 
   // v1 is frozen at what the stable core accepts, and it parses the index with
   // DisallowUnknownFields: an unknown field costs that core its whole catalogue.
@@ -137,7 +150,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   try {
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 8)
+    assert.equal(JSON.parse(generated).entries.length, 7, "the v1 profile omits entries needing a newer contract")
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--check', output], { cwd: repositoryRoot })
 
     // --check is profile-aware: the same path checked against the other profile
