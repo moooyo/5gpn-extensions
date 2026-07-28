@@ -370,10 +370,14 @@ for (const entry of entries) {
   }
   if (entry.name === 'weatherkit') {
     assert(
-      actions.length === 2 && manifest.settings?.length === 8 && manifest.permissions.persistentStorage && manifest.permissions.network?.any === true && routingRules.length === 1,
+      actions.length === 2 && manifest.settings?.length === 9 && manifest.permissions.persistentStorage && manifest.permissions.network?.any === true && routingRules.length === 1,
       'weatherkit: reviewed proxy-compat capability set is incomplete',
     )
     assert(actions.every((action) => action.script.entry === 'proxy-compat'), 'weatherkit: every action must run the published bundle')
+    // Without this the bundle's switch reads persistent storage and discards
+    // $argument, so every other setting on the page silently does nothing.
+    const storage = manifest.settings.find((setting) => setting.key === 'Storage')
+    assert(storage?.default === '$argument' && storage.options?.length === 1, 'weatherkit: settings must be declared as reaching the bundle through $argument')
     // The bundle is remote, so the README record and the verifier are what bind
     // which bytes run. Both must name the same release.
     const bundleSources = new Set(actions.map((action) => action.script.source))

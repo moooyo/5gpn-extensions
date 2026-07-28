@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Enhancer
-  version: 3.0.0
+  version: 3.1.0
   description: Runs the reviewed NSRingo WeatherKit release bundle against Apple WeatherKit responses.
 
 permissions:
@@ -22,6 +22,18 @@ traffic:
       destinationPort: 443
 
 settings:
+  # The bundle only merges $argument into its settings when this says so. Its
+  # switch defaults to reading persistent storage and ignoring $argument
+  # entirely, which is what every setting below was doing until this was added.
+  # One option, because the other branches would silently discard them again.
+  - key: Storage
+    type: select
+    label: Settings source
+    description: Selects where the bundle reads its settings. Only the manifest's own settings are supported.
+    required: true
+    options:
+      - $argument
+    default: $argument
   - key: Weather.Provider
     type: select
     label: Weather source

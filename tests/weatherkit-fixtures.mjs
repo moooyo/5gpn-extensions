@@ -12,7 +12,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '3.0.0')
+assert.equal(manifest.metadata.version, '3.1.0')
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
 assert.deepEqual(manifest.traffic.routingRules, [{
   action: 'reject',
@@ -47,10 +47,15 @@ assert.equal(weather.script.bodyMode, 'binary')
 assert.equal(weather.match.pathRegex, '^/api/v2/weather/')
 assert.deepEqual(weather.match.methods, ['GET'])
 
-// Setting keys are upstream's own argument names, because they are serialized
-// straight into $argument and parsed by the bundle. A renamed key here would
-// stop applying silently instead of failing.
+// Setting keys are upstream's own argument names, because they reach the bundle
+// as $argument and its parser expands the dots. A renamed key here would stop
+// applying silently instead of failing.
+//
+// Storage is first and is not a preference: the bundle switches on it to decide
+// where to read settings from, and its default branch discards $argument. Every
+// setting below it did nothing until it was added.
 assert.deepEqual(manifest.settings.map((setting) => setting.key), [
+  'Storage',
   'Weather.Provider',
   'NextHour.Provider',
   'AirQuality.Calculate.Algorithm',

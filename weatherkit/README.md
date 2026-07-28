@@ -82,8 +82,17 @@ actions plus one host-scoped transport rule:
 Both actions use `entry: proxy-compat`. The runtime presents itself as Surge,
 supplies `$request`, `$response`, `$argument`, `$done`, `$persistentStore`,
 `$httpClient`, `$environment`, and `$script`, and completes the action when the
-bundle calls `$done`. Settings are serialized into `$argument` in the published
-module's `key="value"` form, so the bundle's own parser reads them unchanged.
+bundle calls `$done`. Settings reach the bundle as the decoded object Loon supplies. The bundle's own
+parser expands dotted keys, so `Weather.Provider` arrives flat and is read as
+`Settings.Weather.Provider`.
+
+The first setting, `Storage`, is not a preference. The bundle switches on
+`$argument.Storage` to decide where to read settings from, and its default
+branch reads persistent storage and discards `$argument` entirely. Revisions
+before 3.1.0 set no `Storage` key, so **every other setting on this page was
+silently ignored** -- the bundle ran on its own defaults and the console gave no
+indication. It is declared as a select with one option, because the other
+branches would discard them again.
 
 The upstream request-phase dataset filter is not wired, matching the published
 upstream module, which also declares only the two response scripts.
@@ -187,7 +196,7 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.weatherkit`; bump `metadata.version` for every manifest or pinned-bundle change. |
-| Current manifest | `version=3.0.0`; `persistentStorage=true`; `settings=8`; `captureHosts=1`; `actions=2`; `routingRules=1`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=3.1.0`; `persistentStorage=true`; `settings=9`; `captureHosts=1`; `actions=2`; `routingRules=1`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the bundle caches provider lookups in the extension-scoped store. |
 | Settings | Preserve the eight upstream argument keys and types when possible. A normal same-ID update retains only values that remain valid under the candidate. |
 | Script contract | Both actions use `entry: proxy-compat`. Changing an action back to the native contract requires a new reviewed script, not a manifest edit. |
