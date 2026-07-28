@@ -51,8 +51,6 @@ SPDX-License-Identifier = "GPL-3.0-only"
 
 [[annotations]]
 path = [
-  "bilibili-cleaner/clean-json.js",
-  "bilibili-cleaner/inject-live-page.js",
   "bilibili-cleaner/mock-grpc.js",
   "bilibili-cleaner/mock-json.js",
 ]
@@ -62,124 +60,6 @@ SPDX-FileCopyrightText = [
   "2026 moooyo",
 ]
 SPDX-License-Identifier = "GPL-3.0-only"
-
-[[annotations]]
-path = "bilibili-cleaner/protobuf.js"
-precedence = "override"
-SPDX-FileCopyrightText = [
-  "kokoryh and Sparkle contributors",
-  "2026 moooyo",
-  "2008 Google Inc.",
-]
-SPDX-License-Identifier = "GPL-3.0-only AND BSD-3-Clause"
-
-[[annotations]]
-path = [
-  "bilibili-cleaner/source/README.md",
-  "bilibili-cleaner/source/add-pure-annotations.mjs",
-  "bilibili-cleaner/source/buf.gen.yaml",
-  "bilibili-cleaner/source/buf.yaml",
-  "bilibili-cleaner/source/build.mjs",
-  "bilibili-cleaner/source/bundle-inputs.json",
-  "bilibili-cleaner/source/native-protobuf.ts",
-  "bilibili-cleaner/source/package-lock.json",
-  "bilibili-cleaner/source/package.json",
-  "bilibili-cleaner/source/tsconfig.json",
-  "bilibili-cleaner/source/verify-sources.mjs",
-  "bilibili-cleaner/source/generated/**",
-  "bilibili-cleaner/source/proto/**",
-  "bilibili-cleaner/source/upstream-sparkle/**",
-  "bilibili-cleaner/source/vendor-src/SOURCE_MANIFEST.tsv",
-]
-precedence = "override"
-SPDX-FileCopyrightText = [
-  "kokoryh and Sparkle contributors",
-  "2026 moooyo",
-]
-SPDX-License-Identifier = "GPL-3.0-only"
-
-[[annotations]]
-path = [
-  "bilibili-cleaner/source/licenses/fflate-MIT.txt",
-  "bilibili-cleaner/source/vendor/fflate-0.8.3.tgz",
-  "bilibili-cleaner/source/vendor-src/fflate/**",
-]
-precedence = "override"
-SPDX-FileCopyrightText = "2026 Arjun Barrett"
-SPDX-License-Identifier = "MIT"
-
-[[annotations]]
-path = [
-  "bilibili-cleaner/source/licenses/protobuf-ts-Apache-2.0.txt",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/LICENSE",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/package-lock.json",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/package.json",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/LICENSE",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/README.md",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/package.json",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/tsconfig.base.json",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/tsconfig.build.json",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/tsconfig.json",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/tsconfig.test.json",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/assert.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/base64.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/binary-format-contract.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/binary-reader.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/binary-writer.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/enum-object.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/index.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/json-format-contract.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/json-typings.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/lower-camel-case.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/message-type-contract.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/message-type.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/oneof.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/pb-long.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-binary-reader.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-binary-writer.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-contains-message-type.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-create.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-equals.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-info.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-json-reader.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-json-writer.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-long-convert.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-merge-partial.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-scalar-default.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/reflection-type-check.ts",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/unknown-types.ts",
-]
-precedence = "override"
-SPDX-FileCopyrightText = "Timo Stamm and protobuf-ts contributors"
-SPDX-License-Identifier = "Apache-2.0"
-
-[[annotations]]
-path = [
-  "bilibili-cleaner/source/licenses/goog-varint-BSD-3-Clause.txt",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/goog-varint.ts",
-]
-precedence = "override"
-SPDX-FileCopyrightText = "2008 Google Inc."
-SPDX-License-Identifier = "BSD-3-Clause"
-
-[[annotations]]
-path = [
-  "bilibili-cleaner/source/licenses/protobufjs-BSD-3-Clause.txt",
-  "bilibili-cleaner/source/vendor-src/protobuf-ts/packages/runtime/src/protobufjs-utf8.ts",
-]
-precedence = "override"
-SPDX-FileCopyrightText = "2016 Daniel Wirtz"
-SPDX-License-Identifier = "BSD-3-Clause"
-
-[[annotations]]
-path = "bilibili-cleaner/source/vendor/protobuf-ts-runtime-2.11.1.tgz"
-precedence = "override"
-SPDX-FileCopyrightText = [
-  "Timo Stamm and protobuf-ts contributors",
-  "2016 Daniel Wirtz",
-  "2008 Google Inc.",
-]
-SPDX-License-Identifier = "Apache-2.0 AND BSD-3-Clause"
 
 [[annotations]]
 path = [

@@ -88,31 +88,6 @@ function lengthField(field, bytes) {
   assert.deepEqual(JSON.parse(result.response.body), {})
 }
 
-{
-  const { transform } = await loadTransform('bilibili-cleaner/clean-json.js')
-  const result = transform({
-    request: { url: 'https://app.bilibili.com/x/v2/feed/index' },
-    response: {
-      body: JSON.stringify({
-        code: 0,
-        data: {
-          items: [
-            { id: 'ad', card_goto: 'av', card_type: 'small_cover_v2', ad_info: {} },
-            { id: 'keep', card_goto: 'av', card_type: 'small_cover_v2' },
-          ],
-        },
-      }),
-    },
-  })
-  assert.deepEqual(JSON.parse(result.response.body).data.items, [{ id: 'keep', card_goto: 'av', card_type: 'small_cover_v2' }])
-
-  const tabResult = transform({
-    request: { url: 'https://app.bilibili.com/x/resource/show/tab/v2' },
-    response: { body: JSON.stringify({ code: 0, data: {} }) },
-  })
-  const tabData = JSON.parse(tabResult.response.body).data
-  assert.deepEqual(tabData.tab.map((item) => item.id), [731, 477, 478, 3502, 3503])
-}
 
 {
   const { transform } = await loadTransform('bilibili-cleaner/mock-grpc.js')

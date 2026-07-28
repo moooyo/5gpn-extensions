@@ -66,7 +66,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const omitted = catalog.entries.filter((entry) => !stableIDs.has(entry.id)).map((entry) => entry.id)
   assert.deepEqual(
     omitted,
-    ['io.5gpn.weatherkit', 'io.5gpn.youtube-cleaner', 'io.5gpn.zhihu-cleaner'],
+    ['io.5gpn.bilibili-cleaner', 'io.5gpn.weatherkit', 'io.5gpn.youtube-cleaner', 'io.5gpn.zhihu-cleaner'],
     'unexpected entries are missing from the v1 profile',
   )
 
@@ -101,8 +101,10 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
       `${entry.id}: a reviewed routing rule did not survive into the typed projection`)
   }
   const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
-  assert.equal(bilibili.capabilities.actionCount, 11)
-  assert.equal(bilibili.resources.filter(resource => resource.path === 'protobuf.js').length, 1)
+  assert.equal(bilibili.capabilities.actionCount, 21)
+  // Eleven of bilibili's actions are jq expressions and five load pinned
+  // upstream scripts, so the only local resources left are the two mocks.
+  assert.deepEqual(bilibili.resources.map(resource => resource.path).filter(p => !p.includes('/')), ['mock-grpc.js', 'mock-json.js'])
   const weatherkit = catalog.entries.find(entry => entry.id === 'io.5gpn.weatherkit')
   assert.deepEqual(weatherkit.capabilities, {
     captureHostCount: 1,
@@ -152,7 +154,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   try {
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 5, "the v1 profile omits entries needing a newer contract")
+    assert.equal(JSON.parse(generated).entries.length, 4, "the v1 profile omits entries needing a newer contract")
     await execFileAsync(process.execPath, [script, '--revision', revision, '--profile', 'v1', '--check', output], { cwd: repositoryRoot })
 
     // --check is profile-aware: the same path checked against the other profile
