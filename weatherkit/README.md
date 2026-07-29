@@ -213,7 +213,7 @@ decision.
 | Settings | Preserve the eight upstream argument keys and types when possible. A normal same-ID update retains only values that remain valid under the candidate. |
 | Script contract | Both actions use `entry: proxy-compat`. Changing an action back to the native contract requires a new reviewed script, not a manifest edit. |
 | Permission review gate | The network capability and persistent storage are part of the reviewed baseline. Removing either is a capability reduction and still needs a disabled replacement. |
-| Reviewed capability baseline | One capture host, two proxy-compat response actions, eight settings, one UDP/443 reject rule, the network capability, persistent storage, and no required egress. |
+| Reviewed capability baseline | One capture host, two proxy-compat response actions, nine settings, four reject routing rules, the network capability, persistent storage, and no required egress. |
 | Operator state | A normal update retains valid settings, `capture_dns`, and execution order. Review all while disabled. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed URL. The extension-owned store is a cache, so discarding it costs only a refetch. |
 

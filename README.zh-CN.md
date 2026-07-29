@@ -12,7 +12,7 @@
 | `ad-platform-blocker` | 获取有界选择器流量并阻止 201 条经审查的广告平台路由 | CC BY-NC-SA 4.0 |
 | `apple-wloc` | 将 Apple WLOC 响应改写为运营者选择的位置 | MIT |
 | `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
-| `httpdns-interceptor` | 获取 58 个 HTTPDNS 域名；拒绝 59 条网关可见 CIDR 路由和 7 条请求路径 | CC BY-NC-SA 4.0 |
+| `httpdns-interceptor` | 获取 58 个 HTTPDNS 域名；拒绝 59 条网关可见 CIDR 路由，并拦截 7 条请求路径 | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
 | `weatherkit` | 控制 WeatherKit 数据集、保留可用性并在本地规范化空气质量数据 | Apache-2.0 |
 | `youtube-cleaner` | 清理 YouTube 响应并准备经审查的外部 Onesie 播放链路 | Apache-2.0 |
@@ -82,11 +82,15 @@ example-cleaner/
 | 拦截匹配的路径 | `script.reject` | 在请求发往上游之前中止。无代码。 |
 | 返回固定响应 | `script.mock` | 声明状态码、响应头,以及 `body` 或 `base64Body`。无代码,且请求不会离开网关。 |
 | 改写 JSON 响应体 | `script.jq` | 直接携带上游模块自己的 `response-body-json-jq` 表达式,由 gojq 执行,完全不进 JavaScript 运行时。可通过 `$settings` 读取操作员选择。 |
-| 运行已发布的代理客户端 bundle | `script.entry: proxy-compat` | 以 Loon 人格加载钉住的上游脚本。 |
+| 在真实报文上编辑头部 | `script.headers` | `set` 与 `remove` 两个字段，不替换正文。先执行删除。 |
+| 把请求发往别处 | `script.rewrite` | 原地改写 URL，或直接返回 302/307。原地改写与脚本改写走同一套授权，因此跨源目标仍需声明网络源（origin）。 |
+| 编辑正文字节 | `script.replaceBody` | 一个正则和一个替换串，替换串可读取 `{{settings.key}}`，并可选地经由声明的 `valueMap` 解析。与 `jq` 不同，它不解析文档，因此未命中的字节原样保留。 |
+| 用设置开关一个动作 | `actions[].enabledWhen` | 指向同一扩展的一个必填布尔设置。为 false 时该动作根本不会被编译，因此永远不会命中。上游插件格式是在脚本之外开关一个条目的，所以携带这种开关的 bundle 从来不会读取控制它的那个键。 |
+| 运行已发布的代理客户端 bundle | `script.entry: proxy-compat` | 以 Loon 人格加载钉住的上游脚本。见下文的契约。 |
 | 读取正文 | `script.bodyMode` | `none`、UTF-8 `text`，或以 `Uint8Array` 表示的 `binary`，并受 `maxBodyBytes` 限制。 |
 | 类型化运营者配置 | `settings[]` | `text`、`select`、`boolean`、`number` 和 `location`；启用前必须完整填写必填值。 |
 | 持久状态 | `permissions.persistentStorage: true` | 添加受扩展作用域和配额限制的 `context.storage`；脚本绝不能选择路径或访问文件系统。 |
-| 按源（origin）限定的出站 HTTP | `permissions.network.origins` | 仅为精确的 HTTP(S) 源（origin）添加同步 `context.network.request`。不存在环境级 `fetch`、重定向跟随、Cookie jar 或套接字访问。运营者必须确认可见的已解密数据可能被发送到这些源。 |
+| 按源（origin）限定的出站 HTTP | `permissions.network.origins` | 仅为精确的 HTTP(S) 源（origin）添加 `context.network.request` 及其并发形式 `context.network.requestAsync`。不存在环境级 `fetch`、重定向跟随、Cookie jar 或套接字访问。运营者必须确认可见的已解密数据可能被发送到这些源。 |
 | 覆盖一个名字的解析结果 | `traffic.upstreamMappings` | Loon 的 `[Host]`。目标可以是地址（`1.2.3.4`）、别名（`origin.example.net`）或解析器（`server:1.1.1.1`）。名字的 Host 头和 TLS SNI 保持不变，只有地址改变，而且改变发生在网关的解析器里 —— 因此客户端的应答与被捕获主机的上游腿遵循同一张表。映射只提供地址，绝不提供转发决策：映射到国内地址的国内域名依然直连，映射到境外地址的依然被引流。地址型目标经过 SSRF 检查。映射无法作用于由远端解析的出站，因为代理节点收到的是名字而不是地址。 |
 | 要求区域/运营者出口 | `requirements.egressGroup.required: true` | 启用前强制运营者绑定现有 mihomo 组或 `DIRECT`。扩展不能命名、检查、选择或更改任意组；另行审查的路由规则只能选择 `DIRECT`。 |
 | 组合多个扩展 | Console 执行顺序 | 请求和响应操作自上而下运行。对于重叠目的地，同一顺序中的第一个已绑定扩展和第一条全局路由规则生效。重排需要审查调整前后顺序并确认。 |
@@ -184,6 +188,32 @@ true}`、`null` 或 `undefined`。响应操作只能返回响应补丁、中止�
 
 仅在声明了持久存储时，`context.storage` 才存在。仅在声明并确认精确源时，`context.network.request` 才存在。网络响应包含 `url`、`status`、`headers`、`trailers`、二进制 `body`，以及当正文是有效 UTF-8 时的 `text`。重定向和非 2xx 响应会返回给脚本，而不会被静默跟随。
 
+### proxy-compat 契约
+
+`script.entry: proxy-compat` 原样运行一个已发布的代理客户端 bundle。运行时以 **Loon** 人格呈现：`$loon` 有定义，因此按 `$task`、`$loon`、`$rocket`、`Egern`、`$environment["surge-version"]` 这一固定顺序探测的 bundle 会走它们的 Loon 分支。运行时不定义任何 Surge、Quantumult X 或 Egern 全局，`$environment` 报告的是 `loon-version` 而不是 `surge-version`。
+
+bundle 可以拿到：
+
+```text
+$loon             人格版本字符串
+$environment      { "loon-version": … }
+$script           { startTime }
+$request          { url, method, headers, body? }
+$response         { status, headers, body }，请求阶段为 undefined
+$argument         清单的类型化设置，以解码后的对象形式给出
+$done(result)     完成信号；以第一次调用为准
+$persistentStore  read(key) / write(value, key)，需要存储权限
+$httpClient       get|post|put|delete|head|patch(options, cb)，需要网络权限
+$utils            仅有 ungzip；其余一律缺失，使得 bundle 取用未实现的
+                  helper 时会大声失败而不是静默产出错误结果
+$notification     post(...)，记入该动作自己的日志预算而非真的投递，
+                  因为网关没有投递渠道
+```
+
+`$argument` 是**对象**而不是序列化字符串，因为 Loon 就是这样交给 bundle 的。这也是为什么设置、类型和默认值都从上游的 `[Argument]` 段推导，而不是从 Surge 的 `#!arguments` 行：Loon 的是类型化的，声明为 `number` 的设置到达时仍然是 number。一个错误解析 `$argument` 的 bundle 不会报错，它会静默地按自己的默认值运行。
+
+动作在 bundle 调用 `$done` 时结束。始终不调用的 bundle 会一直跑到动作截止时间然后失败。运行时没有模块加载器；bundle 里的 `require` 只在它永不选择的 Node.js 分支上才会到达。
+
 ### 声明可选权限
 
 仅声明运行时实现实际使用的能力：
@@ -213,7 +243,7 @@ traffic:
 
 1. 选择权威上游仓库和不可变提交。不得将扩展商店或镜像的根许可证视为比更具体的原始文件许可证更有权威性。
 2. 移植行为前，记录并验证每个源文件和许可证文件的原始 URL、大小、SHA-256、获取日期、创作者署名和许可证。
-3. 仅将经审查的行为转换为严格的原生清单。优先使用声明式动作(`reject`/`mock`/`jq`)——本仓库的八个扩展全部由它们和 `proxy-compat` 构成,不含任何 JavaScript。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
+3. 仅将经审查的行为转换为严格的原生清单。优先使用声明式动作(`reject`/`mock`/`jq`/`headers`/`rewrite`/`replaceBody`)——本仓库的八个扩展全部由它们和 `proxy-compat` 构成,不含任何 JavaScript。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
 4. 仅在使用时声明存储、网络源、上游映射和所需出口。记录获准的网络调用可能泄露哪些已解密数据。
 5. 添加正向、无操作、格式错误输入和边界测试样例。保留无关字段，并在部分转换不安全时以拒绝方式失败（fail closed）。
 6. 运行目录验证器和当前核心解析器门禁：
