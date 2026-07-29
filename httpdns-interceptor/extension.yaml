@@ -381,7 +381,7 @@ actions:
         status: 200
         headers:
           Content-Type: application/json
-        body: '{}'
+        body: "{}"
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024
@@ -398,7 +398,7 @@ actions:
         status: 200
         headers:
           Content-Type: application/json
-        body: '{}'
+        body: "{}"
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024

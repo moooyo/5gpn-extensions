@@ -17,10 +17,41 @@ const sources = {
   'httpdns-interceptor': {
     url: 'https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/Block_HTTPDNS.lpx',
     sha256: '08429c4f1c677d79e87eb3cd41e880868f7a71381dc1d6c81b393734fd5df21a',
-    version: '2.2.0',
+    version: '2.3.0',
     excludedIPAddressPathRules: 48,
     inertPathLines: 3,
   },
+}
+
+// Loon's reject family is not one directive. `reject` closes the connection;
+// `reject-dict` answers 200 with the empty JSON object `{}`. Both were once
+// carried as the same abort, which changed what two clients saw. The kind is
+// derived from the upstream line rather than chosen per entry, so a rule
+// transcribed here cannot silently get the other one.
+//
+// The two reviewed tables spell a source differently -- ad-platform carries a
+// bare `[Rewrite]` line, httpdns carries a `[section, line]` pair because it
+// reviews `[Rule]` lines too -- so the line is taken from the end either way.
+function upstreamRejectKind(sources) {
+  const lines = sources.map((source) => (Array.isArray(source) ? source[source.length - 1] : source))
+  const kinds = new Set(lines.map((line) => (/\breject-dict$/.test(line) ? 'dict' : 'close')))
+  if (kinds.size !== 1) {
+    throw new Error(`one reviewed action mixes reject and reject-dict sources: ${lines.join(' | ')}`)
+  }
+  return [...kinds][0]
+}
+
+function blockScript(kind, timeoutMs) {
+  const bounds = { bodyMode: 'none', timeoutMs, maxBodyBytes: 1024 }
+  if (kind === 'dict') {
+    return {
+      mock: { status: 200, headers: { 'Content-Type': 'application/json' }, body: '{}' },
+      ...bounds,
+    }
+  }
+  // Declarative rejection. These actions used to share a 57-byte script
+  // whose whole body was `return { abort: true }`.
+  return { reject: true, ...bounds }
 }
 
 function blockAction(id, host, schemes, pathRegex, timeoutMs = 200) {
@@ -32,15 +63,20 @@ function blockAction(id, host, schemes, pathRegex, timeoutMs = 200) {
       schemes,
       pathRegex,
     },
-    script: {
-      // Declarative rejection. These actions used to share a 57-byte script
-      // whose whole body was `return { abort: true }`.
-      reject: true,
-      bodyMode: 'none',
-      timeoutMs,
-      maxBodyBytes: 1024,
-    },
+    // Filled in from the entry's upstream sources by resolveBlockActions.
+    // Declared here so the shape is complete if this action is read directly.
+    script: blockScript('close', timeoutMs),
   }
+}
+
+// Rebuilds each action's script from the directive its upstream line actually
+// uses. Applied to every reviewed path table, so ad-platform gets the same
+// guarantee even though all of its lines are plain rejects today.
+function resolveBlockActions(entries) {
+  return entries.map((entry) => ({
+    ...entry.action,
+    script: blockScript(upstreamRejectKind(entry.sources), entry.action.script.timeoutMs),
+  }))
 }
 
 const httpdnsPathActions = [
@@ -217,7 +253,7 @@ function reviewedAdPaths(text) {
   if (JSON.stringify(actualHosts) !== JSON.stringify(expectedHosts)) {
     throw new Error('ad-platform-blocker: [MitM] hosts do not match the reviewed path actions')
   }
-  return adPathActions.map((entry) => entry.action)
+  return resolveBlockActions(adPathActions)
 }
 
 function adCaptureHosts(rules, actions) {
@@ -315,7 +351,7 @@ function reviewedHTTPDNSPaths(text, source) {
     throw new Error(`httpdns-interceptor: expected ${source.inertPathLines} inert path lines, got ${inertPathLines}`)
   }
   return {
-    actions: httpdnsPathActions.map((entry) => entry.action),
+    actions: resolveBlockActions(httpdnsPathActions),
     excludedIPAddressPathRules,
     inertPathLines,
   }
