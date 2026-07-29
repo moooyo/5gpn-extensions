@@ -10,7 +10,7 @@ import { parse } from 'yaml'
 // That code is gone -- apple-wloc loads the upstream bundle and testflight
 // declares a replaceBody -- so the fixtures went with it rather than being kept
 // as a toolkit with no caller. What remains is what this repository still owns:
-// the manifest shape, the pins, and the recorded digests.
+// the manifest shape and the pins.
 
 const root = path.resolve(import.meta.dirname, '..')
 
@@ -99,9 +99,6 @@ const appleReadme = await readFile(path.join(root, 'apple-wloc/README.md'), 'utf
 const testflightReadme = await readFile(path.join(root, 'testflight-region-unlock/README.md'), 'utf8')
 assert.match(appleReadme, /License: \[`MIT`\]/)
 assert.match(appleReadme, /eec07a8dc8de6dbaee8eac1fb376e4d03020154a/)
-assert.match(appleReadme, /d385c624efd59bdd2cff56bf819a770b40c4abf0f970818877f1dca4174f256a/)
-assert.match(appleReadme, /b4e9d69e69c703b3fab485a559825aaedc9e3a1fd9c06e81cb35d10bbdcd13d2/)
-assert.match(appleReadme, /1fb451616fb17242849f72490f016afcdb8aa81a0b086f6dd5f94e1af3d58ee1/)
 // The upstream repository has no LICENSE file. The README has to say so, and
 // the three accepted costs have to remain visible rather than being quietly
 // dropped in a later edit.
@@ -110,13 +107,9 @@ assert.match(appleReadme, /failClosed/)
 assert.match(testflightReadme, /License: \[`CC-BY-NC-SA-4\.0`\]/)
 assert.match(testflightReadme, /ab6c3182fb2b09bcc34456f496282ec0b8e9217b/)
 assert.match(testflightReadme, /c8112507802d0690d8b94d4110945e9c782df40e/)
-assert.match(testflightReadme, /a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e/)
-assert.match(testflightReadme, /047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98/)
-for (const [readme, manifestPath] of [
-  [appleReadme, 'apple-wloc/extension.yaml'],
-  [testflightReadme, 'testflight-region-unlock/extension.yaml'],
-]) {
-  assert(readme.includes(sha256(await readFile(path.join(root, manifestPath)))), `${manifestPath}: README does not record the current manifest digest`)
+// Manifest digests are no longer transcribed by hand: the marketplace generator
+// computes them at publish time, which is the copy a gateway actually checks.
+for (const readme of [appleReadme, testflightReadme]) {
   assert(readme.includes('node tests/apple-testflight-fixtures.mjs'))
 }
 

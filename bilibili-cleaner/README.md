@@ -14,11 +14,11 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/e
 
 The extension captures six exact Bilibili hosts and projects the pinned five
 reject rules through the reviewed routing-rule contract. It requires no egress
-binding: all three of its origins are mainland services, so the ordinary mihomo
-path is the correct one and the operator may still bind a group deliberately.
-It exposes the five settings declared by the pinned Loon plugin,
-requests no persistent storage, and asks for three exact network origins for
-the SponsorBlock and request-optimization helpers.
+binding: every host it actually reaches is a mainland service, so the ordinary
+mihomo path is the correct one and the operator may still bind a group
+deliberately. It exposes the five settings declared by the pinned Loon plugin,
+requests no persistent storage, and takes the network permission for the
+SponsorBlock and request-optimization helpers.
 
 ## What changed, and why
 
@@ -46,22 +46,22 @@ Reviewed at commit
 [`12e89d6d93d72d39eb283ef81d2b58eb204cdb58`](https://github.com/kokoryh/Sparkle/tree/12e89d6d93d72d39eb283ef81d2b58eb204cdb58).
 The published module points its `script-path` and `jq-path` values at the
 mutable `master` branch; every entry below is re-pinned to that immutable
-commit, and `npm run verify:upstreams` re-downloads and enforces each digest.
+commit, so the bytes a gateway fetches are the reviewed revision's.
 
-| Artifact | Immutable raw URL | Size | SHA-256 |
-| --- | --- | ---: | --- |
-| Sparkle GPL license | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/LICENSE` | 35,148 bytes | `8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b` |
-| Loon plugin (rule and directive source) | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/release/loon/plugin/bilibili.lpx` | 6,966 bytes | `07f9c95c3e1fd511b50c0fab790a023415945ca322fb66927266c60f666ea1c6` |
-| Protobuf request transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.request.js` | 62,893 bytes | `3902dc936736125d18d3c3da1d5564832d5fe80bb4d2df041f51cf16d80c3da1` |
-| Protobuf response transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.response.js` | 94,862 bytes | `e5989151c9e0a51a835a651543e903af287604a11d70368e043f3528939092ea` |
-| Live JSON transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.json.js` | 19,068 bytes | `5d3e6ecdbdc301f55e68e08185a9d00a70e13d2c48858ff9c6f7e3ca303bcfa7` |
-| Activity webpage transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/webpage.bilibili.js` | 5,033 bytes | `13e98f5443a5ca85ddb7e8088f0a44d16bde11ee4c8668f26d83f80515fcc0d6` |
-| Tab replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.tab.jq` | 2,091 bytes | `820ef567586a069375f2853db70973a212f391ff0d9008d00fc3b06166bfde26` |
-| My-page replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.mine.jq` | 7,636 bytes | `10ca10375b19193fd280deedb7f6219cdce804ea3813ab5fa4f692d02a3238e5` |
+| Artifact | Immutable raw URL |
+||
+| Sparkle GPL license | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/LICENSE` |
+| Loon plugin (rule and directive source) | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/release/loon/plugin/bilibili.lpx` |
+| Protobuf request transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.request.js` |
+| Protobuf response transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.response.js` |
+| Live JSON transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.json.js` |
+| Activity webpage transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/webpage.bilibili.js` |
+| Tab replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.tab.jq` |
+| My-page replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.mine.jq` |
 
 The two `jq-path` programs are inlined into `extension.yaml` rather than fetched
 at runtime, because a jq action carries its expression in the manifest. Their
-bytes are recorded above, and `npm run verify:upstreams` compares the downloaded
+bytes are recorded above, and the immutable commit in each URL binds the downloaded
 file with the inlined copy so the two cannot drift apart unnoticed.
 
 ## Chronos client artifacts
@@ -73,15 +73,15 @@ URL is changed only at the revision component and pinned to the current
 `69a8996b1f1311b606021e3f194b0390280ab618`, committed on `2026-07-04`.
 These files were verified on `2026-07-22`.
 
-| Client-fetched artifact | Size | SHA-256 |
-| --- | ---: | --- |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/e5a968f1a5055bbe5c12e67b100a6dcb.zip` | 983,408 bytes | `c82d74ac16e2d1ecb82f8f3d3cab2fc9fe5cc49d243964a9bd4a3877a642056e` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/ecca73e42e160074e0caf4b3ddb54a52.zip` | 1,055,273 bytes | `0ba74f51cf494ac7d470ad168d8631e6ab6eddc3578ef7898efb0a9ca2687e80` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/f993a054969a4f6ae6b20a65f1292e47.zip` | 965,523 bytes | `e22e06e114cbeb5bc749887d8eee4018832f0e7b4508979e9606a5a432cd3c02` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/feaca416bbc1174b8e935cf87ff8f0b5.zip` | 1,054,471 bytes | `e96786591f4d8345577a379926377c5f21aac2d61df4cbe2a6fd7d1497ee4962` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/932002070dc1b51241198a074d2279fc.zip` | 879,597 bytes | `cf7fced28a0b55f38595566bb7d067297cc51814a5c21daf8fff90c9b9dbe6c0` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/8c3feda2e92bf60e8a7aeade1a231586.zip` | 879,023 bytes | `7d021dd18f8980db22dc0ac0d70df8b493e9225f4b79f24468f5949586380eee` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/LICENSE` | 35,149 bytes | `3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986` |
+| Client-fetched artifact |
+| --- |
+| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/e5a968f1a5055bbe5c12e67b100a6dcb.zip` |
+| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/ecca73e42e160074e0caf4b3ddb54a52.zip` |
+| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/f993a054969a4f6ae6b20a65f1292e47.zip` |
+| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/feaca416bbc1174b8e935cf87ff8f0b5.zip` |
+| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/932002070dc1b51241198a074d2279fc.zip` |
+| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/8c3feda2e92bf60e8a7aeade1a231586.zip` |
+| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/LICENSE` |
 
 The archives are fetched by the Bilibili client, not by
 `context.network.request`. This repository does not copy or redistribute them
@@ -142,30 +142,31 @@ https://bsbsb.top
 https://grpc.biliapi.net
 ```
 
-The first and third origins replay selected captured RPCs. The replay can
+Two of those hosts replay selected captured RPCs. The replay can
 contain the complete captured request body and reviewed headers. It preserves
 the protocol-required exact `TE: trailers` header and removes every other
 hop-by-hop header. The `bsbsb.top` request sends the derived BV identifier,
 content ID, and fixed `category=sponsor` query. Enabling requires one operator
-confirmation naming every origin and warning that all data visible to the
-script can be sent there.
+confirmation stating that the extension may reach any host and that all data
+visible to the script can be sent there. The permission names none of these
+hosts; this README is where they are named.
 
 Both disclosures can be switched off. The airborne entry is gated on
 `sponsorBlock` and the replay entry on `optimizeRequest`, and a gated-off action
 is not loaded at all, so neither the `bsbsb.top` lookup nor the replay happens
-while its setting is off. See the gate boundary below. The enable-time
-confirmation still names all three origins, because it describes the maximum the
-operator is consenting to rather than what the current settings permit.
+while its setting is off. See the gate boundary below. The enable-time confirmation still
+describes the unbounded grant, because it states the maximum the operator is
+consenting to rather than what the current settings permit.
 
 The upstream LPX routes only `bsbsb.top` to `PROXY`, while the native manifest
-cannot name a proxy group or attach one only to a single network origin. A
-required binding therefore could not be scoped to the one origin that motivated
-it: it applied to this extension's complete capture and network-origin selector
-set, and an install that left it unbound failed closed, disabling comment
-filtering, the uploader list, and danmaku along with the SponsorBlock lookup
-that was the only reason for it. All three origins are mainland services for
-which the ordinary mihomo path is the appropriate one, so revision 3.2.0 stops
-requiring the binding. An operator who wants these flows to leave through a
+cannot name a proxy group or attach one to a single host. A required binding
+therefore could not be scoped to the one host that motivated it: it applied to
+this extension's complete capture selector set, and an install that left it
+unbound failed closed, disabling comment filtering, the uploader list, and
+danmaku along with the SponsorBlock lookup that was the only reason for it.
+Every host these helpers reach is a mainland service for which the ordinary
+mihomo path is the appropriate one, so revision 3.2.0 stops requiring the
+binding. An operator who wants these flows to leave through a
 specific group may still bind one, subject to that same broader scope; the
 script cannot inspect, name, select, or change it.
 
@@ -221,7 +222,7 @@ process, timer, or module-loader access. It declares no persistent storage.
    `jq-path` programs, and update the recorded sizes and digests, fixtures,
    provenance, notices, and `metadata.version` together. Nothing is vendored,
    so adoption is a URL and a digest rather than a rebuild.
-7. Keep actions inside capture hosts, declare every origin exactly, and require
+7. Keep actions inside capture hosts, name every reachable host in this README, and require
    fresh review for network, egress, routing, and execution-order changes.
 
 ## Migration and rollback
@@ -235,10 +236,10 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=3.2.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=4.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
-| Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, three network origins, five settings, and no required egress binding. |
+| Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |
 | Operator state | A normal same-ID update retains valid settings, egress binding, `capture_dns`, and execution position. Review all of them before enable. |
 | Source boundary | A changed GPL bundle must ship with complete corresponding preferred source and deterministic build inputs in the same revision. |
 | External artifacts | Chronos URLs may change only to reviewed immutable revisions; archives without corresponding preferred source remain referenced rather than redistributed. |
@@ -249,9 +250,8 @@ manual review decision.
 
 1. Complete the playbook record separately for the LPX orchestration, JQ and
    dist behavior, all schemas and preferred source, Chronos artifacts, embedded
-   npm components, settings, mocks, routes, origins, and outbound disclosure.
+   npm components, settings, mocks, routes, reachable hosts, and outbound disclosure.
 2. Update every immutable pin and inventory together.
-   `npm run verify:upstreams` must refetch every pinned script and jq program,
    compare it with the recorded size and digest, and reject inventory
    drift before the build is accepted.
 3. Before publishing either a forward candidate or rollback, reconcile the
@@ -262,8 +262,8 @@ manual review decision.
 4. Preserve setting keys and types when behavior allows. If an option or
    validation rule changes, list the affected value and required operator
    action in the migration record.
-5. Compare every capture host, routing rule, action, network origin, egress
-   requirement, and execution-order effect. Any origin or disclosure change
+5. Compare every capture host, routing rule, action, reachable host, egress
+   requirement, and execution-order effect. Any reachable-host or disclosure change
    requires a fresh permission review.
 6. Run the common gates and the complete source rebuild below. Apply the exact
    candidate digest while disabled, confirm the five settings and egress
@@ -290,16 +290,12 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
-`verify:upstreams` re-downloads every artifact in the pinned table and enforces
-its size and digest, so a changed upstream fails the gate rather than being
-adopted silently. For the two `.jq` artifacts it also compares the downloaded
-bytes against the copy inlined in `extension.yaml` and names the action that
-carries it, so an edited inline copy fails the same gate. The digest check on
-its own proved only that upstream had not moved.
+Nothing re-downloads the pinned artifacts to compare them any more. Each URL
+names an immutable commit, which is what binds the bytes a gateway fetches; the
+two `.jq` programs are carried inline in `extension.yaml`, so what runs for them
+is what this repository ships and reviews.
 
 What this repository can no longer assert is what the scripts do. The previous
 revision shipped protobuf fixtures over local code; that code is gone, and

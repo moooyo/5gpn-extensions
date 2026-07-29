@@ -25,7 +25,7 @@ for (const id of ['mock-grpc-teenagers', 'mock-grpc-default-words', 'mock-grpc-e
   assert.equal(mockBodies.get(id).headers['Grpc-Status'], '0', `${id} must carry upstream's grpc-status header`)
 }
 
-assert.equal(manifest.metadata.version, '3.2.0')
+assert.equal(manifest.metadata.version, '4.0.0')
 assert.equal(manifest.permissions.persistentStorage, true)
 assert.deepEqual(
   manifest.settings.map(setting => [setting.key, setting.type, setting.default]),
@@ -90,7 +90,7 @@ assert(!new RegExp(optimized.match.pathRegex).test('/bilibili.app.viewunite.v1.V
 // pinned here because the settings mean nothing without them.
 for (const [id, key] of [['transform-airborne', 'sponsorBlock'], ['transform-optimized-request', 'optimizeRequest']]) {
   const action = manifest.actions.find(candidate => candidate.id === id)
-  assert.equal(action.enabledWhen, key, `${id} must be gated on ${key}`)
+  assert.deepEqual(action.enabledWhen, { key, equals: 'true' }, `${id} must be gated on ${key}`)
   const setting = manifest.settings.find(candidate => candidate.key === key)
   assert.equal(setting.type, 'boolean', `${key} must stay boolean for the gate to bind`)
   assert.equal(setting.required, true, `${key} must stay required so the gate always has a value`)

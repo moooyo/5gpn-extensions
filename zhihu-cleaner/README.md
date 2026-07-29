@@ -38,15 +38,15 @@ snapshot found during the manual source review:
 | Fetched and reviewed | `2026-07-23` |
 
 Every upstream artifact used for behavior or licensing is pinned below. Each
-row binds exactly one immutable raw URL to its byte length and SHA-256 digest.
+row binds one immutable raw URL to what it is used for.
 
-| Artifact and purpose | Immutable raw URL | Bytes | SHA-256 | Fetched on |
-| --- | --- | ---: | --- | --- |
-| Reviewed Loon plugin | `https://raw.githubusercontent.com/ifflagged/Romeo/8d0e2791f531d4a02e1bd00d0f64427984bc999a/Modules/Loon/Kelee/Official/Zhihu_remove_ads.lpx` | 4,300 bytes | `8bd1ee2062bc6a04bbbfa742c352e072b82c5cc061d9440cdfeab3fd82523e3d` | `2026-07-23` |
-| Upstream CC BY-NC-SA 4.0 legal text | `https://raw.githubusercontent.com/luestr/ProxyResource/d6d0c513ae27495645dde8cfa467804d6e363b8d/LICENSE` | 19,018 bytes | `600ca4e25fe11762b75a97e714707fab48bb778374e92d24c6ca068791661c11` | `2026-07-23` |
+| Artifact and purpose | Immutable raw URL | Fetched on |
+| --- | --- | --- |
+| Reviewed Loon plugin | `https://raw.githubusercontent.com/ifflagged/Romeo/8d0e2791f531d4a02e1bd00d0f64427984bc999a/Modules/Loon/Kelee/Official/Zhihu_remove_ads.lpx` | `2026-07-23` |
+| Upstream CC BY-NC-SA 4.0 legal text | `https://raw.githubusercontent.com/luestr/ProxyResource/d6d0c513ae27495645dde8cfa467804d6e363b8d/LICENSE` | `2026-07-23` |
 
 The synchronized source snapshot is byte-identical to the canonical upstream
-file retrieved during review: 4,300 bytes with the same SHA-256 digest. The
+file retrieved during review. The
 mirror is used only to make the selected bytes immutable; it is not treated as
 the creator or licensing authority.
 
@@ -54,8 +54,8 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `zhihu-cleaner/extension.yaml` — SHA-256 `ca499c675ba6ef2046d162d2f851ab6f60989b8c5cdcd0f6f51fced4288246b9` |
-| Authorization record | `zhihu-cleaner/AUTHORIZATION.md` — SHA-256 `e1d5d51f898539dfcc96b698adebbf84efbdf7d584b6cf3e1a3e26dd6ff2dc22` |
+| Manifest | `zhihu-cleaner/extension.yaml` |
+| Authorization record | `zhihu-cleaner/AUTHORIZATION.md` |
 
 ## Authorization, license, and attribution
 
@@ -74,8 +74,7 @@ endorsement by the creator, the source host, or any mirror is implied.
 
 See the repository's [Kelee-derived license boundary](../KELEEONE-LICENSE.md)
 and [local legal text](../LICENSES/CC-BY-NC-SA-4.0.txt). The pinned upstream
-license is 19,018 bytes with SHA-256
-`600ca4e25fe11762b75a97e714707fab48bb778374e92d24c6ca068791661c11`.
+license is recorded above.
 
 ## Port mapping
 
@@ -173,7 +172,7 @@ before adding a new destructive response filter.
 1. Select one upstream version manually. Do not poll the plugin store or bind
    the manifest to a mutable runtime script.
 2. Retrieve only the reviewed canonical `Zhihu_remove_ads.lpx`, record its byte
-   length and SHA-256, and locate or create an authorized immutable Git
+   provenance, and locate or create an authorized immutable Git
    snapshot of exactly those bytes.
 3. Confirm that the retained authorization covers the selected replacement
    and still permits modification, public redistribution, and the documented
@@ -188,30 +187,7 @@ before adding a new destructive response filter.
 7. Bump `metadata.version` whenever immutable manifest or script bytes change,
    then refresh all source and local digests in the same change.
 
-To verify the selected upstream bytes with PowerShell:
 
-```powershell
-$sourceUrl = 'https://raw.githubusercontent.com/ifflagged/Romeo/8d0e2791f531d4a02e1bd00d0f64427984bc999a/Modules/Loon/Kelee/Official/Zhihu_remove_ads.lpx'
-$sourcePath = Join-Path $env:TEMP ("Zhihu_remove_ads-" + [guid]::NewGuid().ToString('N') + '.lpx')
-try {
-  Invoke-WebRequest -UseBasicParsing -ErrorAction Stop -Uri $sourceUrl -OutFile $sourcePath
-  $sourceInfo = Get-Item -LiteralPath $sourcePath
-  $sourceHash = Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256
-  if ($sourceInfo.Length -ne 4300 -or $sourceHash.Hash -ne '8BD1EE2062BC6A04BBBFA742C352E072B82C5CC061D9440CDFEAB3FD82523E3D') {
-    throw 'Zhihu_remove_ads.lpx size or SHA-256 mismatch'
-  }
-  $sourceInfo | Select-Object Length
-  $sourceHash
-} finally {
-  [System.IO.File]::Delete($sourcePath)
-}
-```
-
-Refresh local artifact digests with:
-
-```powershell
-Get-FileHash zhihu-cleaner/extension.yaml -Algorithm SHA256
-```
 
 ## Migration and rollback
 
@@ -224,10 +200,10 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.zhihu-cleaner`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.0.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=5`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.0.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=5`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | None. A same-ID update has no extension setting values to migrate. |
-| Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, five host-scoped UDP/443 reject rules, no JavaScript, and no network origins, mappings, settings, or egress requirement. |
+| Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, five host-scoped UDP/443 reject rules, no JavaScript, and no network permission, mappings, settings, or egress requirement. |
 | Operator state | A normal update retains `capture_dns` and execution position; both still require review before enable. |
 | Ordering | Review every other extension that captures a listed Zhihu host. Request and response actions execute in configured extension order. |
 | Authorization gate | Confirm the retained upstream permission covers the candidate bytes and documented public redistribution terms before implementation or publication. |
@@ -263,12 +239,12 @@ identity.
 
 For each update:
 
-1. Verify both upstream raw artifacts against the documented byte lengths and
-   SHA-256 digests.
+1. Re-read both upstream raw artifacts at their pinned commits and diff them
+   against what this port declares.
 2. Import the candidate through **Install from URL** or the explicit update
    flow and confirm it remains disabled.
 3. Confirm exactly five capture hosts, six actions, five routing rules, zero
-   settings, zero network origins, zero mappings, and no egress requirement.
+   settings, no network permission, zero mappings, and no egress requirement.
 4. Exercise all 11 upstream synthetic-response directives, the additional
    `/root/window` response, and all 15 upstream JSON directives, including
    unversioned root tabs, multi-digit versions, reordered queries, overlapping
@@ -293,8 +269,6 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
 Run the current 5gpn core parser integration command from

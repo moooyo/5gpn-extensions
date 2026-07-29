@@ -22,7 +22,6 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run routing:check
-      - run: npm run verify:upstreams
       - name: Generate core integration marketplace
         run: |
           npm run marketplace:build -- --revision "$GITHUB_SHA" --output "$RUNNER_TEMP/marketplace.json"

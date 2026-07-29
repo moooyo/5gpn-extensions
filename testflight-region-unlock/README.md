@@ -35,8 +35,6 @@ nothing. The extension cannot name or change the selected group.
 | Original file | `Plugin/TestFlightRegionUnlock.lpx` |
 | Pinned source URL | `https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/TestFlightRegionUnlock.lpx` |
 | Upstream-declared reference URL | `https://kelee.one/Tool/Loon/Lpx/TestFlightRegionUnlock.lpx` |
-| Size | 778 bytes |
-| SHA-256 | `a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e` |
 | Fetched on | `2026-07-22` |
 
 The pinned source is 778 bytes. Its upstream metadata reports version date
@@ -46,7 +44,7 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `09e8c651cb4a5a47bd4d50fce3ee0abf46cae8c41c2a835ebeeee8ce84244c4b` |
+| Manifest | `testflight-region-unlock/extension.yaml` |
 
 ## License and attribution
 
@@ -64,9 +62,7 @@ Reuse must preserve attribution, remain non-commercial, and distribute
 adaptations under the same license. See the repository's
 [local license copy](../KELEEONE-LICENSE.md) and the
 [pinned upstream LICENSE](https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/LICENSE).
-The pinned license is 21,286 bytes with SHA-256
-`047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98`
-and was reverified on `2026-07-22`.
+The pinned license was reviewed on `2026-07-22`.
 
 ## Port mapping
 
@@ -162,7 +158,7 @@ so there is no script with a view of the request at all.
 1. Choose a new upstream commit intentionally. Never follow the branch head in
    the manifest or this provenance record.
 2. Download the exact `Plugin/TestFlightRegionUnlock.lpx` file from the raw
-   commit URL and record its byte length, SHA-256, and fetch date.
+   commit URL and record its fetch date.
 3. Diff the new file against the pinned source. Review metadata, `[Rule]`,
    `[Rewrite]`, and `[MitM]` independently.
 4. Map every behavioral change to strict native fields or to the jq program.
@@ -170,40 +166,11 @@ so there is no script with a view of the request at all.
    operator-owned, and document anything intentionally omitted.
 5. Recheck the storefront table if the replacement value or format changed.
    Bump `metadata.version` for any immutable manifest or script change.
-6. Refresh the local manifest and script SHA-256 values, then update this
+6. Update this
    section's commit, URL, digest, date, mapping, limitations, and validation
    evidence in the same change.
 
-To verify the upstream bytes with PowerShell:
 
-```powershell
-$sourceUrl = 'https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/TestFlightRegionUnlock.lpx'
-$sourcePath = Join-Path $env:TEMP ("TestFlightRegionUnlock-" + [guid]::NewGuid().ToString('N') + '.lpx')
-try {
-  Invoke-WebRequest -UseBasicParsing -ErrorAction Stop -Uri $sourceUrl -OutFile $sourcePath
-  $sourceInfo = Get-Item -LiteralPath $sourcePath
-  $sourceHash = Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256
-  if ($sourceInfo.Length -ne 778 -or $sourceHash.Hash -ne 'a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e') {
-    throw 'TestFlightRegionUnlock.lpx size or SHA-256 mismatch'
-  }
-  $sourceInfo | Select-Object Length
-  $sourceHash
-} finally {
-  [System.IO.File]::Delete($sourcePath)
-}
-```
-
-The expected digest is:
-
-```text
-a49e5a186a95eef966d9b127eec663eef3fd196beaaeadd32b9302f5e3540c1e  -
-```
-
-Refresh local artifact digests with PowerShell:
-
-```powershell
-Get-FileHash testflight-region-unlock/extension.yaml -Algorithm SHA256
-```
 
 ## Migration and rollback
 
@@ -215,10 +182,10 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.testflight-region-unlock`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | Preserve `storefront` as a `select` setting. A same-ID update retains its value only while the selected option remains valid. |
-| Reviewed capability baseline | One capture host, one request action, no network origins, upstream mappings, or routing rules, and no required operator egress binding. |
+| Reviewed capability baseline | One capture host, one request action, no network permission, upstream mappings, or routing rules, and no required operator egress binding. |
 | Operator state | A normal update retains the valid storefront, egress binding, `capture_dns`, and execution position; all must still be reviewed before enable. |
 | Ordering | Review every other extension that captures `testflight.apple.com`; the first bound extension owns egress and request actions execute in configured order. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
@@ -282,6 +249,4 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```

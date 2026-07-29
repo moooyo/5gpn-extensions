@@ -142,14 +142,8 @@ function parseStrictManifest(body, directory) {
 
   assertKeys(manifest.permissions, new Set(['persistentStorage', 'network']), `${directory}: permissions`)
   assert(typeof manifest.permissions.persistentStorage === 'boolean', `${directory}: persistentStorage must be boolean`)
-  const network = manifest.permissions.network
-  if (network !== undefined) {
-    assertKeys(network, new Set(['origins', 'any']), `${directory}: permissions.network`)
-    assert((network.any === true) !== (network.origins !== undefined), `${directory}: permissions.network must declare exactly one of any or origins`)
-    if (network.origins !== undefined) {
-      assert(Array.isArray(network.origins), `${directory}: permissions.network.origins must be an array`)
-      for (const origin of network.origins) assertString(origin, `${directory}: network origin`)
-    }
+  if (manifest.permissions.network !== undefined) {
+    assert(manifest.permissions.network === true, `${directory}: permissions.network must be true when declared`)
   }
 
   if (manifest.requirements !== undefined) {
@@ -417,10 +411,9 @@ export async function generateMarketplace({ root = repositoryRoot, revision }) {
         captureHostCount: manifest.traffic.captureHosts.length,
         actionCount: (manifest.actions ?? []).length,
         settingCount: (manifest.settings ?? []).length,
-        networkOrigins: [...(manifest.permissions.network?.origins ?? [])].sort(),
-        // A capability grant is broader than any list, so the catalog says so
-        // rather than showing an empty origin array that reads as "no network".
-        networkAny: manifest.permissions.network?.any === true,
+        // One boolean, because the grant names nothing. An index that showed an
+        // origin list would describe a narrower permission than the one taken.
+        network: manifest.permissions.network === true,
         persistentStorage: manifest.permissions.persistentStorage,
         upstreamMappingCount: (manifest.traffic.upstreamMappings ?? []).length,
         routingRuleCount: (manifest.traffic.routingRules ?? []).length,

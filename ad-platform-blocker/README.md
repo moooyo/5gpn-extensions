@@ -17,7 +17,7 @@ This public raw URL is installable directly. For a private fork, use the Console
 
 Enabling it requests interception for the 277 hosts in `traffic.captureHosts`
 and activates 201 reviewed typed routing rules. It has no settings, persistent
-storage, network origins, upstream mappings, or egress-group requirement. The
+storage, network permission, upstream mappings, or egress-group requirement. The
 three Pinduoduo path actions declare `reject` and run no code at all: a matched
 request is aborted before it is sent upstream, without reading a body.
 Host-wide blocking is owned exclusively by the typed routing rules, which run
@@ -33,8 +33,6 @@ The port is based on the following immutable upstream snapshot:
 | Upstream name | `Plugin/BlockAdvertisers.lpx` (Ad Platform Blocker) |
 | Commit | `ab6c3182fb2b09bcc34456f496282ec0b8e9217b` |
 | Raw URL | `https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/BlockAdvertisers.lpx` |
-| Size | 9,494 bytes |
-| SHA-256 | `3974936ec21be3675db2496bdcbf05fa20af8f0be8c105e61bbada9b86e01c3e` |
 | Upstream file date | `2025-09-16 13:41:39` |
 | Fetch and port review date | `2026-07-22` |
 
@@ -67,9 +65,7 @@ creator identification is retained here and in the repository notices.
 
 The pinned upstream license is
 `https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/LICENSE`.
-It is 21,286 bytes with SHA-256
-`047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98`
-and was verified on `2026-07-22`.
+It was reviewed on `2026-07-22`.
 
 ## Coverage and translation
 
@@ -132,10 +128,10 @@ attribution, telemetry, or application behaviour.
 
 1. Fetch `Plugin/BlockAdvertisers.lpx` from a specific new upstream commit;
    never update from a moving branch URL.
-2. Record its commit, raw URL, SHA-256, upstream file date, and review date in
-   the **Pinned upstream** table.
+2. Record its commit, raw URL, upstream file date, and review date in the
+   **Pinned upstream** table.
 3. Diff `[Rule]`, `[Rewrite]`, and `[MitM]` against the pinned snapshot.
-4. Update the `ad-platform-blocker` URL, digest, and version in
+4. Update the `ad-platform-blocker` URL and version in
    `scripts/sync-routing-rules.mjs`, run that generator, then review every
    normalized exact, suffix, keyword, composite, CIDR, and `DIRECT` result.
    Keep every action matcher within its own `captureHosts` list.
@@ -158,9 +154,9 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.ad-platform-blocker`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=0`; `captureHosts=277`; `actions=3`; `routingRules=201`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=0`; `captureHosts=277`; `actions=3`; `routingRules=201`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false and there are no extension settings. |
-| Reviewed capability baseline | 277 capture hosts, 201 typed routing rules (194 `REJECT` and seven `DIRECT`), three request actions, no network origins or upstream mappings, and no required egress binding. The `DIRECT` rules deliberately bypass the ordinary operator target and capture path for their narrow matches. |
+| Reviewed capability baseline | 277 capture hosts, 201 typed routing rules (194 `REJECT` and seven `DIRECT`), three request actions, no network permission or upstream mappings, and no required egress binding. The `DIRECT` rules deliberately bypass the ordinary operator target and capture path for their narrow matches. |
 | Operator state | A normal same-ID update retains `capture_dns` and execution position. Record both before rollout. |
 | Ordering | The upstream profile requires this blocker to run first. Confirm the first Console execution position before every enable and review every overlap with its domains or `DIRECT` exceptions. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No data conversion is required. |
@@ -169,7 +165,7 @@ upstream revision. Upstream selection remains a manual review decision.
 
 1. Complete the playbook's baseline/candidate record, including the exact rule,
    capture-host, and action additions and removals.
-2. Update the generator's immutable URL, SHA-256, and version together. Run the
+2. Update the generator's immutable URL and version together. Run the
    generator without `--check`, inspect the manifest diff, then run
    `npm run routing:check`.
 3. Re-audit `[Rule]`, `[Rewrite]`, `[MitM]`, the top-of-order requirement,
@@ -204,8 +200,6 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
 For runtime-facing changes, also run the current core parser gate from the

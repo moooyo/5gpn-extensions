@@ -28,9 +28,9 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   for (const entry of catalog.entries) {
     assert.equal(Object.hasOwn(entry, 'policy'), true, `${entry.id}: missing the typed policy projection`)
     assert.equal(
-      Object.hasOwn(entry.capabilities, 'networkAny'),
+      Object.hasOwn(entry.capabilities, 'network'),
       true,
-      `${entry.id}: missing the networkAny capability`,
+      `${entry.id}: missing the network capability`,
     )
   }
 
@@ -66,8 +66,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     captureHostCount: 1,
     actionCount: 4,
     settingCount: 11,
-    networkOrigins: [],
-    networkAny: true,
+    network: true,
     persistentStorage: true,
     upstreamMappingCount: 0,
     routingRuleCount: 4,
@@ -162,9 +161,7 @@ metadata:
   description: Exercises deterministic marketplace generation.
 permissions:
   persistentStorage: false
-  network:
-    origins:
-      - https://api.example.com
+  network: true
 requirements:
   egressGroup:
     required: true
@@ -250,8 +247,7 @@ async function expectFailure(options, pattern) {
       captureHostCount: 1,
       actionCount: 1,
       settingCount: 1,
-      networkOrigins: ['https://api.example.com'],
-      networkAny: false,
+      network: true,
       persistentStorage: false,
       upstreamMappingCount: 1,
       routingRuleCount: 0,

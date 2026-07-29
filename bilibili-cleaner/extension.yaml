@@ -4,16 +4,12 @@ kind: Extension
 metadata:
   id: io.5gpn.bilibili-cleaner
   name: Bilibili Cleaner
-  version: 3.2.0
+  version: 4.0.0
   description: Runs the reviewed kokoryh/Sparkle Bilibili scripts and rewrite rules against the Bilibili app.
 
 permissions:
   persistentStorage: true
-  network:
-    origins:
-      - https://app.bilibili.com
-      - https://bsbsb.top
-      - https://grpc.biliapi.net
+  network: true
 
 requirements:
   egressGroup:
@@ -658,7 +654,9 @@ actions:
 
   - id: transform-airborne
     phase: request
-    enabledWhen: sponsorBlock
+    enabledWhen:
+      key: sponsorBlock
+      equals: "true"
     match:
       hosts:
         - app.bilibili.com
@@ -677,7 +675,9 @@ actions:
 
   - id: transform-optimized-request
     phase: request
-    enabledWhen: optimizeRequest
+    enabledWhen:
+      key: optimizeRequest
+      equals: "true"
     match:
       hosts:
         - app.bilibili.com

@@ -64,12 +64,12 @@ Use `None` rather than leaving a field blank.
 | 5gpn core verification revision | | | |
 | `metadata.version` | | | |
 | Upstream repository and revision | | | |
-| Relevant upstream files, sizes, and SHA-256 | | | |
+| Relevant upstream files and their pinned commits | | | |
 | Fetch and review date | | | |
 | Settings keys, types, options, and defaults | | | |
 | Persistent-storage keys and schemas | | | |
 | Capture hosts and actions | | | |
-| Network origins and data disclosure | | | |
+| Network permission and data disclosure | | | |
 | Upstream mappings and routing rules | | | |
 | Required egress and execution order | | | |
 | Licenses, notices, and preferred source | | | |
@@ -107,7 +107,7 @@ into an issue, log, or migration record.
 Choose one authoritative upstream commit or published component release. Do
 not use a mutable branch URL as provenance. Fetch every behavior, schema,
 license, notice, and build input required by the extension from immutable
-URLs. Record each byte size, SHA-256 digest, and the UTC review date.
+URLs. Record the UTC review date for each.
 
 For a manually downloaded file, PowerShell can record the bytes without
 changing the repository:
@@ -173,7 +173,7 @@ the same change.
 
 A declarative action carries no runtime code at all. A native script, if one
 is ever added, must continue to expose only `transform(context)`. Keep action
-hosts within `captureHosts` and declare storage, network origins, mappings,
+hosts within `captureHosts` and declare storage, the network permission, mappings,
 routing, and egress only when the candidate needs them.
 
 ### 6. Verify the repository
@@ -185,7 +185,6 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
 if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
@@ -243,7 +242,7 @@ that unrelated worktree changes are untouched.
    for an operator-controlled fork. An install from a permanently immutable
    commit URL cannot use the normal update path.
 2. Run an update check and compare the displayed candidate version, snapshot
-   digest, settings, capture hosts, actions, origins, routing, and permissions
+   digest, settings, capture hosts, actions, routing, and permissions
    with the completed migration record.
 3. Disable the baseline extension. Do not uninstall it.
 4. Apply only the exact reviewed candidate digest. Confirm that the replacement

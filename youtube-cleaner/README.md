@@ -43,8 +43,8 @@ this manifest keeps the caps.
 
 The extension captures only `*.googlevideo.com` and
 `youtubei.googleapis.com`, and declares the exact
-`https://init-stream.maasea.workers.dev` network origin the reviewed
-cross-origin request rewrite needs.
+network permission the reviewed cross-origin request rewrite to
+`https://init-stream.maasea.workers.dev` needs.
 
 Three actions mirror the three `[Script]` entries in the pinned module:
 
@@ -158,12 +158,12 @@ The artifact set was fetched, and the reviewed branch head and immutable commit
 were independently rechecked, on `2026-07-22`. All distributed provenance is
 bound to immutable raw URLs:
 
-| Artifact | Immutable source | Size | SHA-256 |
-| --- | --- | ---: | --- |
-| YouTube module | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/YouTube.Enhance.sgmodule` | 1,665 bytes | `9c7464733c54417da36aff09482d1287cee5ecd531ad856842912704b5b3f64d` |
-| YouTube request transformer | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.request.js` | 44,024 bytes | `3ecca15e06e76a31720092c581180f648ef2c45e494644941ba985c878efbb26` |
-| YouTube response transformer | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.response.js` | 132,973 bytes | `f98483d5f5017514f82502253c0db5ce2d4ffb7839887aa2cadc22666f5a7f12` |
-| Upstream Apache license | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/LICENSE` | 11,357 bytes | `c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4` |
+| Artifact | Immutable source |
+||
+| YouTube module | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/YouTube.Enhance.sgmodule` |
+| YouTube request transformer | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.request.js` |
+| YouTube response transformer | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.response.js` |
+| Upstream Apache license | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/LICENSE` |
 
 The pinned module is metadata evidence, not a transitive immutable package:
 its `script-path` values point to the mutable `master` branch. This port
@@ -195,7 +195,7 @@ external service dependency rather than represented as rebuildable local source.
    module's mutable `master` script URLs.
 2. Fetch `YouTube.Enhance.sgmodule`, both `Script/Youtube` bundles, `LICENSE`,
    and any newly added `NOTICE` from commit-pinned raw URLs. Record raw byte
-   sizes, SHA-256 digests, fetch date, and the complete YouTube source tree.
+   fetch date, and the complete YouTube source tree.
 3. Re-audit endpoint matchers, settings, storage keys, protobuf paths, request
    rewrite destinations, routing rules, generated dependency licenses, and all
    data disclosed to external services.
@@ -216,7 +216,7 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.youtube-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=4.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=2`; `actions=3`; `routingRules=0`; `networkOrigins=1`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=5.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=2`; `actions=3`; `routingRules=0`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | State class | Stateful. Keep `persistentStorage: true` during normal migration and rollback. |
 | Advertisement cache | `YouTubeAdvertiseInfo` is a non-authoritative version `1.0` cache. An incompatible schema may reset and relearn only when that behavior is documented and tested. |
@@ -274,13 +274,11 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
-`verify:upstreams` downloads both transformers and enforces the sizes and
-digests recorded above, so a changed bundle fails the gate rather than being
-adopted silently.
+Both transformer URLs name an immutable commit, which is what binds the bytes a
+gateway fetches. Nothing re-downloads them to compare against a recorded
+digest.
 
 What this repository can no longer assert is what the bundles do. The previous
 revision shipped synthetic protobuf fixtures over local code; that code is

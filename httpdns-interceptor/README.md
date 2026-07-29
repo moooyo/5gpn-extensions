@@ -32,8 +32,6 @@ normal mihomo egress path.
 | Upstream file | Plugin/Block_HTTPDNS.lpx |
 | Pinned commit | ab6c3182fb2b09bcc34456f496282ec0b8e9217b |
 | Raw URL | https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/Block_HTTPDNS.lpx |
-| Raw file size | 9,257 bytes |
-| Raw file SHA-256 | 08429c4f1c677d79e87eb3cd41e880868f7a71381dc1d6c81b393734fd5df21a |
 | Upstream-declared date | 2025-08-20 00:30:31 |
 | Source fetched and verified | 2026-07-22 |
 | Latest branch-head check | `Loon` resolved to the pinned commit on 2026-07-22 |
@@ -66,9 +64,7 @@ retained here and in the repository notices.
 
 The pinned upstream license is
 `https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/LICENSE`.
-It is 21,286 bytes with SHA-256
-`047d2259741a3ebb30d8c8a43d4ba79b5b229a069acd1d2bea49f22b297d8e98`
-and was verified on `2026-07-22`.
+It was reviewed on `2026-07-22`.
 
 ## Rule conversion
 
@@ -143,27 +139,10 @@ behavior.
 
 ## Updating the port
 
-1. Fetch the fixed source and verify its bytes before reviewing a change:
-
-   ~~~powershell
-   $sourceUrl = 'https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/Block_HTTPDNS.lpx'
-   $sourcePath = Join-Path $env:TEMP ("Block_HTTPDNS-" + [guid]::NewGuid().ToString('N') + '.lpx')
-   try {
-     Invoke-WebRequest -UseBasicParsing -ErrorAction Stop -Uri $sourceUrl -OutFile $sourcePath
-     $sourceInfo = Get-Item -LiteralPath $sourcePath
-     $sourceHash = Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256
-     if ($sourceInfo.Length -ne 9257 -or $sourceHash.Hash -ne '08429c4f1c677d79e87eb3cd41e880868f7a71381dc1d6c81b393734fd5df21a') {
-       throw 'Block_HTTPDNS.lpx size or SHA-256 mismatch'
-     }
-     $sourceInfo | Select-Object Length
-     $sourceHash
-   } finally {
-     [System.IO.File]::Delete($sourcePath)
-   }
-   ~~~
-
+1. Fetch the fixed source from its immutable commit URL before reviewing a
+   change; never update from a moving branch.
 2. If updating to another upstream commit, record its immutable commit, raw
-   URL, SHA-256, upstream-declared date, and review date in this README before
+   URL, upstream-declared date, and review date in this README before
    changing the manifest.
 3. Update the `httpdns-interceptor` URL, digest, version, and expected source
    counts in `scripts/sync-routing-rules.mjs`, then run that generator. It
@@ -189,9 +168,9 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.httpdns-interceptor`; update the generator-owned `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.3.0`; `persistentStorage=false`; `settings=0`; `captureHosts=64`; `actions=7`; `routingRules=117`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.3.0`; `persistentStorage=false`; `settings=0`; `captureHosts=64`; `actions=7`; `routingRules=117`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false and there are no extension settings. |
-| Reviewed capability baseline | 64 capture hosts, 117 typed routing rules, seven request actions, no network origins or upstream mappings, and no required egress binding. |
+| Reviewed capability baseline | 64 capture hosts, 117 typed routing rules, seven request actions, no network permission or upstream mappings, and no required egress binding. |
 | Operator state | A normal same-ID update retains `capture_dns` and execution position. Record both before rollout. |
 | Exclusion boundary | IP-address-form path rules and inert source lines remain excluded unless the native traffic-acquisition contract can represent them without widening behavior. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No data conversion is required. |
@@ -222,11 +201,10 @@ does not retain `capture_dns`, execution position, or installed source identity.
 
 ## Verification
 
-1. Confirm that the upstream file SHA-256 matches the pinned value above.
 2. Install the manifest URL in the Console. Confirm that the reviewed manifest
    has 64 capture hosts (58 route domains plus six action-only hosts), seven
    request actions, 117 typed routing rules (58 domains plus 59 CIDRs), no
-   network origins, and no required egress binding.
+   network permission, and no required egress binding.
 3. Enable the extension and the global interception master, then verify in
    /extensions/hosts that exactly the 64 declared hosts are active.
 4. Send a request that matches each table row and verify that it fails closed;
@@ -248,8 +226,6 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
 For runtime-facing changes, also run the current core parser gate from the
