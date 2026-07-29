@@ -75,9 +75,9 @@ and was verified on `2026-07-22`.
 The original .lpx file is a Loon rule list. 5gpn does not parse or emulate that
 format. This extension expresses the supported residual rules as a strict
 native manifest and no code at all. Every action is a request action with
-bodyMode none and `reject: true`, so a matched request fails closed before it
-is sent upstream. Earlier revisions carried a 57-byte script whose whole body
-was `return { abort: true }`.
+bodyMode none: five declare `reject: true`, and the two whose upstream
+directive is `reject-dict` declare a `mock` instead. Earlier revisions carried
+a 57-byte script whose whole body was `return { abort: true }`.
 
 | Native action | Upstream rule | Native matcher |
 | --- | --- | --- |
@@ -89,9 +89,15 @@ was `return { abort: true }`.
 | block-91160-httpdns-broker | https msglb.91160.com msg/outer/broker/get reject-dict | https, msglb.91160.com, ^/msg/outer/broker/get$ |
 | block-ximalaya-httpdns-linkeye | https gslbali.ximalaya.com linkeye-cloud/httpdns reject | https, gslbali.ximalaya.com, ^/linkeye-cloud/httpdns/ |
 
-The upstream reject-dict action has no native compatibility mode. It is
-deliberately converted to the same fail-closed request abort as reject, avoiding
-an invented response schema for an undocumented third-party client format.
+The two directives are not interchangeable and are not translated the same way.
+Loon's `reject` closes the connection; its `reject-dict` returns a status 200
+response whose body is the empty JSON object `{}`. So the five `reject`
+directives become `script.reject`, and the two `reject-dict` directives become
+a `script.mock` declaring exactly that reply. Revision 2.2.0 and earlier
+converted both to the same fail-closed abort, on the recorded grounds that
+`reject-dict` had no native equivalent; `script.mock` has since made one
+available, and the same upstream directive is already carried that way by the
+Bilibili and Zhihu extensions in this repository.
 
 ## Traffic acquisition, routing parity, and remaining limits
 
@@ -183,7 +189,7 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.httpdns-interceptor`; update the generator-owned `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=0`; `captureHosts=64`; `actions=7`; `routingRules=117`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.3.0`; `persistentStorage=false`; `settings=0`; `captureHosts=64`; `actions=7`; `routingRules=117`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false and there are no extension settings. |
 | Reviewed capability baseline | 64 capture hosts, 117 typed routing rules, seven request actions, no network origins or upstream mappings, and no required egress binding. |
 | Operator state | A normal same-ID update retains `capture_dns` and execution position. Record both before rollout. |
