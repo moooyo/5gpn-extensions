@@ -161,6 +161,10 @@ own cloud entry point (`src/Hono.js`) has its request stage commented out too.
 
 ## Settings
 
+This page declares every argument both published upstream modules expose: the
+nine the release plugin passes to the bundle, and the one the rewrite module
+declares, which is `Endpoint`. The twelve further keys in upstream's full
+argument config are deliberately not declared; the exclusions below say why.
 The keys below `Endpoint` are upstream's own argument names, so their meaning is
 exactly what the upstream documentation describes. `Mode` is this manifest's own
 and selects which upstream module runs; `Endpoint` is upstream's own argument
@@ -277,9 +281,10 @@ off. See the exclusions below for why declaring more of them would not.
   a capability change and a separate reviewed decision.
 - No server-side entitlement is created. Apple can still refuse or omit a
   requested dataset.
-- The bundle is a remote asset. Its behavior can change with a new release, and
-  its internals are not reviewed line by line here — the digest gate proves
-  only that the reviewed bytes are the ones that run.
+- The bundle is a remote asset. Its behavior can change with a new release, its
+  internals are not reviewed line by line here, and nothing in this repository
+  re-checks its bytes: the release URL names a tag, and GitHub lets a publisher
+  replace what a tag serves.
 - Certificate pinning, independently provisioned ECH, unsupported protocols,
   and direct traffic that bypasses the gateway remain outside this extension's
   control.
