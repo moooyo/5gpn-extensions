@@ -14,7 +14,7 @@
 | `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
 | `httpdns-interceptor` | 获取 58 个 HTTPDNS 域名；拒绝 59 条网关可见 CIDR 路由，并拦截 7 条请求路径 | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
-| `weatherkit` | 控制 WeatherKit 数据集、保留可用性并在本地规范化空气质量数据 | Apache-2.0 |
+| `weatherkit` | 在网关上运行评审过的 WeatherKit bundle，或将两条捕获路径交给上游云端端点 | Apache-2.0 |
 | `youtube-cleaner` | 清理 YouTube 响应并准备经审查的外部 Onesie 播放链路 | Apache-2.0 |
 | `zhihu-cleaner` | 移除部分知乎传输配置、广告、推广内容和导航入口 | CC BY-NC-SA 4.0 |
 

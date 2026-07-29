@@ -4,8 +4,8 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Enhancer
-  version: 3.2.0
-  description: Runs the reviewed NSRingo WeatherKit release bundle against Apple WeatherKit responses.
+  version: 4.0.0
+  description: Runs the reviewed NSRingo WeatherKit release bundle on the gateway, or sends the same two paths to the reviewed upstream cloud endpoint.
 
 permissions:
   persistentStorage: true
@@ -28,6 +28,24 @@ traffic:
       destinationPort: 443
 
 settings:
+  # Upstream publishes the same two paths twice: a release module that runs the
+  # bundle in the client, and a repository module that rewrites both paths to a
+  # cloud endpoint and runs nothing locally. Both are carried here, and each
+  # owns its own gate because `enabledWhen` can only switch an action on. Enable
+  # exactly one. Every setting below the gates belongs to the bundle, so cloud
+  # mode reads none of them.
+  - key: Script.Enabled
+    type: boolean
+    label: Gateway script mode
+    description: Runs the pinned upstream bundle against matched responses on this gateway. This is the reviewed default. Turn it off before turning on cloud mode.
+    required: true
+    default: true
+  - key: Worker.Enabled
+    type: boolean
+    label: Cloud endpoint mode
+    description: Sends both matched paths to weatherkit.pages.dev, which fetches from Apple and transforms the response there. The request's headers, including Apple's authorization, and its exact coordinates go to that third-party host, and every setting below stops applying.
+    required: true
+    default: false
   # The bundle only merges $argument into its settings when this says so. Its
   # switch defaults to reading persistent storage and ignoring $argument
   # entirely, which is what every setting below was doing until this was added.
@@ -108,8 +126,11 @@ settings:
     default: WARN
 
 actions:
+  # Gateway script mode: the two response scripts the published release module
+  # declares, running the pinned bundle here.
   - id: weather-availability
     phase: response
+    enabledWhen: Script.Enabled
     match:
       hosts:
         - weatherkit.apple.com
@@ -127,6 +148,7 @@ actions:
       maxBodyBytes: 65536
   - id: weather-data
     phase: response
+    enabledWhen: Script.Enabled
     match:
       hosts:
         - weatherkit.apple.com
@@ -144,3 +166,44 @@ actions:
       entry: proxy-compat
       timeoutMs: 25000
       maxBodyBytes: 16777216
+  # Cloud endpoint mode: the two URL rewrites the upstream Rewrite module
+  # declares, transcribed to the one endpoint it calls directly reachable. No
+  # script runs, on the gateway or in the client, and the response this
+  # extension sees is whatever that host returns. The matchers are the script
+  # actions' own, so both modes cover exactly the same traffic.
+  - id: weather-availability-cloud
+    phase: request
+    enabledWhen: Worker.Enabled
+    match:
+      hosts:
+        - weatherkit.apple.com
+      schemes:
+        - http
+        - https
+      pathRegex: '^/api/v1/availability/'
+    script:
+      rewrite:
+        pattern: '^https?://weatherkit\.apple\.com/api/v1/availability/(.*)$'
+        to: https://weatherkit.pages.dev/api/v1/availability/$1
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 65536
+  - id: weather-data-cloud
+    phase: request
+    enabledWhen: Worker.Enabled
+    match:
+      hosts:
+        - weatherkit.apple.com
+      schemes:
+        - http
+        - https
+      methods:
+        - GET
+      pathRegex: '^/api/v2/weather/'
+    script:
+      rewrite:
+        pattern: '^https?://weatherkit\.apple\.com/api/v2/weather/(.*)$'
+        to: https://weatherkit.pages.dev/api/v2/weather/$1
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 65536
