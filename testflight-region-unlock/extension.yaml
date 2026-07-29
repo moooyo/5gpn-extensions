@@ -4,15 +4,15 @@ kind: Extension
 metadata:
   id: io.5gpn.testflight-region-unlock
   name: TestFlight Region Unlock
-  version: 2.1.0
-  description: Rewrites the TestFlight install storefront and requires an operator-selected regional egress group.
+  version: 2.2.0
+  description: Rewrites the TestFlight install storefront; needs a matching regional egress group to have any effect.
 
 permissions:
   persistentStorage: false
 
 requirements:
   egressGroup:
-    required: true
+    required: false
 
 traffic:
   captureHosts:

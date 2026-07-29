@@ -440,7 +440,7 @@ for (const entry of entries) {
   }
   if (entry.name === 'bilibili-cleaner') {
     assert(migrationSection.includes('| License review gate |'), 'bilibili-cleaner: migration contract has no aggregate-license review gate')
-    assert(actions.length === 24 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3 && manifest.requirements?.egressGroup?.required === true, 'bilibili-cleaner: pinned LPX capability set is incomplete')
+    assert(actions.length === 24 && manifest.settings?.length === 5 && manifest.permissions.network?.origins?.length === 3 && manifest.requirements?.egressGroup?.required === false, 'bilibili-cleaner: pinned LPX capability set is incomplete')
     // Nothing GPL is redistributed any more: the scripts are fetched by the
     // gateway from immutable URLs. What has to stay true is that no upstream
     // bytes crept back into the directory, and that every script action still

@@ -12,10 +12,11 @@ Install the manifest from the Console's **Install from URL** action:
 https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml
 ```
 
-The extension captures six exact Bilibili hosts, projects the pinned five
-reject rules through the reviewed routing-rule contract, and requires an
-operator-selected mihomo egress group for the upstream `bsbsb.top,PROXY`
-requirement. It exposes the five settings declared by the pinned Loon plugin,
+The extension captures six exact Bilibili hosts and projects the pinned five
+reject rules through the reviewed routing-rule contract. It requires no egress
+binding: all three of its origins are mainland services, so the ordinary mihomo
+path is the correct one and the operator may still bind a group deliberately.
+It exposes the five settings declared by the pinned Loon plugin,
 requests no persistent storage, and asks for three exact network origins for
 the SponsorBlock and request-optimization helpers.
 
@@ -157,11 +158,16 @@ confirmation still names all three origins, because it describes the maximum the
 operator is consenting to rather than what the current settings permit.
 
 The upstream LPX routes only `bsbsb.top` to `PROXY`, while the native manifest
-cannot name a proxy group or attach one only to a single network origin. The
-required operator binding therefore applies to this extension's complete
-capture and network-origin selector set. The operator must review that broader
-scope and select an appropriate existing group; a missing or removed binding
-fails closed. The script cannot inspect, name, select, or change that group.
+cannot name a proxy group or attach one only to a single network origin. A
+required binding therefore could not be scoped to the one origin that motivated
+it: it applied to this extension's complete capture and network-origin selector
+set, and an install that left it unbound failed closed, disabling comment
+filtering, the uploader list, and danmaku along with the SponsorBlock lookup
+that was the only reason for it. All three origins are mainland services for
+which the ordinary mihomo path is the appropriate one, so revision 3.2.0 stops
+requiring the binding. An operator who wants these flows to leave through a
+specific group may still bind one, subject to that same broader scope; the
+script cannot inspect, name, select, or change it.
 
 Every call returns through authenticated mihomo SOCKS5. The extension has no
 ambient `fetch`, cookie jar, redirect following, DNS, socket, filesystem,
@@ -229,10 +235,10 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=3.1.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
+| Current manifest | `version=3.2.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
-| Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, three network origins, five settings, and a required egress binding. |
+| Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, three network origins, five settings, and no required egress binding. |
 | Operator state | A normal same-ID update retains valid settings, egress binding, `capture_dns`, and execution position. Review all of them before enable. |
 | Source boundary | A changed GPL bundle must ship with complete corresponding preferred source and deterministic build inputs in the same revision. |
 | External artifacts | Chronos URLs may change only to reviewed immutable revisions; archives without corresponding preferred source remain referenced rather than redistributed. |
