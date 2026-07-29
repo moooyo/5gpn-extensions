@@ -486,17 +486,43 @@ for (const entry of entries) {
   }
   if (entry.name === 'weatherkit') {
     assert(
-      actions.length === 2 && manifest.settings?.length === 9 && manifest.permissions.persistentStorage && manifest.permissions.network?.any === true && routingRules.length === 4,
-      'weatherkit: reviewed proxy-compat capability set is incomplete',
+      actions.length === 4 && manifest.settings?.length === 11 && manifest.permissions.persistentStorage && manifest.permissions.network?.any === true && routingRules.length === 4,
+      'weatherkit: reviewed two-mode capability set is incomplete',
     )
-    assert(actions.every((action) => action.script.entry === 'proxy-compat'), 'weatherkit: every action must run the published bundle')
+    // Upstream publishes the same two paths twice: a release module that runs
+    // the bundle in the client and a repository module that rewrites both paths
+    // to a cloud endpoint. Both are carried, and because `enabledWhen` only
+    // switches an action on, each mode owns its own gate.
+    const scripted = actions.filter((action) => action.script.entry === 'proxy-compat')
+    const cloud = actions.filter((action) => action.script.rewrite !== undefined)
+    assert(scripted.length === 2 && cloud.length === 2 && scripted.length + cloud.length === actions.length, 'weatherkit: each mode must declare exactly the two upstream paths')
+    assert(scripted.every((action) => action.enabledWhen === 'Script.Enabled' && action.phase === 'response'), 'weatherkit: every bundle action must be a response action gated on Script.Enabled')
+    assert(cloud.every((action) => action.enabledWhen === 'Worker.Enabled' && action.phase === 'request'), 'weatherkit: every cloud rewrite must be a request action gated on Worker.Enabled')
+    // Two gates defaulting to on would send one exchange through the bundle and
+    // to a third-party host on the same install.
+    const gates = manifest.settings.filter((setting) => setting.key === 'Script.Enabled' || setting.key === 'Worker.Enabled')
+    assert(gates.length === 2 && gates.filter((setting) => setting.default === true).length === 1, 'weatherkit: exactly one mode gate may default to on')
+    // Both modes must select the same exchanges, so a gate changes only how a
+    // request is handled and never which requests the extension touches.
+    const selectorsOf = (list) => JSON.stringify(list.map((action) => `${action.match.pathRegex}|${(action.match.methods ?? []).join(',')}`).sort())
+    assert(selectorsOf(scripted) === selectorsOf(cloud), 'weatherkit: the two modes must cover the same paths and methods')
+    // `rewrite.to` is a static target, so the endpoint is part of the reviewed
+    // snapshot rather than an operator setting. The README has to name the exact
+    // third-party URLs an enabled cloud mode sends captured requests to.
+    for (const action of cloud) {
+      const target = action.script.rewrite.to.replace('$1', '')
+      const parsed = new URL(target)
+      assert(parsed.protocol === 'https:' && parsed.host === 'weatherkit.pages.dev', `weatherkit: ${action.id} must rewrite to the one reviewed cloud endpoint`)
+      assert(action.script.rewrite.pattern.includes('weatherkit\\.apple\\.com'), `weatherkit: ${action.id} must rewrite only the captured host`)
+      assert(readme.includes(target), `weatherkit: README does not record the cloud target of ${action.id}`)
+    }
     // Without this the bundle's switch reads persistent storage and discards
     // $argument, so every other setting on the page silently does nothing.
     const storage = manifest.settings.find((setting) => setting.key === 'Storage')
     assert(storage?.default === '$argument' && storage.options?.length === 1, 'weatherkit: settings must be declared as reaching the bundle through $argument')
     // The bundle is remote, so the README record and the verifier are what bind
     // which bytes run. Both must name the same release.
-    const bundleSources = new Set(actions.map((action) => action.script.source))
+    const bundleSources = new Set(scripted.map((action) => action.script.source))
     assert(bundleSources.size === 1, 'weatherkit: actions must pin the same bundle release')
     const [bundleSource] = bundleSources
     assert(/^https:\/\/github\.com\/NSRingo\/WeatherKit\/releases\/download\//.test(bundleSource), 'weatherkit: bundle must come from the reviewed upstream release')

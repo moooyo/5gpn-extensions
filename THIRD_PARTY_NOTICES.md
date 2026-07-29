@@ -115,8 +115,17 @@ runtimes upstream chose to include.
 An enabled provider receives the request's exact coordinates and the operator's
 API token in the provider URL. The extension therefore declares the network
 capability and persistent storage, and its README states this boundary before
-enable. The cloud rewrite endpoints upstream ships remain unused: responses are
-processed on the gateway.
+enable.
+
+The same extension also ports upstream's cloud rewrite module,
+`modules/iRingo.WeatherKit.Rewrite.plugin` at the same commit, 1,551 bytes,
+SHA-256 `9841b8934024b6f60cea5e31afbf1aa5f421f92008f292fb3c1998942b9472b9`. Only
+its two rewrite targets are transcribed, and only one of the three endpoints it
+offers, `weatherkit.pages.dev`, is carried. That service is not distributed by
+this repository, its deployment is pinned by nothing here, and the mode that
+uses it is off by default; an operator who turns it on sends the captured
+request, including Apple's authorization header and the coordinates in its path,
+to that third party.
 
 ## Apple WLOC response transformer
 

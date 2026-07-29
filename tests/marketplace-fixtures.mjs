@@ -64,8 +64,8 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const weatherkit = catalog.entries.find(entry => entry.id === 'io.5gpn.weatherkit')
   assert.deepEqual(weatherkit.capabilities, {
     captureHostCount: 1,
-    actionCount: 2,
-    settingCount: 9,
+    actionCount: 4,
+    settingCount: 11,
     networkOrigins: [],
     networkAny: true,
     persistentStorage: true,
@@ -75,7 +75,8 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   })
   // The core derives this list from every action that names a script source and
   // refuses an install whose entry does not match, so the remote bundle is listed
-  // with the digest the gateway will compute for itself.
+  // with the digest the gateway will compute for itself. The two cloud rewrites
+  // name no source, so nothing about that mode is pinned by a digest.
   assert.deepEqual(weatherkit.resources, [{
     path: 'NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js',
     url: 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js',
