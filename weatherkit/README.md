@@ -314,10 +314,15 @@ confirm, from the plugin engine log stream:
    length, SHA-256, tag object, and commit before changing behavior.
 2. Re-read the upstream release notes for new settings, new endpoints, and
    changed provider hosts. Argument keys are upstream's, so a renamed argument
-   silently stops applying rather than failing. Re-read
-   `modules/iRingo.WeatherKit.Rewrite.plugin` for changed rewrite targets in the
-   same pass; a moved endpoint would leave this port sending captured requests
-   to a host upstream has abandoned.
+   silently stops applying rather than failing. Re-read the cloud rewrite module
+   for changed rewrite targets in the same pass; a moved endpoint would leave
+   this port sending captured requests to a host upstream has abandoned. Read it
+   at `modules/iRingo.WeatherKit.Rewrite.lpx`: upstream renamed the pinned
+   `.plugin` file and now publishes four other client formats beside it, so the
+   pinned path returns 404 on the default branch. Upstream also dropped that
+   module's `endpoint` argument and hard-coded `https://weatherkit.pages.dev`,
+   which is the target this manifest already transcribes, so a candidate that
+   restores a choice of endpoint is a capability change rather than a refresh.
 3. Update the manifest source URLs, settings, README record, `REUSE.toml`,
    notices, validator counts, marketplace metadata, and `metadata.version` in
    one reviewed change.
