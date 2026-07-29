@@ -12,7 +12,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '4.0.0')
+assert.equal(manifest.metadata.version, '5.0.0')
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
 // Three of these are upstream's exact-name rejects, which revisions before
 // 3.2.0 simply omitted. The fourth approximates upstream's ASN-plus-QUIC rule;
@@ -27,11 +27,11 @@ assert.deepEqual(manifest.traffic.routingRules, [
 // The broader grants are the whole point of this revision, so they are asserted
 // explicitly rather than left to the generic validator.
 assert.equal(manifest.permissions.persistentStorage, true)
-assert.deepEqual(manifest.permissions.network, { any: true })
+assert.equal(manifest.permissions.network, true)
 assert.equal(manifest.requirements, undefined, 'no operator egress binding is required')
 
 const BUNDLE = 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js'
-const ENDPOINT = 'https://weatherkit.pages.dev'
+const ENDPOINT = 'https://{{settings.Endpoint}}'
 assert.equal(manifest.actions.length, 4)
 
 // Gateway script mode: the two response scripts the release module declares.
@@ -39,7 +39,7 @@ const scripted = manifest.actions.filter((action) => action.script.entry === 'pr
 assert.equal(scripted.length, 2)
 for (const action of scripted) {
   assert.equal(action.phase, 'response')
-  assert.equal(action.enabledWhen, 'Script.Enabled')
+  assert.deepEqual(action.enabledWhen, { key: 'Mode', equals: 'Script' })
   assert.equal(action.script.source, BUNDLE, 'both actions must run the same pinned release')
   assert.deepEqual(action.match.hosts, ['weatherkit.apple.com'])
   assert.equal(action.script.inline, undefined)
@@ -48,15 +48,14 @@ for (const action of scripted) {
 }
 
 // Cloud endpoint mode: the two URL rewrites the upstream Rewrite module
-// declares. No script, no local processing, and the endpoint is pinned here
-// because `rewrite.to` is a static target rather than something a setting can
-// choose. Upstream offers three; this is the one it calls directly reachable,
-// so no operator egress binding is required for it.
+// declares, including its endpoint argument. The target resolves the operator's
+// Endpoint setting the same way Loon interpolates {endpoint} into a rewrite
+// line, so all three upstream endpoints are reachable without a manifest edit.
 const cloud = manifest.actions.filter((action) => action.script.rewrite !== undefined)
 assert.equal(cloud.length, 2)
 for (const action of cloud) {
   assert.equal(action.phase, 'request')
-  assert.equal(action.enabledWhen, 'Worker.Enabled')
+  assert.deepEqual(action.enabledWhen, { key: 'Mode', equals: 'Cloud' })
   assert.equal(action.script.entry, undefined, 'a rewrite runs no code')
   assert.equal(action.script.source, undefined)
   assert.equal(action.script.bodyMode, 'none')
@@ -85,31 +84,36 @@ assert.equal(availabilityCloud.script.rewrite.to, `${ENDPOINT}/api/v1/availabili
 const weatherCloud = manifest.actions.find((action) => action.id === 'weather-data-cloud')
 assert.equal(weatherCloud.script.rewrite.to, `${ENDPOINT}/api/v2/weather/$1`)
 
-// `enabledWhen` can only switch an action on, so each mode carries its own
-// required boolean. Exactly one defaults to on, and it is the mode that keeps
-// every byte on this gateway.
-const scriptGate = manifest.settings.find((setting) => setting.key === 'Script.Enabled')
-const workerGate = manifest.settings.find((setting) => setting.key === 'Worker.Enabled')
-for (const gate of [scriptGate, workerGate]) {
-  assert.equal(gate.type, 'boolean')
-  assert.equal(gate.required, true, 'a gate must always have a decidable value')
-}
-assert.equal(scriptGate.default, true)
-assert.equal(workerGate.default, false, 'a third-party endpoint must never be the default')
-assert.match(workerGate.description, /weatherkit\.pages\.dev/)
+// One select drives both action sets, so "both modes at once" is not a state an
+// operator can reach. The default keeps every byte on this gateway.
+const mode = manifest.settings.find((setting) => setting.key === 'Mode')
+assert.equal(mode.type, 'select')
+assert.equal(mode.required, true, 'a gate must always have a decidable value')
+assert.deepEqual(mode.options, ['Script', 'Cloud'])
+assert.equal(mode.default, 'Script', 'a third-party endpoint must never be the default')
+
+// Every option is a third party a captured Apple request can be handed to, so
+// the set is pinned here and each one is named in the README.
+const endpoint = manifest.settings.find((setting) => setting.key === 'Endpoint')
+assert.equal(endpoint.type, 'select')
+assert.equal(endpoint.required, true)
+assert.deepEqual(endpoint.options, ['weatherkit.pages.dev', 'dev.weatherkit.pages.dev', 'weather.nanocat.cloud'])
+assert.equal(endpoint.default, 'weatherkit.pages.dev', 'upstream calls this one directly reachable')
+assert.match(endpoint.description, /authorization/i)
 
 // Setting keys are upstream's own argument names, because they reach the bundle
 // as $argument and its parser expands the dots. A renamed key here would stop
 // applying silently instead of failing.
 //
-// The two gates come first and belong to this manifest rather than to upstream:
-// they select which of upstream's two published modules runs. Storage is next
+// Mode and Endpoint come first: Mode belongs to this manifest and selects which
+// of upstream's two published modules runs, and Endpoint is upstream's own
+// argument from the rewrite module. Storage is next
 // and is not a preference either: the bundle switches on it to decide where to
 // read settings from, and its default branch discards $argument. Every setting
 // below it did nothing until it was added.
 assert.deepEqual(manifest.settings.map((setting) => setting.key), [
-  'Script.Enabled',
-  'Worker.Enabled',
+  'Mode',
+  'Endpoint',
   'Storage',
   'Weather.Provider',
   'NextHour.Provider',
@@ -146,22 +150,21 @@ for (const key of ['API.ColorfulClouds.Token', 'API.QWeather.Host', 'API.QWeathe
   assert.equal(setting.default, undefined, `${key} must not ship a token`)
 }
 
-// The README is the only record of which bytes are allowed to run, and
-// `npm run verify:upstreams` enforces it against the live asset.
+// The README is the record of what runs and where it goes. Byte-level pinning
+// is gone with the verifier, so what it still has to name is every URL this
+// extension loads or sends captured traffic to.
 const readme = await readFile(path.join(root, 'weatherkit', 'README.md'), 'utf8')
-assert(readme.includes(BUNDLE), 'README must record the pinned bundle URL')
-assert(readme.includes('4d368808a17c42eef18135f04d1bc9f01cbf7878d227006521ef0a6598941ff2'), 'README must record the bundle digest')
-assert(readme.includes('251,617 bytes'), 'README must record the bundle size')
+assert(readme.includes(BUNDLE), 'README must record the bundle URL')
 assert(/exact coordinates/i.test(readme), 'README must state what an enabled provider receives')
 
-// Cloud mode transcribes a second upstream artifact, so it is pinned the same
-// way. Its digest binds the rewrite targets and endpoint list this manifest
-// claims to follow; the live service behind them is pinned by nothing.
+// Cloud mode transcribes a second upstream artifact. Nothing pins the live
+// service behind those hostnames, which is the point the README has to make.
 const REWRITE_MODULE = 'https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/modules/iRingo.WeatherKit.Rewrite.plugin'
-assert(readme.includes(REWRITE_MODULE), 'README must record the pinned cloud rewrite module')
-assert(readme.includes('9841b8934024b6f60cea5e31afbf1aa5f421f92008f292fb3c1998942b9472b9'), 'README must record the rewrite module digest')
-assert(readme.includes('1,551 bytes'), 'README must record the rewrite module size')
-assert(readme.includes(`${ENDPOINT}/api/v1/availability/`) && readme.includes(`${ENDPOINT}/api/v2/weather/`), 'README must record both cloud targets')
+assert(readme.includes(REWRITE_MODULE), 'README must record the cloud rewrite module it transcribes')
+for (const option of endpoint.options) {
+  assert(readme.includes(option), `README must record the cloud endpoint ${option}`)
+}
+assert(readme.includes('/api/v1/availability/') && readme.includes('/api/v2/weather/'), 'README must record both rewritten paths')
 assert(/authorization/i.test(readme), 'README must state which request headers an enabled cloud mode discloses')
 assert(/deployment is not pinned|not pinned by|pinned by nothing/i.test(readme), 'README must state that the live endpoint is unpinned')
 

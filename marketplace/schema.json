@@ -234,7 +234,7 @@
         "captureHostCount",
         "actionCount",
         "settingCount",
-        "networkOrigins",
+        "network",
         "persistentStorage",
         "upstreamMappingCount",
         "routingRuleCount",
@@ -256,13 +256,9 @@
           "minimum": 0,
           "maximum": 256
         },
-        "networkOrigins": {
-          "type": "array",
-          "maxItems": 64,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/httpUrl"
-          }
+        "network": {
+          "description": "The network grant. It names no origins: an extension holding it may reach any host it can resolve, and may rewrite a captured request there.",
+          "type": "boolean"
         },
         "persistentStorage": {
           "type": "boolean"
@@ -278,9 +274,6 @@
           "maximum": 256
         },
         "egressGroupRequired": {
-          "type": "boolean"
-        },
-        "networkAny": {
           "type": "boolean"
         }
       }

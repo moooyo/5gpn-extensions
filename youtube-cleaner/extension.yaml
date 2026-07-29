@@ -4,14 +4,12 @@ kind: Extension
 metadata:
   id: io.5gpn.youtube-cleaner
   name: YouTube Application Cleaner
-  version: 4.0.0
+  version: 5.0.0
   description: Runs the reviewed Maasea YouTube Enhance scripts against YouTube responses and the Onesie playback path.
 
 permissions:
   persistentStorage: true
-  network:
-    origins:
-      - https://init-stream.maasea.workers.dev
+  network: true
 
 traffic:
   captureHosts:

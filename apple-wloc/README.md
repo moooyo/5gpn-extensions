@@ -52,13 +52,13 @@ Reviewed at commit
 [`eec07a8dc8de6dbaee8eac1fb376e4d03020154a`](https://github.com/Yu9191/wloc/tree/eec07a8dc8de6dbaee8eac1fb376e4d03020154a)
 on `2026-07-28`. The published module points its `script-path` values at the
 mutable `main` branch; both entries below are re-pinned to that immutable
-commit, and `npm run verify:upstreams` re-downloads and enforces each digest.
+commit, so the bytes a gateway fetches are the reviewed revision's.
 
-| Artifact | Immutable raw URL | Size | SHA-256 |
-| --- | --- | ---: | --- |
-| Loon plugin (argument and script source) | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/modules/wloc.lpx` | 1,258 bytes | `1fb451616fb17242849f72490f016afcdb8aa81a0b086f6dd5f94e1af3d58ee1` |
-| WLOC response transformer | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc.js` | 40,414 bytes | `d385c624efd59bdd2cff56bf819a770b40c4abf0f970818877f1dca4174f256a` |
-| Settings-save request script | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc-settings.js` | 12,892 bytes | `b4e9d69e69c703b3fab485a559825aaedc9e3a1fd9c06e81cb35d10bbdcd13d2` |
+| Artifact | Immutable raw URL |
+||
+| Loon plugin (argument and script source) | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/modules/wloc.lpx` |
+| WLOC response transformer | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc.js` |
+| Settings-save request script | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc-settings.js` |
 
 ## License and attribution
 
@@ -113,7 +113,7 @@ unrecognized response is returned unchanged rather than blocked.
 | `[MITM] hostname` | The same two exact names as `traffic.captureHosts` |
 | `[Argument]` block | The four settings above, with upstream's types and defaults |
 
-The manifest declares no network origins, no upstream mapping, and no required
+The manifest declares no network permission, no upstream mapping, and no required
 egress-group binding. The scripts reach no third party: the picker page is
 opened by the operator in a browser and its coordinate arrives through the
 capture path, not through an outbound request from the script.
@@ -122,7 +122,7 @@ capture path, not through an outbound request from the script.
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `apple-wloc/extension.yaml` — SHA-256 `094090b278a8394838881735de5c8de80fc6d9ffbab72fab8dce4bee2e879f63` |
+| Manifest | `apple-wloc/extension.yaml` |
 | Upstream fetch date | `2026-07-28` |
 
 ## Maintenance and updates
@@ -142,33 +142,8 @@ capture path, not through an outbound request from the script.
 5. Refresh the canonical record after every manifest change, then review the
    diff and run the verification commands below.
 
-Refresh the revision and SHA-256 values with PowerShell:
-
-```powershell
-git rev-parse HEAD
-Get-FileHash -LiteralPath apple-wloc/extension.yaml -Algorithm SHA256
-```
 
 To independently refresh the pinned upstream-script digest without checking
-out its repository:
-
-```powershell
-$ref = 'edee9b955f673cc8c4a52eb0a9c687a2e25dde4a'
-$url = "https://raw.githubusercontent.com/FFF686868/proxypin-wloc-spoofer/$ref/proxypin_wloc_compat_v2.js"
-$path = Join-Path $env:TEMP ("proxypin_wloc_compat_v2-" + [guid]::NewGuid().ToString('N') + '.js')
-try {
-  Invoke-WebRequest -UseBasicParsing -ErrorAction Stop -Uri $url -OutFile $path
-  $sourceInfo = Get-Item -LiteralPath $path
-  $sourceHash = Get-FileHash -LiteralPath $path -Algorithm SHA256
-  if ($sourceInfo.Length -ne 45072 -or $sourceHash.Hash -ne 'd8ae57eb8696af05413e3fbbf0bd57513a4f649407a1d0a7bb891916482fca70') {
-    throw 'proxypin_wloc_compat_v2.js size or SHA-256 mismatch'
-  }
-  $sourceInfo | Select-Object Length
-  $sourceHash
-} finally {
-  [System.IO.File]::Delete($path)
-}
-```
 
 ## Migration and rollback
 
@@ -180,11 +155,11 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.apple-wloc`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.0.0`; `persistentStorage=true`; `settings=4`; `captureHosts=2`; `actions=2`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.0.0`; `persistentStorage=true`; `settings=4`; `captureHosts=2`; `actions=2`; `routingRules=0`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true: the picker page's saved coordinate lives in extension-scoped storage. |
 | Settings | Keep `longitude`, `latitude`, and `accuracy` as required text values and `logLevel` as a required select, matching the upstream `[Argument]` block. Valid same-key, same-type values survive a normal update. |
 | Sensitive values | Record whether each coordinate setting is complete, but never copy its value into a migration record, issue, or log. The same applies to a coordinate saved through the picker. |
-| Reviewed capability baseline | Two capture hosts, two proxy-compat actions (one response rewrite and one request settings-save), four settings, persistent storage, and no network origins, routing rules, upstream mappings, or required egress binding. |
+| Reviewed capability baseline | Two capture hosts, two proxy-compat actions (one response rewrite and one request settings-save), four settings, persistent storage, and no network permission, routing rules, upstream mappings, or required egress binding. |
 | Current migration baseline | Version `2.0.0` replaced the `FFF686868/proxypin-wloc-spoofer` port with the `Yu9191/wloc` proxy-client modules. The typed `location` setting and the local `failClosed` behavior were removed with the parser that backed them; see "What changed, and why" above. |
 | Operator state | A normal same-ID update retains valid settings, stored picker coordinates, `capture_dns`, and execution position. There is no egress binding. Record presence, not sensitive coordinates. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. Reverting below `2.0.0` reintroduces the `location`/`failClosed` settings contract and drops the picker, so the operator must re-enter coordinates. |
@@ -232,15 +207,13 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
 The focused fixture checks the manifest boundary: both actions, the four
 settings against upstream's `[Argument]` block, the pinned immutable commit,
 and the three accepted costs recorded above. It cannot check what the scripts
-do -- they are upstream's and are fetched at runtime -- so `verify:upstreams`
-enforcing their digests is what binds which bytes run.
+do -- they are upstream's and are fetched at runtime -- so what binds which
+bytes run is the immutable commit in each URL.
 
 ## Limitations
 

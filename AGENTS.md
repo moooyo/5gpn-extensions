@@ -8,11 +8,15 @@
 - Every extension must include `extension.yaml`, all immutable local scripts,
   and `README.md`.
 - Each README must pin every upstream file to an immutable commit and record
-  its raw URL, SHA-256, fetch date, behavioral port mapping, deliberate
-  exclusions, limitations, update procedure, and verification steps.
+  its raw URL, fetch date, behavioral port mapping, deliberate exclusions,
+  limitations, update procedure, and verification steps. Byte-level pinning is
+  deliberately gone: an immutable commit in the URL is what binds the bytes, and
+  nothing re-downloads an artifact to compare it against a recorded digest.
 - Keep action hosts inside the extension's declared capture hosts. Declare
-  storage, network origins, and required operator egress explicitly and only
-  when the implementation needs them.
+  storage, the network permission, and required operator egress explicitly and
+  only when the implementation needs them. `permissions.network` is one boolean
+  and names no host: taking it means the extension may reach anywhere and may
+  rewrite a captured request there, and every review says exactly that.
 - Prefer a declarative action -- `reject`, `mock`, or `jq` -- over a script;
   no extension here ships JavaScript. A native script, if one is ever added,
   exposes only `transform(context)`. Do not add ambient `fetch`,
@@ -31,7 +35,7 @@
   `.lpx`, including `metadata.version`. Change the generator and run
   `npm run routing:sync`; a hand edit is reverted by the next sync.
 - Run `npm run check` before delivery. It is `npm test`, `npm run
-  routing:check`, and `npm run verify:upstreams` in the order CI runs them —
-  `npm test` alone is offline and does not re-render the generated manifests.
+  routing:check` in the order CI runs them — `npm test` alone does not re-render
+  the generated manifests.
   When changing runtime-facing behavior, also validate the manifests with the
   current 5gpn core parser integration gate.

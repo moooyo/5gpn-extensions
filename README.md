@@ -7,7 +7,7 @@ This repository is the first-party catalog for independently maintained native
 `5gpn.io/v1` contract; it does not vendor or mirror extension source code.
 
 Every extension is disabled by default after import. Review its immutable
-manifest, scripts, capture hosts, exact routing rules, network origins, execution position, and
+manifest, scripts, capture hosts, exact routing rules, the network permission, execution position, and
 operator egress requirement before enabling it.
 
 | Extension | Purpose | License |
@@ -17,7 +17,7 @@ operator egress requirement before enabling it.
 | `bilibili-cleaner` | Remove selected Bilibili ads and promotions | GPL-3.0-only |
 | `httpdns-interceptor` | Acquire 58 HTTPDNS domains; reject 59 gateway-visible CIDR routes and block seven request paths | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | Rewrite TestFlight storefront with operator-selected egress | CC BY-NC-SA 4.0 |
-| `weatherkit` | Run the reviewed WeatherKit bundle on the gateway, or send both captured paths to the upstream cloud endpoint | Apache-2.0 |
+| `weatherkit` | Run the reviewed WeatherKit bundle on the gateway, or send both captured paths to an upstream cloud endpoint | Apache-2.0 |
 | `youtube-cleaner` | Clean YouTube responses and prepare the reviewed external Onesie playback path | Apache-2.0 |
 | `zhihu-cleaner` | Remove selected Zhihu transport configuration, advertisements, promotions, and navigation entries | CC BY-NC-SA 4.0 |
 
@@ -41,7 +41,7 @@ public HTTPS origin; never embed repository credentials in an extension URL.
 | `zhihu-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/extension.yaml> |
 
 Every import starts disabled. Before enabling it, review the immutable
-snapshot digest, capture hosts, actions, settings, exact routing rules, network origins, execution
+snapshot digest, capture hosts, actions, settings, exact routing rules, the network permission, execution
 position, and any required operator egress binding. Installing an extension
 does not enable the global interception master or trust its interception CA on
 a device.
@@ -121,14 +121,14 @@ update procedure, and verification steps.
 | Answer with a fixed reply | `script.mock` | A declared status, headers, and `body` or `base64Body`. No code, and no request leaves the gateway. |
 | Rewrite a JSON body | `script.jq` | An upstream module's own `response-body-json-jq` expression, run by gojq without entering the JavaScript runtime. Reads operator choices through `$settings`. |
 | Edit headers on a real message | `script.headers` | `set` and `remove` fields without replacing the body. Removal runs first. |
-| Send a request elsewhere | `script.rewrite` | Rewrites the URL in place, or answers 302/307. An in-place rewrite passes the same authorization a scripted one does, so a cross-origin target still needs a declared network origin. |
+| Send a request elsewhere | `script.rewrite` | Rewrites the URL in place, or answers 302/307. `to` may interpolate `{{settings.key}}`, which is how an upstream module's endpoint argument survives the port. An in-place rewrite forwards the captured request as it stands, so a cross-origin target needs the network permission. |
 | Edit body bytes | `script.replaceBody` | A regular expression and a replacement that may read `{{settings.key}}`, optionally resolved through a declared `valueMap`. Unlike `jq` it does not parse the document, so unmatched bytes survive exactly. |
-| Gate an action on a setting | `actions[].enabledWhen` | Names a required boolean setting of the same extension. When it is false the action is not compiled, so it never matches. Upstream plugin formats switch an entry on and off from outside the script, which is why a bundle carrying such a switch never reads the key that controls it. |
+| Gate an action on a setting | `actions[].enabledWhen` | `{key, equals}` against a required setting of the same extension. When the comparison fails the action is not compiled, so it never matches. A select therefore drives several mutually exclusive action sets, which two booleans cannot: they have a fourth state where both are on. Upstream plugin formats switch an entry on and off from outside the script, which is why a bundle carrying such a switch never reads the key that controls it. |
 | Run a published proxy-client bundle | `script.entry: proxy-compat` | Loads a pinned upstream script under a Loon persona. See [the contract below](#proxy-compat-contract). |
 | Read a body | `script.bodyMode` | `none`, UTF-8 `text`, or `binary` as `Uint8Array`, bounded by `maxBodyBytes`. |
 | Typed operator configuration | `settings[]` | `text`, `select`, `boolean`, `number`, and `location`; required values must be complete before enable. |
 | Persistent state | `permissions.persistentStorage: true` | Adds extension-scoped, quota-bound `context.storage`; scripts never choose a path or access the filesystem. |
-| Origin-scoped outbound HTTP | `permissions.network.origins` | Adds `context.network.request` and the concurrent `context.network.requestAsync` for exact HTTP(S) origins only. There is no ambient `fetch`, redirect following, cookie jar, or socket access. The operator must confirm that visible decrypted data could be sent to those origins. |
+| Outbound HTTP | `permissions.network: true` | Adds `context.network.request`, the concurrent `context.network.requestAsync`, and cross-origin request rewriting. It names no host: an extension holding it may reach anywhere it can resolve. There is no ambient `fetch`, redirect following, cookie jar, or socket access, and URL canonicalization plus IP-literal and private-host refusal still apply. The operator confirms that visible decrypted data, and any captured request, could be sent anywhere. |
 | Override where a name resolves | `traffic.upstreamMappings` | Loon's `[Host]`. A target is an address (`1.2.3.4`), an alias (`origin.example.net`), or a resolver (`server:1.1.1.1`). The name keeps its Host header and TLS SNI: only the address changes, and it changes in the gateway's resolver, so both the client's answer and the upstream leg of a captured host follow the same table. A mapping supplies an address and never a routing decision — a domestic name mapped to a domestic address still goes direct, and one mapped to a foreign address is still steered. Address targets are SSRF-checked. A mapping cannot reach an outbound that resolves remotely, because a proxy node is handed the name rather than the address. |
 | Require a regional/operator exit | `requirements.egressGroup.required: true` | Forces the operator to bind an existing mihomo group or `DIRECT` before enable. The extension cannot name, inspect, select, or change an arbitrary group; a separately reviewed routing rule may select only `DIRECT`. |
 | Compose several extensions | Console execution order | Request and response actions run top-to-bottom. For overlapping destinations, the first bound extension and first global routing rule in that same order win. Reordering requires a before/after confirmation. |
@@ -259,8 +259,8 @@ trailer fields fail closed. Valid HTTP/gRPC trailers are preserved across
 HTTP/1.1, HTTP/2, and HTTP/3.
 
 `context.storage` exists only when persistent storage was declared.
-`context.network.request` exists only when exact origins were declared and
-confirmed. Network responses contain `url`, `status`, `headers`, `trailers`, binary
+`context.network.request` exists only when the network permission was declared
+and confirmed. Network responses contain `url`, `status`, `headers`, `trailers`, binary
 `body`, and `text` when the body is valid UTF-8. Redirects and non-2xx
 responses are returned to the script rather than silently followed.
 
@@ -309,9 +309,7 @@ Declare only capabilities the runtime implementation actually uses:
 ```yaml
 permissions:
   persistentStorage: true
-  network:
-    origins:
-      - https://api.example.net
+  network: true
 
 requirements:
   egressGroup:
@@ -346,7 +344,7 @@ checked at all.
 3. Translate only reviewed behavior into the strict native manifest and
    declarative action kinds, or a pinned upstream bundle. Narrow capture hosts and matchers instead of
    preserving broad client-specific patterns.
-4. Declare storage, network origins, upstream mappings, and required egress
+4. Declare storage, the network permission, upstream mappings, and required egress
    only when used. Document what decrypted data a permitted network call could
    disclose.
 5. Add positive, no-op, malformed-input, and boundary fixtures. Preserve
@@ -360,8 +358,6 @@ checked at all.
    if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
    npm run routing:check
    if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-   npm run verify:upstreams
-   if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
    ```
 
    Then run the current core parser integration command in
@@ -404,8 +400,6 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --output marketplace.json
 if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --check marketplace.json

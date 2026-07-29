@@ -43,9 +43,9 @@ licensing authority.
 `bilibili-cleaner` does not vendor upstream source. It loads four scripts from
 the GPL-3.0-only `kokoryh/Sparkle` project at runtime under the `5gpn.io/v1`
 proxy-compat contract, and carries that project's own rewrite expressions as jq
-actions. Every artifact, size, and digest is pinned at commit
-`12e89d6d93d72d39eb283ef81d2b58eb204cdb58` in the extension README, and
-`npm run verify:upstreams` re-downloads and enforces them.
+actions. Every artifact is pinned at commit
+`12e89d6d93d72d39eb283ef81d2b58eb204cdb58` in the extension README, which is the
+immutable revision a gateway fetches from.
 
 Because the scripts are fetched by the gateway rather than shipped here, this
 repository distributes none of their bytes and the corresponding-source
@@ -106,11 +106,10 @@ metadata credits VirgilClyne, WordlessEcho, and 001ProMax; those are retained
 creator attributions, not copyright assertions by this repository.
 
 GitHub release assets are publisher-replaceable, and GitHub reports
-`immutable: false` for this release, so `npm run verify:upstreams` downloads
-the asset on every run and enforces the recorded size and digest. That gate
-proves the reviewed bytes are the ones that run; it is not a line-by-line
-review of the bundle's contents, and the bundle carries whatever third-party
-runtimes upstream chose to include.
+`immutable: false` for this release. Nothing here re-checks those bytes, so
+upstream replacing that asset changes what runs without a review. No statement
+in this file is a line-by-line review of the bundle's contents either, and the
+bundle carries whatever third-party runtimes upstream chose to include.
 
 An enabled provider receives the request's exact coordinates and the operator's
 API token in the provider URL. The extension therefore declares the network
@@ -118,14 +117,12 @@ capability and persistent storage, and its README states this boundary before
 enable.
 
 The same extension also ports upstream's cloud rewrite module,
-`modules/iRingo.WeatherKit.Rewrite.plugin` at the same commit, 1,551 bytes,
-SHA-256 `9841b8934024b6f60cea5e31afbf1aa5f421f92008f292fb3c1998942b9472b9`. Only
-its two rewrite targets are transcribed, and only one of the three endpoints it
-offers, `weatherkit.pages.dev`, is carried. That service is not distributed by
-this repository, its deployment is pinned by nothing here, and the mode that
-uses it is off by default; an operator who turns it on sends the captured
-request, including Apple's authorization header and the coordinates in its path,
-to that third party.
+`modules/iRingo.WeatherKit.Rewrite.plugin` at the same commit. Its two rewrite
+targets and all three of the endpoints it offers are transcribed. Those services
+are not distributed by this repository and their deployments are pinned by
+nothing here; the mode that uses them is off by default, and an operator who
+turns it on sends the captured request, including Apple's authorization header
+and the coordinates in its path, to the selected third party.
 
 ## Apple WLOC response transformer
 

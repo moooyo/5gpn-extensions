@@ -5,7 +5,7 @@
 本仓库是独立维护的原生 5gpn 扩展的第一方目录。5gpn 核心仓库负责运行时和严格的
 `5gpn.io/v1` 契约；它不会将扩展源代码纳入仓库或镜像化。
 
-每个扩展导入后默认处于禁用状态。启用前，请审查其不可变清单、脚本、捕获主机、精确路由规则、网络源、执行位置及运营者出口要求。
+每个扩展导入后默认处于禁用状态。启用前，请审查其不可变清单、脚本、捕获主机、精确路由规则、联网权限、执行位置及运营者出口要求。
 
 | 扩展 | 用途 | 许可证 |
 | --- | --- | --- |
@@ -14,7 +14,7 @@
 | `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
 | `httpdns-interceptor` | 获取 58 个 HTTPDNS 域名；拒绝 59 条网关可见 CIDR 路由，并拦截 7 条请求路径 | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
-| `weatherkit` | 在网关上运行评审过的 WeatherKit bundle，或将两条捕获路径交给上游云端端点 | Apache-2.0 |
+| `weatherkit` | 在网关上运行评审过的 WeatherKit bundle，或按 `Mode` 把两条捕获路径交给上游云端端点 | Apache-2.0 |
 | `youtube-cleaner` | 清理 YouTube 响应并准备经审查的外部 Onesie 播放链路 | Apache-2.0 |
 | `zhihu-cleaner` | 移除部分知乎传输配置、广告、推广内容和导航入口 | CC BY-NC-SA 4.0 |
 
@@ -34,7 +34,7 @@
 | `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
 | `zhihu-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/extension.yaml> |
 
-每次导入均从禁用状态开始。启用前，请审查不可变快照摘要、捕获主机、操作、设置、精确路由规则、网络源、执行位置以及任何所需的运营者出口绑定。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
+每次导入均从禁用状态开始。启用前，请审查不可变快照摘要、捕获主机、操作、设置、精确路由规则、联网权限、执行位置以及任何所需的运营者出口绑定。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
 
 ## Marketplace
 
@@ -83,14 +83,14 @@ example-cleaner/
 | 返回固定响应 | `script.mock` | 声明状态码、响应头,以及 `body` 或 `base64Body`。无代码,且请求不会离开网关。 |
 | 改写 JSON 响应体 | `script.jq` | 直接携带上游模块自己的 `response-body-json-jq` 表达式,由 gojq 执行,完全不进 JavaScript 运行时。可通过 `$settings` 读取操作员选择。 |
 | 在真实报文上编辑头部 | `script.headers` | `set` 与 `remove` 两个字段，不替换正文。先执行删除。 |
-| 把请求发往别处 | `script.rewrite` | 原地改写 URL，或直接返回 302/307。原地改写与脚本改写走同一套授权，因此跨源目标仍需声明网络源（origin）。 |
+| 把请求发往别处 | `script.rewrite` | 原地改写 URL，或直接返回 302/307。`to` 可以插值 `{{settings.key}}`，上游模块的端点参数就是这样被移植过来的。原地改写会把捕获的请求原样转发出去，因此跨源目标需要联网权限。 |
 | 编辑正文字节 | `script.replaceBody` | 一个正则和一个替换串，替换串可读取 `{{settings.key}}`，并可选地经由声明的 `valueMap` 解析。与 `jq` 不同，它不解析文档，因此未命中的字节原样保留。 |
-| 用设置开关一个动作 | `actions[].enabledWhen` | 指向同一扩展的一个必填布尔设置。为 false 时该动作根本不会被编译，因此永远不会命中。上游插件格式是在脚本之外开关一个条目的，所以携带这种开关的 bundle 从来不会读取控制它的那个键。 |
+| 用设置开关一个动作 | `actions[].enabledWhen` | 对同一扩展的一个必填设置做 `{key, equals}` 比较。比较不成立时该动作根本不会被编译，因此永远不会命中。因此一个 select 可以驱动多组互斥动作，而两个布尔做不到——它们有"两个都开"的第四种状态。上游插件格式是在脚本之外开关一个条目的，所以携带这种开关的 bundle 从来不会读取控制它的那个键。 |
 | 运行已发布的代理客户端 bundle | `script.entry: proxy-compat` | 以 Loon 人格加载钉住的上游脚本。见下文的契约。 |
 | 读取正文 | `script.bodyMode` | `none`、UTF-8 `text`，或以 `Uint8Array` 表示的 `binary`，并受 `maxBodyBytes` 限制。 |
 | 类型化运营者配置 | `settings[]` | `text`、`select`、`boolean`、`number` 和 `location`；启用前必须完整填写必填值。 |
 | 持久状态 | `permissions.persistentStorage: true` | 添加受扩展作用域和配额限制的 `context.storage`；脚本绝不能选择路径或访问文件系统。 |
-| 按源（origin）限定的出站 HTTP | `permissions.network.origins` | 仅为精确的 HTTP(S) 源（origin）添加 `context.network.request` 及其并发形式 `context.network.requestAsync`。不存在环境级 `fetch`、重定向跟随、Cookie jar 或套接字访问。运营者必须确认可见的已解密数据可能被发送到这些源。 |
+| 出站 HTTP | `permissions.network: true` | 添加 `context.network.request`、其并发形式 `context.network.requestAsync`，以及跨源请求改写。它不指名任何主机：持有该权限的扩展可以访问它能解析的任意地址。不存在环境级 `fetch`、重定向跟随、Cookie jar 或套接字访问，URL 规范化以及对 IP 字面量和私有主机的拒绝仍然生效。运营者确认的是：可见的已解密数据，以及任何被捕获的请求，都可能被发往任意地址。 |
 | 覆盖一个名字的解析结果 | `traffic.upstreamMappings` | Loon 的 `[Host]`。目标可以是地址（`1.2.3.4`）、别名（`origin.example.net`）或解析器（`server:1.1.1.1`）。名字的 Host 头和 TLS SNI 保持不变，只有地址改变，而且改变发生在网关的解析器里 —— 因此客户端的应答与被捕获主机的上游腿遵循同一张表。映射只提供地址，绝不提供转发决策：映射到国内地址的国内域名依然直连，映射到境外地址的依然被引流。地址型目标经过 SSRF 检查。映射无法作用于由远端解析的出站，因为代理节点收到的是名字而不是地址。 |
 | 要求区域/运营者出口 | `requirements.egressGroup.required: true` | 启用前强制运营者绑定现有 mihomo 组或 `DIRECT`。扩展不能命名、检查、选择或更改任意组；另行审查的路由规则只能选择 `DIRECT`。 |
 | 组合多个扩展 | Console 执行顺序 | 请求和响应操作自上而下运行。对于重叠目的地，同一顺序中的第一个已绑定扩展和第一条全局路由规则生效。重排需要审查调整前后顺序并确认。 |
@@ -186,7 +186,7 @@ true}`、`null` 或 `undefined`。响应操作只能返回响应补丁、中止�
 
 响应操作和合成响应可以包含有界 `trailers` 补丁；请求补丁不能创建 trailer。运行时会校验名称、值、字段数、单值大小和总字节数，并拒绝 framing 等禁止字段。有效的 HTTP/gRPC trailer 会在 HTTP/1.1、HTTP/2 和 HTTP/3 间保留。
 
-仅在声明了持久存储时，`context.storage` 才存在。仅在声明并确认精确源时，`context.network.request` 才存在。网络响应包含 `url`、`status`、`headers`、`trailers`、二进制 `body`，以及当正文是有效 UTF-8 时的 `text`。重定向和非 2xx 响应会返回给脚本，而不会被静默跟随。
+仅在声明了持久存储时，`context.storage` 才存在。仅在声明并确认联网权限时，`context.network.request` 才存在。网络响应包含 `url`、`status`、`headers`、`trailers`、二进制 `body`，以及当正文是有效 UTF-8 时的 `text`。重定向和非 2xx 响应会返回给脚本，而不会被静默跟随。
 
 ### proxy-compat 契约
 
@@ -221,9 +221,7 @@ $notification     post(...)，记入该动作自己的日志预算而非真的�
 ```yaml
 permissions:
   persistentStorage: true
-  network:
-    origins:
-      - https://api.example.net
+  network: true
 
 requirements:
   egressGroup:
@@ -237,14 +235,14 @@ traffic:
       target: origin.example.net
 ```
 
-网络源仅包含规范 scheme、主机名和有效端口；通配符、路径、查询、片段、userinfo、IP 字面量、localhost 和私有名称均会被拒绝。上游映射仅适用于已由同一扩展拥有的主机，且不得以私有、回环、链路本地或其他不安全地址为目标。
+联网权限不列举地址，运行时仍会拒绝 IP 字面量、localhost 和私有名称。上游映射仅适用于已由同一扩展拥有的主机，且不得以私有、回环、链路本地或其他不安全地址为目标。
 
 ### 开发和审查流程
 
 1. 选择权威上游仓库和不可变提交。不得将扩展商店或镜像的根许可证视为比更具体的原始文件许可证更有权威性。
 2. 移植行为前，记录并验证每个源文件和许可证文件的原始 URL、大小、SHA-256、获取日期、创作者署名和许可证。
 3. 仅将经审查的行为转换为严格的原生清单。优先使用声明式动作(`reject`/`mock`/`jq`/`headers`/`rewrite`/`replaceBody`)——本仓库的八个扩展全部由它们和 `proxy-compat` 构成,不含任何 JavaScript。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
-4. 仅在使用时声明存储、网络源、上游映射和所需出口。记录获准的网络调用可能泄露哪些已解密数据。
+4. 仅在使用时声明存储、联网权限、上游映射和所需出口。记录获准的网络调用可能泄露哪些已解密数据。
 5. 添加正向、无操作、格式错误输入和边界测试样例。保留无关字段，并在部分转换不安全时以拒绝方式失败（fail closed）。
 6. 运行目录验证器和当前核心解析器门禁：
 
@@ -255,8 +253,6 @@ traffic:
    if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
    npm run routing:check
    if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-   npm run verify:upstreams
-   if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
    ```
 
    随后运行 [`MIGRATION.md`](MIGRATION.md) 中的当前核心解析器集成命令。
@@ -283,8 +279,6 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --output marketplace.json
 if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --check marketplace.json

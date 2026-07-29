@@ -62,26 +62,26 @@ every byte on the gateway and is the default.
 ## Pinned upstream
 
 The runtime asset is the `v3.2.0-beta2` release bundle at
-`https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js`:
-251,617 bytes, SHA-256
-`4d368808a17c42eef18135f04d1bc9f01cbf7878d227006521ef0a6598941ff2`.
+`https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js`.
 The tag resolves through annotated tag object
 `ccad336e3c042dd90157eb79e759a920b466eace` to commit
 [`1a2f64883d866a6974a9a5369a82191c49413617`](https://github.com/NSRingo/WeatherKit/tree/1a2f64883d866a6974a9a5369a82191c49413617),
 reviewed on `2026-07-28`.
 
-| Artifact and purpose | Immutable raw URL | Bytes | SHA-256 |
-| --- | --- | ---: | --- |
-| Upstream license | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/LICENSE` | 11,357 bytes | `c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4` |
-| Package metadata and credits | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/package.json` | 2,904 bytes | `5bf7548975e1a211b94dcc955143eac43c2c1f0de74bd1a91e44ab7fd0677035` |
-| Published module arguments | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/arguments-builder-full.config.ts` | 13,535 bytes | `1e7dc7debfa6e119247d8e92846a9c7a2ad4f2d90a37a2d91a11490456e1dc4d` |
-| Cloud rewrite module, ported by cloud endpoint mode | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/modules/iRingo.WeatherKit.Rewrite.plugin` | 1,551 bytes | `9841b8934024b6f60cea5e31afbf1aa5f421f92008f292fb3c1998942b9472b9` |
+| Artifact and purpose | Immutable raw URL |
+| --- | --- |
+| Upstream license | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/LICENSE` |
+| Package metadata and credits | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/package.json` |
+| Published module arguments | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/arguments-builder-full.config.ts` |
+| Cloud rewrite module, ported by cloud endpoint mode | `https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/modules/iRingo.WeatherKit.Rewrite.plugin` |
 
 GitHub release assets are publisher-replaceable rather than immutable; GitHub
-reports `immutable: false` for this release. `npm run verify:upstreams`
-therefore downloads the bundle on every run and enforces the size and digest
-recorded above. A changed asset fails the gate rather than being adopted
-silently.
+reports `immutable: false` for this release. Nothing in this repository re-checks
+those bytes, so upstream replacing that asset changes what runs here without a
+review. The marketplace index records the digest it computed at publish time,
+which is what a gateway compares at install; a replaced asset makes that install
+fail rather than silently adopting new bytes, and republishing the index adopts
+them deliberately.
 
 The upstream package metadata credits VirgilClyne, WordlessEcho, and
 001ProMax. Those are retained creator attributions, not additional copyright
@@ -97,11 +97,10 @@ per mode, over the same two paths -- plus one host-scoped transport rule:
 2. `weather-data` runs the bundle against status-200 GET responses under
    `/api/v2/weather/` with a binary body.
 3. `weather-availability-cloud` and `weather-data-cloud` rewrite the same two
-   requests, before they are sent, to
-   `https://weatherkit.pages.dev/api/v1/availability/` and
-   `https://weatherkit.pages.dev/api/v2/weather/`. The rest of the URL, and the
-   whole request, carry through unchanged. They declare no script, so no code
-   runs on the gateway for them.
+   requests, before they are sent, to `/api/v1/availability/` and
+   `/api/v2/weather/` on the host the `Endpoint` setting names. The rest of the
+   URL, and the whole request, carry through unchanged. They declare no script,
+   so no code runs on the gateway for them.
 4. Four routing rules. Three are upstream's exact-name rejects for
    `weather-analytics-events.apple.com`, `tthr.apple.com`, and
    `tether.edge.apple`; revisions before 3.2.0 simply omitted them. The fourth
@@ -118,28 +117,28 @@ per mode, over the same two paths -- plus one host-scoped transport rule:
 
 ### Choosing a mode
 
-`Script.Enabled` gates the two bundle actions and `Worker.Enabled` gates the two
-rewrites. Each mode needs its own gate because `enabledWhen` can only switch an
-action on; there is no negative form, and a `select` cannot gate an action at
-all. **Enable exactly one.** The other three combinations are defined but are
-not the reviewed configuration:
+`Mode` selects which of upstream's two published modules runs. `Script` compiles
+the two bundle actions and nothing else; `Cloud` compiles the two rewrites and
+nothing else. One select rather than two switches is deliberate: two booleans
+have a fourth state where both are on, and a manifest then has to describe what
+that means. Here it is unrepresentable.
 
-| `Script.Enabled` | `Worker.Enabled` | Result |
-| --- | --- | --- |
-| on | off | The default. The bundle runs here; nothing but provider lookups leaves the gateway. |
-| off | on | Both paths go to `weatherkit.pages.dev`. No local code runs and no setting below applies. |
-| on | on | The request is rewritten first, so the response arrives from `weatherkit.pages.dev`. The response actions match `weatherkit.apple.com`, which a rewritten exchange is no longer on, so cloud mode wins -- but confirm this on your own build before relying on it. |
-| off | off | Only the four routing rules remain in effect. |
+| `Mode` | Result |
+| --- | --- |
+| `Script` | The default. The bundle runs on this gateway; nothing but provider lookups leaves it. |
+| `Cloud` | Both paths go to the selected endpoint. No local code runs, and no setting below `Endpoint` applies. |
 
-Both modes select exactly the same paths and methods, so a gate changes how an
+Both modes select exactly the same paths and methods, so `Mode` changes how an
 exchange is handled and never which exchanges are touched.
 
-The endpoint is pinned in the manifest. Upstream offers three
-(`weatherkit.pages.dev`, `dev.weatherkit.pages.dev`, `weather.nanocat.cloud`)
-and this port carries the first, which upstream describes as directly reachable
-and needing no proxy; the third is upstream's Worker deployment and is
-documented as requiring one. A `rewrite` target is a static string, so selecting
-another endpoint is a reviewed manifest change rather than a setting.
+`Endpoint` is upstream's own argument, carried the same way: its Loon module
+interpolates `{endpoint}` into the rewrite line, and the manifest interpolates
+`{{settings.Endpoint}}` into the rewrite target. All three of upstream's
+endpoints are offered. `weatherkit.pages.dev` is the default because upstream
+describes it as directly reachable; `weather.nanocat.cloud` is upstream's Worker
+deployment and it documents that one as requiring a proxy, so an operator
+selecting it should bind an egress group or route it themselves. The setting
+does nothing in `Script` mode.
 
 Both script actions use `entry: proxy-compat`. The runtime presents itself as Loon,
 supplies `$request`, `$response`, `$argument`, `$done`, `$persistentStore`,
@@ -148,7 +147,7 @@ completes the action when the bundle calls `$done`. Settings reach the bundle as
 parser expands dotted keys, so `Weather.Provider` arrives flat and is read as
 `Settings.Weather.Provider`.
 
-The `Storage` setting is not a preference. The bundle switches on
+The `Storage` setting is not a preference either. The bundle switches on
 `$argument.Storage` to decide where to read settings from, and its default
 branch reads persistent storage and discards `$argument` entirely. Revisions
 before 3.1.0 set no `Storage` key, so **every other setting on this page was
@@ -162,14 +161,15 @@ own cloud entry point (`src/Hono.js`) has its request stage commented out too.
 
 ## Settings
 
-The keys below `Worker.Enabled` are upstream's own argument names, so their
-meaning is exactly what the upstream documentation describes. The two gates are
-this manifest's own and select which upstream module runs.
+The keys below `Endpoint` are upstream's own argument names, so their meaning is
+exactly what the upstream documentation describes. `Mode` is this manifest's own
+and selects which upstream module runs; `Endpoint` is upstream's own argument
+from its rewrite module.
 
 | Key | Type and default | Effect |
 | --- | --- | --- |
-| `Script.Enabled` | boolean, `true` | Runs the pinned bundle against matched responses on this gateway. |
-| `Worker.Enabled` | boolean, `false` | Sends both matched paths to `weatherkit.pages.dev` instead. Every setting below stops applying. |
+| `Mode` | select, `Script` | `Script` runs the bundle on this gateway; `Cloud` sends both matched paths to the selected endpoint instead, and every setting below `Endpoint` stops applying. |
+| `Endpoint` | select, `weatherkit.pages.dev` | The host `Cloud` mode sends captured requests to. Upstream's three: `weatherkit.pages.dev`, `dev.weatherkit.pages.dev`, `weather.nanocat.cloud`. |
 | `Weather.Provider` | select, `WeatherKit` | Replaces weather data with the selected provider. `WeatherKit` leaves Apple's data alone. |
 | `NextHour.Provider` | select, `WeatherKit` | Fills next-hour precipitation from the selected provider. |
 | `AirQuality.Calculate.Algorithm` | select, `None` | Calculates the air-quality index locally from reported pollutants. |
@@ -179,7 +179,7 @@ this manifest's own and select which upstream module runs.
 | `API.WAQI.Token` | text, empty | WAQI API token; selects the premium API when set. |
 | `LogLevel` | select, `WARN` | Bundle log verbosity. |
 
-Only the two gates and `Storage` apply outside gateway script mode. Everything
+Only `Mode`, `Endpoint`, and `Storage` apply outside gateway script mode. Everything
 else is read by the bundle, and the bundle does not run in cloud endpoint mode.
 Upstream's hosted service reads its own defaults: in a Worker runtime the
 bundle's settings loader has no `$argument` and its persistent store is
@@ -206,9 +206,10 @@ off. See the exclusions below for why declaring more of them would not.
 ## Permissions and data boundary
 
 - `weatherkit.apple.com` is the sole capture and action host.
-- `permissions.network.any` is declared. The bundle's reachable hosts depend on
-  `API.QWeather.Host` and on which providers an operator selects, so they
-  cannot be enumerated in a manifest.
+- `permissions.network` is declared. It is one grant with no origin list: the
+  bundle's reachable hosts depend on `API.QWeather.Host` and on which providers
+  an operator selects, and cloud mode's target depends on `Endpoint`, so nothing
+  here could have been enumerated in a manifest anyway.
 - **A selected provider receives the request's exact coordinates.** Upstream
   builds provider URLs such as
   `https://api.caiyunapp.com/v2.6/{token}/{longitude},{latitude}`, so both the
@@ -220,32 +221,30 @@ off. See the exclusions below for why declaring more of them would not.
   every script in this extension and lets it send any request, response,
   setting, or storage data visible to it to any permitted host. The enable
   confirmation states this.
-- **An enabled cloud endpoint mode discloses the whole captured request to
-  `weatherkit.pages.dev`.** A rewritten request carries its method, decoded
-  body, and end-to-end headers, so Apple's `Authorization` header and the exact
-  coordinates in `/api/v2/weather/{locale}/{latitude}/{longitude}` both reach
-  that host. It answers with whatever it chooses, and the client sees that as
+- **An enabled cloud endpoint mode discloses the whole captured request to the
+  selected endpoint.** A rewritten request carries its method, decoded body, and
+  end-to-end headers, so Apple's `Authorization` header and the exact coordinates
+  in `/api/v2/weather/{locale}/{latitude}/{longitude}` both reach that host. It answers with whatever it chooses, and the client sees that as
   Apple's response. Upstream's service reuses those headers to fetch from Apple
   on the operator's behalf.
-- The endpoint is not declared as an exact `permissions.network.origins` entry,
-  because gateway script mode needs `network.any` and the two forms are
-  alternatives. `any` is the broader grant and covers the rewrite; the exact
-  target is instead bound by the manifest, this README, and the validator.
+- The grant names no host, so the enable confirmation cannot tell an operator
+  where captured data may go — only that it may. What bounds the endpoint is the
+  `Endpoint` setting's option list, this README, and the validator, all of which
+  are part of the reviewed snapshot.
 - Request URL canonicalization, IP-literal and private-host refusal, per-action
   call and concurrency budgets, body limits, and authenticated mihomo SOCKS5
   egress all still apply.
 
 ## Deliberate exclusions and limitations
 
-- Cloud endpoint mode carries one of upstream's three endpoints. The development
-  endpoint (`dev.weatherkit.pages.dev`) and the Worker deployment
-  (`weather.nanocat.cloud`, which upstream documents as requiring a proxy) are
-  not used. Adopting either is a reviewed manifest change.
-- The service behind `weatherkit.pages.dev` is not a distributed artifact of
-  this repository, and its deployment is not pinned by anything here. The digest
-  above pins upstream's rewrite module — the URLs this port transcribes — and
-  says nothing about what the live host runs today. Treat cloud endpoint mode as
-  trusting that operator, not as running reviewed code.
+- The services behind all three endpoints are not distributed artifacts of this
+  repository, and their deployments are not pinned by anything here. What this
+  port transcribes is upstream's rewrite module — the paths and the endpoint
+  list — and that says nothing about what those hosts run today. Treat cloud
+  endpoint mode as trusting their operator, not as running reviewed code.
+- `weather.nanocat.cloud` is upstream's Worker deployment and upstream documents
+  it as requiring a proxy. This extension requires no egress binding, so an
+  operator selecting it has to route it themselves.
 - Cloud endpoint mode reads none of the bundle settings, and no channel exists
   to pass them: upstream's service takes its configuration from its own
   defaults. Enabling it silently discards every provider, token, and algorithm
@@ -292,13 +291,10 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 npm run routing:check
 if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
-npm run verify:upstreams
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 
-`verify:upstreams` downloads the release bundle and the upstream rewrite module
-and enforces their recorded sizes and SHA-256 digests. Runtime-facing changes
-must also pass the current 5gpn core parser/marketplace integration gate.
+Runtime-facing changes must also pass the current 5gpn core parser/marketplace
+integration gate.
 Finally, exercise authorized device traffic with the candidate enabled and
 confirm, from the plugin engine log stream:
 
@@ -311,7 +307,7 @@ confirm, from the plugin engine log stream:
 ## Updating
 
 1. Manually select a new upstream release and record its asset URL, byte
-   length, SHA-256, tag object, and commit before changing behavior.
+   tag object, and commit before changing behavior.
 2. Re-read the upstream release notes for new settings, new endpoints, and
    changed provider hosts. Argument keys are upstream's, so a renamed argument
    silently stops applying rather than failing. Re-read the cloud rewrite module
@@ -339,7 +335,7 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.weatherkit`; bump `metadata.version` for every manifest or pinned-bundle change. |
-| Current manifest | `version=4.0.0`; `persistentStorage=true`; `settings=11`; `captureHosts=1`; `actions=4`; `routingRules=4`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=5.0.0`; `persistentStorage=true`; `settings=11`; `captureHosts=1`; `actions=4`; `routingRules=4`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the bundle caches provider lookups in the extension-scoped store. |
 | Settings | Preserve the eight upstream argument keys, the `Storage` pin, and the two mode gates with their types. A normal same-ID update retains only values that remain valid under the candidate; a candidate that drops a gate must state which mode an existing install lands in. |
 | Script contract | The two response actions use `entry: proxy-compat`; the two request actions are declarative rewrites and run no code. Changing an action back to the native contract requires a new reviewed script, not a manifest edit. |

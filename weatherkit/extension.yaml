@@ -4,13 +4,12 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Enhancer
-  version: 4.0.0
+  version: 5.0.0
   description: Runs the reviewed NSRingo WeatherKit release bundle on the gateway, or sends the same two paths to the reviewed upstream cloud endpoint.
 
 permissions:
   persistentStorage: true
-  network:
-    any: true
+  network: true
 
 traffic:
   captureHosts:
@@ -30,22 +29,29 @@ traffic:
 settings:
   # Upstream publishes the same two paths twice: a release module that runs the
   # bundle in the client, and a repository module that rewrites both paths to a
-  # cloud endpoint and runs nothing locally. Both are carried here, and each
-  # owns its own gate because `enabledWhen` can only switch an action on. Enable
-  # exactly one. Every setting below the gates belongs to the bundle, so cloud
+  # cloud endpoint and runs nothing locally. Both are carried here, and one
+  # select chooses between them -- two booleans could each be switched on, and
+  # this cannot. Every setting below Endpoint belongs to the bundle, so cloud
   # mode reads none of them.
-  - key: Script.Enabled
-    type: boolean
-    label: Gateway script mode
-    description: Runs the pinned upstream bundle against matched responses on this gateway. This is the reviewed default. Turn it off before turning on cloud mode.
+  - key: Mode
+    type: select
+    label: Where the transformation happens
+    description: Script runs the pinned upstream bundle on this gateway. Cloud sends both matched paths to the selected endpoint, which fetches from Apple and transforms the response there.
     required: true
-    default: true
-  - key: Worker.Enabled
-    type: boolean
-    label: Cloud endpoint mode
-    description: Sends both matched paths to weatherkit.pages.dev, which fetches from Apple and transforms the response there. The request's headers, including Apple's authorization, and its exact coordinates go to that third-party host, and every setting below stops applying.
+    options:
+      - Script
+      - Cloud
+    default: Script
+  - key: Endpoint
+    type: select
+    label: Cloud endpoint
+    description: The host cloud mode sends captured requests to. It receives the request's headers, including Apple's authorization, and the exact coordinates in the path. Unused in Script mode.
     required: true
-    default: false
+    options:
+      - weatherkit.pages.dev
+      - dev.weatherkit.pages.dev
+      - weather.nanocat.cloud
+    default: weatherkit.pages.dev
   # The bundle only merges $argument into its settings when this says so. Its
   # switch defaults to reading persistent storage and ignoring $argument
   # entirely, which is what every setting below was doing until this was added.
@@ -130,7 +136,9 @@ actions:
   # declares, running the pinned bundle here.
   - id: weather-availability
     phase: response
-    enabledWhen: Script.Enabled
+    enabledWhen:
+      key: Mode
+      equals: Script
     match:
       hosts:
         - weatherkit.apple.com
@@ -148,7 +156,9 @@ actions:
       maxBodyBytes: 65536
   - id: weather-data
     phase: response
-    enabledWhen: Script.Enabled
+    enabledWhen:
+      key: Mode
+      equals: Script
     match:
       hosts:
         - weatherkit.apple.com
@@ -167,13 +177,16 @@ actions:
       timeoutMs: 25000
       maxBodyBytes: 16777216
   # Cloud endpoint mode: the two URL rewrites the upstream Rewrite module
-  # declares, transcribed to the one endpoint it calls directly reachable. No
-  # script runs, on the gateway or in the client, and the response this
-  # extension sees is whatever that host returns. The matchers are the script
-  # actions' own, so both modes cover exactly the same traffic.
+  # declares, with its endpoint argument carried as a setting the same way Loon
+  # interpolates {endpoint} into the rewrite line. No script runs, on the gateway
+  # or in the client, and the response this extension sees is whatever that host
+  # returns. The matchers are the script actions' own, so both modes cover
+  # exactly the same traffic and Mode changes only how it is handled.
   - id: weather-availability-cloud
     phase: request
-    enabledWhen: Worker.Enabled
+    enabledWhen:
+      key: Mode
+      equals: Cloud
     match:
       hosts:
         - weatherkit.apple.com
@@ -184,13 +197,15 @@ actions:
     script:
       rewrite:
         pattern: '^https?://weatherkit\.apple\.com/api/v1/availability/(.*)$'
-        to: https://weatherkit.pages.dev/api/v1/availability/$1
+        to: https://{{settings.Endpoint}}/api/v1/availability/$1
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 65536
   - id: weather-data-cloud
     phase: request
-    enabledWhen: Worker.Enabled
+    enabledWhen:
+      key: Mode
+      equals: Cloud
     match:
       hosts:
         - weatherkit.apple.com
@@ -203,7 +218,7 @@ actions:
     script:
       rewrite:
         pattern: '^https?://weatherkit\.apple\.com/api/v2/weather/(.*)$'
-        to: https://weatherkit.pages.dev/api/v2/weather/$1
+        to: https://{{settings.Endpoint}}/api/v2/weather/$1
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 65536
