@@ -5,8 +5,6 @@ import path from 'node:path'
 import { parseDocument } from 'yaml'
 
 const root = path.resolve(import.meta.dirname, '..')
-const checkOnly = process.argv.length === 3 && process.argv[2] === '--check'
-if (process.argv.length > (checkOnly ? 3 : 2)) throw new Error('usage: node scripts/sync-routing-rules.mjs [--check]')
 
 const sources = {
   'ad-platform-blocker': {
@@ -357,42 +355,58 @@ function reviewedHTTPDNSPaths(text, source) {
   }
 }
 
-for (const [name, source] of Object.entries(sources)) {
-  const response = await fetch(source.url)
-  if (!response.ok) throw new Error(`${name}: fetch failed: ${response.status}`)
-  const bytes = new Uint8Array(await response.arrayBuffer())
-  const digest = createHash('sha256').update(bytes).digest('hex')
-  if (digest !== source.sha256) throw new Error(`${name}: source digest changed`)
-  const rules = normalizedRules(name, new TextDecoder().decode(bytes))
-  const manifestPath = path.join(root, name, 'extension.yaml')
-  const document = parseDocument(await readFile(manifestPath, 'utf8'), { strict: true, uniqueKeys: true })
-  if (document.errors.length) throw new Error(`${name}: ${document.errors.join('; ')}`)
-  document.setIn(['metadata', 'version'], source.version)
-  document.setIn(['traffic', 'routingRules'], rules)
-  let detail = `${rules.length} reviewed routing rules`
-  if (name === 'ad-platform-blocker') {
-    const pathActions = reviewedAdPaths(new TextDecoder().decode(bytes))
-    const actions = pathActions
-    const captureHosts = adCaptureHosts(rules, actions)
-    document.setIn(['traffic', 'captureHosts'], captureHosts)
-    document.setIn(['actions'], actions)
-    detail += `, ${captureHosts.length} capture hosts, and ${pathActions.length} path actions; host-wide blocking is owned by the typed routing rules`
-  } else if (name === 'httpdns-interceptor') {
-    const pathReview = reviewedHTTPDNSPaths(new TextDecoder().decode(bytes), source)
-    const routeHosts = rules.flatMap((rule) => rule.domain === undefined ? [] : [rule.domain])
-    const actionHosts = pathReview.actions.flatMap((action) => action.match.hosts)
-    const captureHosts = [...new Set([...routeHosts, ...actionHosts])].sort()
-    document.setIn(['traffic', 'captureHosts'], captureHosts)
-    document.setIn(['actions'], pathReview.actions)
-    detail += `, ${captureHosts.length} capture hosts, ${pathReview.actions.length} path actions, ${pathReview.excludedIPAddressPathRules} excluded IP-address-form path rules, and ${pathReview.inertPathLines} inert source lines`
+// The reviewed action tables are exported so `npm test` can assert the two
+// generated manifests against them without network access. Rendering a manifest
+// needs the upstream bytes; deciding what its actions should be does not, and
+// that is the half a hand edit breaks. Keeping the offline half in `npm test`
+// means a hand-edited action fails on the machine that made the edit, rather
+// than in the CI step that runs after it.
+export { httpdnsPathActions, adPathActions, resolveBlockActions }
+
+async function syncRoutingRules(checkOnly) {
+  for (const [name, source] of Object.entries(sources)) {
+    const response = await fetch(source.url)
+    if (!response.ok) throw new Error(`${name}: fetch failed: ${response.status}`)
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    const digest = createHash('sha256').update(bytes).digest('hex')
+    if (digest !== source.sha256) throw new Error(`${name}: source digest changed`)
+    const rules = normalizedRules(name, new TextDecoder().decode(bytes))
+    const manifestPath = path.join(root, name, 'extension.yaml')
+    const document = parseDocument(await readFile(manifestPath, 'utf8'), { strict: true, uniqueKeys: true })
+    if (document.errors.length) throw new Error(`${name}: ${document.errors.join('; ')}`)
+    document.setIn(['metadata', 'version'], source.version)
+    document.setIn(['traffic', 'routingRules'], rules)
+    let detail = `${rules.length} reviewed routing rules`
+    if (name === 'ad-platform-blocker') {
+      const pathActions = reviewedAdPaths(new TextDecoder().decode(bytes))
+      const actions = pathActions
+      const captureHosts = adCaptureHosts(rules, actions)
+      document.setIn(['traffic', 'captureHosts'], captureHosts)
+      document.setIn(['actions'], actions)
+      detail += `, ${captureHosts.length} capture hosts, and ${pathActions.length} path actions; host-wide blocking is owned by the typed routing rules`
+    } else if (name === 'httpdns-interceptor') {
+      const pathReview = reviewedHTTPDNSPaths(new TextDecoder().decode(bytes), source)
+      const routeHosts = rules.flatMap((rule) => rule.domain === undefined ? [] : [rule.domain])
+      const actionHosts = pathReview.actions.flatMap((action) => action.match.hosts)
+      const captureHosts = [...new Set([...routeHosts, ...actionHosts])].sort()
+      document.setIn(['traffic', 'captureHosts'], captureHosts)
+      document.setIn(['actions'], pathReview.actions)
+      detail += `, ${captureHosts.length} capture hosts, ${pathReview.actions.length} path actions, ${pathReview.excludedIPAddressPathRules} excluded IP-address-form path rules, and ${pathReview.inertPathLines} inert source lines`
+    }
+    const rendered = String(document)
+    if (checkOnly) {
+      const current = await readFile(manifestPath, 'utf8')
+      if (current !== rendered) throw new Error(`${name}: manifest routing rules are not synchronized`)
+      console.log(`${name}: verified ${detail}`)
+    } else {
+      await writeFile(manifestPath, rendered, 'utf8')
+      console.log(`${name}: synchronized ${detail}`)
+    }
   }
-  const rendered = String(document)
-  if (checkOnly) {
-    const current = await readFile(manifestPath, 'utf8')
-    if (current !== rendered) throw new Error(`${name}: manifest routing rules are not synchronized`)
-    console.log(`${name}: verified ${detail}`)
-  } else {
-    await writeFile(manifestPath, rendered, 'utf8')
-    console.log(`${name}: synchronized ${detail}`)
-  }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {
+  const checkOnly = process.argv.length === 3 && process.argv[2] === '--check'
+  if (process.argv.length > (checkOnly ? 3 : 2)) throw new Error('usage: node scripts/sync-routing-rules.mjs [--check]')
+  await syncRoutingRules(checkOnly)
 }

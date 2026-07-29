@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parse } from 'yaml'
+import { adPathActions, resolveBlockActions } from '../scripts/sync-routing-rules.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'ad-platform-blocker', 'extension.yaml'), 'utf8'))
@@ -10,6 +11,15 @@ const readme = await readFile(path.join(root, 'ad-platform-blocker', 'README.md'
 const captureHosts = manifest.traffic.captureHosts
 const routingRules = manifest.traffic.routingRules
 const pathActions = manifest.actions
+
+// This manifest is generated; see the note in tests/httpdns-fixtures.mjs. The
+// offline half of `npm run routing:check` is asserted here so a hand-edited
+// action fails in `npm test` rather than in the later CI step.
+assert.deepEqual(
+  pathActions,
+  resolveBlockActions(adPathActions),
+  'ad-platform-blocker actions were edited by hand; change scripts/sync-routing-rules.mjs and re-run it instead',
+)
 
 function coveredBySuffixes(host, suffixes) {
   return suffixes.some((suffix) => host === suffix || host.endsWith(`.${suffix}`))
