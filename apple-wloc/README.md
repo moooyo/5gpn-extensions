@@ -181,30 +181,29 @@ upstream revision. Upstream selection remains a manual review decision.
 | --- | --- |
 | Identity | Keep `io.5gpn.apple-wloc`; bump `metadata.version` for every immutable manifest or script change. |
 | Current manifest | `version=2.0.0`; `persistentStorage=true`; `settings=4`; `captureHosts=2`; `actions=2`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
-| State class | Stateful. `persistentStorage` is false. |
-| Settings | Keep `location` as a required `location` value and `failClosed` as a required boolean whenever possible. Valid same-key, same-type values survive a normal update. |
-| Sensitive values | Record whether `location` is complete, but never copy its coordinates into a migration record, issue, or log. |
-| Reviewed capability baseline | Two capture hosts, one response action, no network origins, routing rules, upstream mappings, or required egress binding. |
-| Current migration baseline | Version `1.1.1` changed repeated Wi-Fi identifier field 1 to use the last declaration, matching upstream singular-field behavior; the previous `1.1.0` used the first declaration. |
-| Operator state | A normal same-ID update retains valid settings, `capture_dns`, and execution position. There is no egress binding. Record presence, not sensitive coordinates. |
-| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
+| State class | Stateful. `persistentStorage` is true: the picker page's saved coordinate lives in extension-scoped storage. |
+| Settings | Keep `longitude`, `latitude`, and `accuracy` as required text values and `logLevel` as a required select, matching the upstream `[Argument]` block. Valid same-key, same-type values survive a normal update. |
+| Sensitive values | Record whether each coordinate setting is complete, but never copy its value into a migration record, issue, or log. The same applies to a coordinate saved through the picker. |
+| Reviewed capability baseline | Two capture hosts, two proxy-compat actions (one response rewrite and one request settings-save), four settings, persistent storage, and no network origins, routing rules, upstream mappings, or required egress binding. |
+| Current migration baseline | Version `2.0.0` replaced the `FFF686868/proxypin-wloc-spoofer` port with the `Yu9191/wloc` proxy-client modules. The typed `location` setting and the local `failClosed` behavior were removed with the parser that backed them; see "What changed, and why" above. |
+| Operator state | A normal same-ID update retains valid settings, stored picker coordinates, `capture_dns`, and execution position. There is no egress binding. Record presence, not sensitive coordinates. |
+| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. Reverting below `2.0.0` reintroduces the `location`/`failClosed` settings contract and drops the picker, so the operator must re-enter coordinates. |
 
 ### Repeatable migration
 
-1. Complete the playbook record for the transformer, ProxyPin import manifest,
-   license, both settings, two hosts, action matcher, body limits, and native
-   safety differences.
-2. Diff binary framing, protobuf field traversal, coordinate encoding, partial
-   malformed-entry behavior, and gzip/runtime assumptions independently. Do
-   not import the upstream picker, session state, ProxyPin APIs, or bundled
-   dependencies.
-3. Refresh all three upstream artifacts, local manifest and script digests,
+1. Complete the playbook record for both upstream transformers, the Loon plugin
+   that supplies the arguments, the absent upstream license, the four settings,
+   two hosts, action matchers, and body limits.
+2. Diff the `[Argument]` block, the `[MITM]` hostname list, both `script-path`
+   entries, and the picker's save path independently. Do not vendor the
+   upstream scripts or the picker page; both are fetched from immutable URLs.
+3. Refresh all three upstream artifacts, their recorded sizes and digests,
    source attribution, `THIRD_PARTY_NOTICES.md`, `REUSE.toml`, validator pins,
    fixtures, and `metadata.version` together.
 4. If a setting key or type changes, or a retained value no longer passes the
    candidate validation boundary, document that the operator must re-enter the
-   value before enable. A new install or emergency reinstall always requires a
-   new location selection.
+   value before enable. A new install or emergency reinstall always requires
+   re-entering the coordinates.
 5. Apply the candidate while disabled, confirm the retained setting presence,
    review the exact two-host boundary, and test authorized WLOC traffic before
    enabling it more broadly. Use a disposable non-sensitive test location and
@@ -212,14 +211,13 @@ upstream revision. Upstream selection remains a manual review decision.
 
 ### Rollback
 
-The publisher prepares a same-ID revert-forward candidate that restores the baseline framing,
-field mapping, settings contract, host boundary, and failure behavior with a
+The publisher prepares a same-ID revert-forward candidate that restores the baseline
+settings contract, host boundary, and action matchers with a
 new incremented version higher than the failing candidate. Apply it while
-disabled and confirm that both settings remain
-valid before running the baseline positive, malformed, signed-coordinate, and
-no-op fixtures. Emergency reinstall from an old immutable manifest is safe for
-extension data because this extension is stateless, but it loses the configured
-location, `failClosed`, `capture_dns`, execution position, and source identity;
+disabled and confirm that all four settings remain
+valid before re-testing authorized WLOC traffic. Emergency reinstall from an old
+immutable manifest loses the coordinate saved through the picker along with the
+configured settings, `capture_dns`, execution position, and source identity;
 reconfigure them before enable.
 
 ## Verification

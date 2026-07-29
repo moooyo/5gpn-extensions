@@ -8,7 +8,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'httpdns-interceptor', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.httpdns-interceptor')
-assert.equal(manifest.metadata.version, '2.2.0')
+assert.equal(manifest.metadata.version, '2.3.0')
 assert.deepEqual(manifest.permissions, { persistentStorage: false })
 assert.equal(manifest.settings, undefined)
 assert.equal(manifest.requirements, undefined)
@@ -24,8 +24,25 @@ assert(manifest.traffic.routingRules.every((rule) => rule.action === 'reject'))
 
 // Declarative rejection: these seven actions used to share a 57-byte script
 // whose whole body was `return { abort: true }`.
+//
+// The two spellings are not interchangeable. Loon's `reject` closes the
+// connection; its `reject-dict` answers 200 with the empty JSON object. The
+// five upstream `reject` directives therefore carry `reject: true`, and the two
+// `reject-dict` directives carry the mock that reproduces their reply. Both
+// forms were previously the abort, which is why this fixture pins which action
+// gets which.
 const script = {
   reject: true,
+  bodyMode: 'none',
+  timeoutMs: 200,
+  maxBodyBytes: 1024,
+}
+const dictScript = {
+  mock: {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  },
   bodyMode: 'none',
   timeoutMs: 200,
   maxBodyBytes: 1024,
@@ -59,13 +76,13 @@ const expectedActions = [
     id: 'block-mail-httpdns-config',
     phase: 'request',
     match: { hosts: ['appconf.mail.163.com'], schemes: ['http', 'https'], pathRegex: String.raw`^/mailmaster/api/http/urlConfig\.do$` },
-    script,
+    script: dictScript,
   },
   {
     id: 'block-91160-httpdns-broker',
     phase: 'request',
     match: { hosts: ['msglb.91160.com'], schemes: ['https'], pathRegex: '^/msg/outer/broker/get$' },
-    script,
+    script: dictScript,
   },
   {
     id: 'block-ximalaya-httpdns-linkeye',

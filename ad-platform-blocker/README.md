@@ -18,7 +18,8 @@ This public raw URL is installable directly. For a private fork, use the Console
 Enabling it requests interception for the 277 hosts in `traffic.captureHosts`
 and activates 201 reviewed typed routing rules. It has no settings, persistent
 storage, network origins, upstream mappings, or egress-group requirement. The
-three Pinduoduo path actions return `{ abort: true }` without reading a body.
+three Pinduoduo path actions declare `reject` and run no code at all: a matched
+request is aborted before it is sent upstream, without reading a body.
 Host-wide blocking is owned exclusively by the typed routing rules, which run
 before capture and may `REJECT` or use the pinned narrow `DIRECT` exceptions.
 
@@ -52,8 +53,8 @@ translation was corrected, not because the upstream LPX bytes changed.
 
 This native extension is adapted material from the pinned
 `mihoyo-typ/KeleeOne` `Plugin/BlockAdvertisers.lpx` snapshot. The adaptation
-changes the Loon LPX rules into a strict `5gpn.io/v1` manifest and native
-request-abort script, explicitly acquires every bounded domain selector, and
+changes the Loon LPX rules into a strict `5gpn.io/v1` manifest and declarative
+`reject` actions, explicitly acquires every bounded domain selector, and
 splits the Pinduoduo URL rejects into host-specific RE2 actions.
 
 The upstream is licensed under

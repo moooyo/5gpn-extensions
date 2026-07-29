@@ -4,9 +4,9 @@ kind: Extension
 metadata:
   id: io.5gpn.httpdns-interceptor
   name: HTTPDNS Interceptor
-  version: 2.2.0
+  version: 2.3.0
   description: DNS-steers 58 HTTPDNS domains and rejects 59 gateway-visible
-    IP/CIDR routes plus seven hostname-based request paths.
+    IP/CIDR routes, and blocks seven hostname-based request paths.
 
 permissions:
   persistentStorage: false
@@ -377,7 +377,11 @@ actions:
         - https
       pathRegex: ^/mailmaster/api/http/urlConfig\.do$
     script:
-      reject: true
+      mock:
+        status: 200
+        headers:
+          Content-Type: application/json
+        body: '{}'
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024
@@ -390,7 +394,11 @@ actions:
         - https
       pathRegex: ^/msg/outer/broker/get$
     script:
-      reject: true
+      mock:
+        status: 200
+        headers:
+          Content-Type: application/json
+        body: '{}'
       bodyMode: none
       timeoutMs: 200
       maxBodyBytes: 1024

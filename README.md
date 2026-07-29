@@ -15,7 +15,7 @@ operator egress requirement before enabling it.
 | `ad-platform-blocker` | Acquire bounded selectors and block 201 reviewed advertising-platform routes | CC BY-NC-SA 4.0 |
 | `apple-wloc` | Rewrite Apple WLOC responses to an operator-selected point | MIT |
 | `bilibili-cleaner` | Remove selected Bilibili ads and promotions | GPL-3.0-only |
-| `httpdns-interceptor` | Acquire 58 HTTPDNS domains; reject 59 gateway-visible CIDR routes and seven request paths | CC BY-NC-SA 4.0 |
+| `httpdns-interceptor` | Acquire 58 HTTPDNS domains; reject 59 gateway-visible CIDR routes and block seven request paths | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | Rewrite TestFlight storefront with operator-selected egress | CC BY-NC-SA 4.0 |
 | `weatherkit` | Control WeatherKit datasets, preserve availability, and normalize local air-quality data | Apache-2.0 |
 | `youtube-cleaner` | Clean YouTube responses and prepare the reviewed external Onesie playback path | Apache-2.0 |
@@ -123,8 +123,8 @@ update procedure, and verification steps.
 | Edit headers on a real message | `script.headers` | `set` and `remove` fields without replacing the body. Removal runs first. |
 | Send a request elsewhere | `script.rewrite` | Rewrites the URL in place, or answers 302/307. An in-place rewrite passes the same authorization a scripted one does, so a cross-origin target still needs a declared network origin. |
 | Edit body bytes | `script.replaceBody` | A regular expression and a replacement that may read `{{settings.key}}`, optionally resolved through a declared `valueMap`. Unlike `jq` it does not parse the document, so unmatched bytes survive exactly. |
-| Select on an autonomous system | `routingRules[].ipASN` | Compiles to mihomo's `IP-ASN` with `no-resolve`, alongside the domain, CIDR, network, and port selectors. |
-| Run a published proxy-client bundle | `script.entry: proxy-compat` | Loads a pinned upstream script under a Loon persona. See the contract below. |
+| Gate an action on a setting | `actions[].enabledWhen` | Names a required boolean setting of the same extension. When it is false the action is not compiled, so it never matches. Upstream plugin formats switch an entry on and off from outside the script, which is why a bundle carrying such a switch never reads the key that controls it. |
+| Run a published proxy-client bundle | `script.entry: proxy-compat` | Loads a pinned upstream script under a Loon persona. See [the contract below](#proxy-compat-contract). |
 | Read a body | `script.bodyMode` | `none`, UTF-8 `text`, or `binary` as `Uint8Array`, bounded by `maxBodyBytes`. |
 | Typed operator configuration | `settings[]` | `text`, `select`, `boolean`, `number`, and `location`; required values must be complete before enable. |
 | Persistent state | `permissions.persistentStorage: true` | Adds extension-scoped, quota-bound `context.storage`; scripts never choose a path or access the filesystem. |
@@ -217,7 +217,7 @@ script: { source: https://…/pinned.js, entry: proxy-compat, bodyMode: text, ..
 
 ### Script contract
 
-The fourth kind is a local script. It is still supported and still reviewed
+The seventh kind is a local script. It is still supported and still reviewed
 the same way, but nothing in this repository uses it. A script defines exactly
 one global entry point:
 
@@ -263,6 +263,44 @@ HTTP/1.1, HTTP/2, and HTTP/3.
 confirmed. Network responses contain `url`, `status`, `headers`, `trailers`, binary
 `body`, and `text` when the body is valid UTF-8. Redirects and non-2xx
 responses are returned to the script rather than silently followed.
+
+### Proxy-compat contract
+
+`script.entry: proxy-compat` runs a published proxy-client bundle unmodified.
+The runtime presents itself as **Loon**: `$loon` is defined, and the bundles
+that probe `$task`, `$loon`, `$rocket`, `Egern`, `$environment["surge-version"]`
+in that fixed order therefore take their Loon branch. No Surge, Quantumult X,
+or Egern global is defined, and `$environment` reports `loon-version` rather
+than `surge-version`.
+
+A bundle receives:
+
+```text
+$loon             the persona version string
+$environment      { "loon-version": … }
+$script           { startTime }
+$request          { url, method, headers, body? }
+$response         { status, headers, body }, undefined in the request phase
+$argument         the manifest's typed settings, as a decoded object
+$done(result)     completion; the first call wins
+$persistentStore  read(key) / write(value, key), with the storage permission
+$httpClient       get|post|put|delete|head|patch(options, cb), with network
+$utils            ungzip only; anything else stays absent so a bundle reaching
+                  for an unimplemented helper fails loudly
+$notification     post(...), recorded in the action's log budget rather than
+                  delivered, because the gateway has no channel for it
+```
+
+`$argument` is an **object**, not a serialized string, because that is what
+Loon hands a bundle. This is why settings, their types, and their defaults are
+derived from the upstream `[Argument]` block rather than from a Surge
+`#!arguments` line: Loon's is typed, so a declared `number` arrives as a
+number. A bundle that mis-parses `$argument` does not fail — it silently runs
+on its own defaults.
+
+An action completes when the bundle calls `$done`. One that never calls it runs
+to the action deadline and then fails. There is no module loader; bundles reach
+their `require` calls only on a Node.js branch this runtime never selects.
 
 ### Declaring optional permissions
 
