@@ -14,9 +14,14 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-
 
 This public raw URL is installable directly. For a private fork, use the Console's local-add/upload flow or an operator-controlled public HTTPS mirror; never embed repository credentials in an extension URL.
 
-Before enabling the extension, select the target storefront and bind an
-operator-owned mihomo egress group whose exit region is compatible with that
-storefront. The extension cannot name or change the selected group.
+Before enabling the extension, select the target storefront. The manifest no
+longer requires an egress binding, so the extension installs and runs with
+defaults; the storefront rewrite, however, only achieves a region unlock when
+the connection also leaves through a region compatible with that storefront.
+Bind an operator-owned mihomo egress group in a matching region, or route
+`testflight.apple.com` there by your own rules. Without one the rewrite still
+applies and Apple still sees your real exit region, so the unlock silently does
+nothing. The extension cannot name or change the selected group.
 
 ## Pinned upstream
 
@@ -41,7 +46,7 @@ The reviewed native snapshot is:
 
 | Item | Canonical value |
 | --- | --- |
-| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `a9116776c2cd37d21a2c4c99888821b87ad1bc504acb528a630a99f5edba16bf` |
+| Manifest | `testflight-region-unlock/extension.yaml` — SHA-256 `09e8c651cb4a5a47bd4d50fce3ee0abf46cae8c41c2a835ebeeee8ce84244c4b` |
 
 ## License and attribution
 
@@ -67,7 +72,7 @@ and was reverified on `2026-07-22`.
 
 | Upstream item | Native 5gpn mapping |
 | --- | --- |
-| `DOMAIN, testflight.apple.com, PROXY` | `traffic.captureHosts` contains only `testflight.apple.com`; `requirements.egressGroup.required` forces an explicit operator binding instead of naming `PROXY`. |
+| `DOMAIN, testflight.apple.com, PROXY` | `traffic.captureHosts` contains only `testflight.apple.com`. The native manifest cannot name `PROXY`, and as of revision 2.2.0 it no longer forces a binding either: the operator routes the host to a compatible region by binding a group or by their own rules. An unrouted install rewrites the storefront and exits from the real region, which is a silent no-op rather than a blocked one. |
 | Rewrite URL `^https?://testflight.apple.com/v\d/accounts/.+?/install$` | One request action matches only `testflight.apple.com`, HTTP or HTTPS, exactly one version digit, a non-empty account path, and no query string. Host and scheme are native matcher fields while the path expression preserves the pinned URL boundary. |
 | Exact `request-body-replace-regex` for `"storefrontId" : "dddddd-dd,dd",` | A `script.replaceBody` action applies the same kind of regular expression upstream does, so everything it does not match survives byte for byte, including key order and whitespace. The replacement reads the `storefront` setting through `{{settings.storefront}}` and resolves it through the action's `valueMap`, which is how a module that hard-codes one storefront becomes an extension whose operator chooses among ten. A body with no `storefrontId`, or a region absent from the map, is left untouched rather than having a value invented. Revision 2.0.0 substituted a jq program here, which parsed and re-serialized the body and normalized key order as a side effect. |
 | Hard-coded `143441-19,29` | The required typed `storefront` select defaults to `US`, preserving upstream behavior, and exposes a finite reviewed region map. |
@@ -121,7 +126,7 @@ The following native extensions are deliberate:
   reported when that happens: earlier revisions logged an already-correct value
   as an informational no-op, and a declarative action has no script to log
   from.
-- The upstream `PROXY` name becomes a required operator-owned egress binding;
+- The upstream `PROXY` name becomes an optional operator-owned egress binding;
   neither the manifest nor an action can select the group.
 
 ## Deliberately not ported and limitations
@@ -129,8 +134,9 @@ The following native extensions are deliberate:
 - Loon-only fields such as `openUrl`, `tag`, `homepage`, icon, minimum Loon
   version, and empty system constraints have no native runtime equivalent.
 - The upstream `PROXY` policy is not copied. Native extensions cannot select an
-  egress group; the operator must bind one before enable, and a missing binding
-  fails closed.
+  egress group. The manifest no longer requires one either, so an install with
+  no matching regional exit fails open: the rewrite applies, Apple sees the real
+  region, and the unlock quietly has no effect.
 - Only traffic for `testflight.apple.com` on the native interception ports 80
   and 443 is acquired. The extension does not alter DNS policy for other Apple
   hosts.
@@ -160,7 +166,7 @@ so there is no script with a view of the request at all.
 3. Diff the new file against the pinned source. Review metadata, `[Rule]`,
    `[Rewrite]`, and `[MitM]` independently.
 4. Map every behavioral change to strict native fields or to the jq program.
-   Keep every action host within `captureHosts`, keep the egress requirement
+   Keep every action host within `captureHosts`, keep the egress choice
    operator-owned, and document anything intentionally omitted.
 5. Recheck the storefront table if the replacement value or format changed.
    Bump `metadata.version` for any immutable manifest or script change.
@@ -209,10 +215,10 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.testflight-region-unlock`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=true`. |
+| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `networkOrigins=0`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | Preserve `storefront` as a `select` setting. A same-ID update retains its value only while the selected option remains valid. |
-| Reviewed capability baseline | One capture host, one request action, no network origins, upstream mappings, or routing rules, and a required operator egress binding. |
+| Reviewed capability baseline | One capture host, one request action, no network origins, upstream mappings, or routing rules, and no required operator egress binding. |
 | Operator state | A normal update retains the valid storefront, egress binding, `capture_dns`, and execution position; all must still be reviewed before enable. |
 | Ordering | Review every other extension that captures `testflight.apple.com`; the first bound extension owns egress and request actions execute in configured order. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
@@ -254,7 +260,8 @@ For each update:
    reviewed digest. Confirm that either path finishes disabled.
 2. Confirm the normalized capture-host list contains exactly
    `testflight.apple.com`, the network-origin list is empty, and the extension
-   is not ready until an egress group is bound.
+   enables without an egress binding while producing a real unlock only when
+   the host leaves through a storefront-compatible region.
 3. Exercise every storefront option with both the exact upstream body syntax
    and the documented native fallback, verifying that only the first value and
    the upstream-specified whitespace normalization change.
