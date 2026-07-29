@@ -186,9 +186,22 @@ bundle's settings loader has no `$argument` and its persistent store is
 per-request memory, so nothing an operator types here reaches it. Upstream's own
 rewrite module declares exactly one argument, the endpoint, for the same reason.
 
-Every provider default is the non-replacing value, so a freshly enabled
-extension makes no third-party request until an operator selects a source and
-supplies its token.
+Weather and next-hour replacement are provider-gated. `Weather.Provider` and
+`NextHour.Provider` both default to `WeatherKit`, and the bundle's switch on
+each takes an empty branch for that value, so neither path calls a third party
+until an operator selects one.
+
+Air quality is not gated that way, and a freshly enabled extension can reach a
+third party on its own. When the captured response carries no `pollutants`
+array, or an empty one, the bundle always fetches pollutants from a provider:
+QWeather when `AirQuality.Current.Pollutants.Provider` is `QWeather`, and
+ColorfulClouds in every other case, including the `ColorfulClouds` default this
+port leaves in place. An empty `API.ColorfulClouds.Token` does not prevent that
+call either, because the bundle substitutes a built-in token when the setting is
+empty. So the first `/api/v2/weather/` response whose air-quality dataset
+arrives without pollutants can reach ColorfulClouds, carrying the exact
+coordinates described below, and no setting this manifest declares turns that
+off. See the exclusions below for why declaring more of them would not.
 
 ## Permissions and data boundary
 
@@ -242,6 +255,27 @@ supplies its token.
   else, so settings come from the manifest rather than from a BoxJS-backed
   configuration source. See the settings note above for why it has to be
   declared at all.
+- Twelve of upstream's twenty-one argument keys are not declared: `DataSets`,
+  `Weather.Replace`, `AirQuality.Current.Pollutants.Provider`,
+  `AirQuality.Current.Pollutants.Units.Replace`,
+  `AirQuality.Current.Pollutants.Units.Mode`,
+  `AirQuality.Current.Index.Replace`, `AirQuality.Current.Index.Provider`,
+  `AirQuality.Current.Index.ForceCNPrimaryPollutants`,
+  `AirQuality.Comparison.ReplaceWhenCurrentChange`,
+  `AirQuality.Comparison.Yesterday.PollutantsProvider`,
+  `AirQuality.Comparison.Yesterday.IndexProvider`, and
+  `AirQuality.Calculate.AllowOverRange`. Each keeps the bundle's own default, so
+  the comparison paths that use them reach QWeather and ColorfulCloudsUS, and
+  the pollutants path reaches ColorfulClouds, as the settings section describes.
+- Declaring those keys would not give an operator a way to keep air quality on
+  the gateway, which is why the omission is recorded rather than fixed by adding
+  them. `AirQuality.Current.Pollutants.Provider` selects only between QWeather
+  and ColorfulClouds; the branch has no non-replacing value, unlike
+  `Weather.Provider`. `DataSets` cannot gate it either, because the bundle
+  dispatches on the `dataSets` query parameter of the captured request and reads
+  its `DataSets` setting only as a static flatbuffer root name. Keeping
+  air-quality traffic local would mean narrowing what the actions match, which is
+  a capability change and a separate reviewed decision.
 - No server-side entitlement is created. Apple can still refuse or omit a
   requested dataset.
 - The bundle is a remote asset. Its behavior can change with a new release, and
@@ -317,9 +351,10 @@ decision.
    storage, routing, and exact capability diffs.
 2. Verify the recorded bundle and rewrite-module digests before review, and
    again after applying.
-3. Exercise both bundle actions against authorized device traffic with every
-   provider left at its non-replacing default, then with one provider enabled,
+3. Exercise both bundle actions against authorized device traffic with the
+   declared providers left at their defaults, then with one provider enabled,
    and confirm from the plugin engine log which external requests were made.
+   Expect the air-quality lookup the exclusions describe in both runs.
 4. Exercise cloud endpoint mode separately, with `Script.Enabled` off, and
    confirm from the same log that both paths leave for `weatherkit.pages.dev`
    and that no provider request is made.
