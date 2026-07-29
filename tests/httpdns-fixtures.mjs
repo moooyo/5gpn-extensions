@@ -3,9 +3,21 @@ import { readFile } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import path from 'node:path'
 import { parse } from 'yaml'
+import { httpdnsPathActions, resolveBlockActions } from '../scripts/sync-routing-rules.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'httpdns-interceptor', 'extension.yaml'), 'utf8'))
+
+// This manifest is generated. `npm run routing:check` re-renders it from the
+// pinned upstream and compares byte for byte, but that needs the network and
+// runs as a separate CI step, so a hand edit to the actions used to pass
+// `npm test` on the machine that made it and fail later. Deciding what these
+// actions should be needs no upstream bytes, so that half is asserted here.
+assert.deepEqual(
+  manifest.actions,
+  resolveBlockActions(httpdnsPathActions),
+  'httpdns-interceptor actions were edited by hand; change scripts/sync-routing-rules.mjs and re-run it instead',
+)
 
 assert.equal(manifest.metadata.id, 'io.5gpn.httpdns-interceptor')
 assert.equal(manifest.metadata.version, '2.3.0')
