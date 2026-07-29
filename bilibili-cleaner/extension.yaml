@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.bilibili-cleaner
   name: Bilibili Cleaner
-  version: 3.0.1
+  version: 3.1.0
   description: Runs the reviewed kokoryh/Sparkle Bilibili scripts and rewrite rules against the Bilibili app.
 
 permissions:
@@ -60,24 +60,16 @@ settings:
     description: Removes promoted top replies matching the reviewed links or shopping keywords.
     required: true
     default: true
-  # Upstream does not pass this key to anything: it gates the whole script entry
-  # with Loon's `enable=`, and no pinned bundle reads `optimizeRequest` at all.
-  # A native action has no equivalent, so the replay runs either way. The key is
-  # kept because the upstream [Argument] block declares it.
   - key: optimizeRequest
     type: boolean
     label: Optimize comment loading
-    description: Has no effect in this port. Upstream gates the RPC replay with Loon's enable=, which a native action cannot express, so selected video and comment RPCs are always replayed and cleaned.
+    description: Replays and cleans selected video and comment RPCs before returning them to the client.
     required: true
     default: true
-  # Only the response bundle reads this key, and only to decide whether to point
-  # the client at the Chronos helper. Upstream gates the request-phase airborne
-  # entry with `enable=` instead of passing the key, so that entry -- and the
-  # bsbsb.top lookup it performs -- is not affected here.
   - key: sponsorBlock
     type: boolean
     label: Enable airborne helper
-    description: Turns the Chronos client helper on the response path on or off. The request-phase airborne transformer, its bsbsb.top segment lookup, and the danmaku it injects run whatever this is set to.
+    description: Enables the SponsorBlock airborne danmaku and the commit-pinned Chronos client helper. Turning it off also stops the bsbsb.top segment lookup, because the action that performs it is not loaded.
     required: true
     default: true
   - key: logLevel
@@ -666,6 +658,7 @@ actions:
 
   - id: transform-airborne
     phase: request
+    enabledWhen: sponsorBlock
     match:
       hosts:
         - app.bilibili.com
@@ -684,6 +677,7 @@ actions:
 
   - id: transform-optimized-request
     phase: request
+    enabledWhen: optimizeRequest
     match:
       hosts:
         - app.bilibili.com

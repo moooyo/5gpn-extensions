@@ -263,9 +263,20 @@ for (const entry of entries) {
   assert(actions.length + mappings.length <= 256, `${entry.name}: action and mapping limit exceeded`)
   const actionIDs = new Set()
   for (const action of actions) {
-    assertKeys(action, new Set(['id', 'phase', 'match', 'script']), `${entry.name}: action`)
+    assertKeys(action, new Set(['id', 'phase', 'enabledWhen', 'match', 'script']), `${entry.name}: action`)
     assert(typeof action.id === 'string' && action.id !== '' && !actionIDs.has(action.id), `${entry.name}: invalid or duplicate action id`)
     actionIDs.add(action.id)
+    // An upstream plugin format switches a script entry on and off from outside
+    // the script, so a bundle carrying such a switch never reads the key. The
+    // gate has to name a required boolean setting: an enabled extension's
+    // required settings always carry a value, so the gate always has a
+    // decidable state, and the core refuses anything else at import.
+    if (action.enabledWhen !== undefined) {
+      const gate = (manifest.settings ?? []).find((setting) => setting.key === action.enabledWhen)
+      assert(gate !== undefined, `${entry.name}: ${action.id} enabledWhen names an undeclared setting ${action.enabledWhen}`)
+      assert(gate.type === 'boolean', `${entry.name}: ${action.id} enabledWhen must name a boolean setting`)
+      assert(gate.required === true, `${entry.name}: ${action.id} enabledWhen must name a required setting`)
+    }
     assert(['request', 'response'].includes(action.phase), `${entry.name}: invalid phase in ${action.id}`)
     assertKeys(action.match, new Set(['hosts', 'schemes', 'methods', 'pathRegex', 'statusCodes']), `${entry.name}: ${action.id}.match`)
     assert(Array.isArray(action.match.hosts) && action.match.hosts.length > 0, `${entry.name}: ${action.id} has no hosts`)

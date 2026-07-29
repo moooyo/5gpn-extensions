@@ -190,7 +190,7 @@ function parseStrictManifest(body, directory) {
   assert(Array.isArray(actions), `${directory}: actions must be an array`)
   const actionIDs = new Set()
   for (const [index, action] of actions.entries()) {
-    assertKeys(action, new Set(['id', 'phase', 'match', 'script']), `${directory}: actions[${index}]`)
+    assertKeys(action, new Set(['id', 'phase', 'enabledWhen', 'match', 'script']), `${directory}: actions[${index}]`)
     assertString(action.id, `${directory}: actions[${index}].id`)
     assert(!actionIDs.has(action.id), `${directory}: duplicate action id ${action.id}`)
     actionIDs.add(action.id)

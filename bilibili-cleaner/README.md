@@ -105,7 +105,7 @@ present any more.
 
 ## Port mapping
 
-Twenty-one actions, in three kinds:
+Twenty-four actions, in three kinds:
 
 | Kind | Count | What it carries |
 | --- | ---: | --- |
@@ -120,8 +120,8 @@ has one body, the way upstream writes one `[Map Local]` line per body.
 
 The five settings are unchanged and already match the upstream `[Argument]`
 names, so they reach the scripts as the decoded object Loon supplies. Two of
-them are not script arguments upstream at all; see the `enable=` boundary
-below.
+them are not script arguments upstream at all: they gate a whole entry, and are
+bound to their actions with `enabledWhen`. See the gate boundary below.
 
 `clean-app-skin` carries the Loon plugin's own
 `response-body-json-del data.common_equip` directive. The reviewed LPX declares
@@ -149,11 +149,12 @@ content ID, and fixed `category=sponsor` query. Enabling requires one operator
 confirmation naming every origin and warning that all data visible to the
 script can be sent there.
 
-Neither disclosure can be switched off from the settings page. Upstream gates
-those two script entries with Loon's `enable=`, which a native action cannot
-express, so the operator's `sponsorBlock` and `optimizeRequest` choices do not
-reach them. The confirmation at enable time, and disabling the extension, are
-the controls that do. See the `enable=` boundary below.
+Both disclosures can be switched off. The airborne entry is gated on
+`sponsorBlock` and the replay entry on `optimizeRequest`, and a gated-off action
+is not loaded at all, so neither the `bsbsb.top` lookup nor the replay happens
+while its setting is off. See the gate boundary below. The enable-time
+confirmation still names all three origins, because it describes the maximum the
+operator is consenting to rather than what the current settings permit.
 
 The upstream LPX routes only `bsbsb.top` to `PROXY`, while the native manifest
 cannot name a proxy group or attach one only to a single network origin. The
@@ -168,17 +169,16 @@ process, timer, or module-loader access. It declares no persistent storage.
 
 ## Deliberate architecture boundary and remaining differences
 
-- **Loon's `enable=` has no native equivalent.** Upstream switches two script
-  entries on and off from outside the script — `enable={sponsorBlock}` on the
-  airborne entry and `enable={optimizeRequest}` on the comment/view entry —
-  rather than passing those keys to it. A native action is either declared or
-  it is not, so both entries run unconditionally here. `optimizeRequest` is
-  read by none of the four pinned bundles, so that setting changes nothing at
-  all. `sponsorBlock` is read only by the response bundle, and only to decide
-  whether to point the client at Chronos; turning it off does not stop the
-  request-phase transformer from querying `bsbsb.top` or from injecting its
-  airborne danmaku. Both keys are kept because the upstream `[Argument]` block
-  declares them, and both setting descriptions state the limitation.
+- **Two entries are gated on a setting, not on an argument.** Upstream switches
+  the airborne entry and the comment/view entry on and off from outside the
+  script rather than passing those keys to it, so no bundle reads them:
+  `optimizeRequest` appears in none of the four pinned bundles, and only the
+  response bundle reads `sponsorBlock`, to decide whether to point the client at
+  Chronos. Both actions therefore declare `enabledWhen`, and the gateway does
+  not load a gated-off action at all. Revision 3.0.1 and earlier had no such
+  mechanism: both entries ran unconditionally, so `optimizeRequest` did nothing
+  and turning the airborne helper off still queried `bsbsb.top` and still
+  injected its danmaku. This needs a gateway that speaks control-API schema 2.
 - The response bundle picks its Chronos client from the request `user-agent`
   prefix — `bili-hd`, `bili-inter`, otherwise universal — and separately reads
   `$environment["device-model"]`, falling back to `$loon`. Which branch runs
@@ -229,7 +229,7 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=3.0.1`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
+| Current manifest | `version=3.1.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `networkOrigins=3`; `upstreamMappings=0`; `egressRequired=true`. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, three network origins, five settings, and a required egress binding. |

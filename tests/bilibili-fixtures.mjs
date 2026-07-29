@@ -25,7 +25,7 @@ for (const id of ['mock-grpc-teenagers', 'mock-grpc-default-words', 'mock-grpc-e
   assert.equal(mockBodies.get(id).headers['Grpc-Status'], '0', `${id} must carry upstream's grpc-status header`)
 }
 
-assert.equal(manifest.metadata.version, '3.0.1')
+assert.equal(manifest.metadata.version, '3.1.0')
 assert.equal(manifest.permissions.persistentStorage, true)
 assert.deepEqual(
   manifest.settings.map(setting => [setting.key, setting.type, setting.default]),
@@ -81,18 +81,24 @@ for (const value of ['/bilibili.app.viewunite.v1.View/View', '/bilibili.main.com
 }
 assert(!new RegExp(optimized.match.pathRegex).test('/bilibili.app.viewunite.v1.View/ViewProgress'))
 
-// Upstream gates these two entries with Loon's `enable={optimizeRequest}` and
-// `enable={sponsorBlock}` rather than passing the keys to the script, and a
-// native action has no equivalent, so both entries run unconditionally here.
-// `optimizeRequest` is read by no pinned bundle at all, and the request bundle
-// never reads `sponsorBlock` -- only the response bundle does, to gate Chronos.
-// The settings therefore must not claim to switch these actions off.
-for (const key of ['optimizeRequest', 'sponsorBlock']) {
+// Upstream gates these two entries with the plugin format's own enable=, which
+// the core now expresses as an action-level enabledWhen. Before that existed
+// both entries ran unconditionally: `optimizeRequest` is read by no pinned
+// bundle at all, and the request bundle never reads `sponsorBlock` -- only the
+// response bundle does, to gate Chronos -- so turning the airborne helper off
+// still queried bsbsb.top and still injected its danmaku. The bindings are
+// pinned here because the settings mean nothing without them.
+for (const [id, key] of [['transform-airborne', 'sponsorBlock'], ['transform-optimized-request', 'optimizeRequest']]) {
+  const action = manifest.actions.find(candidate => candidate.id === id)
+  assert.equal(action.enabledWhen, key, `${id} must be gated on ${key}`)
   const setting = manifest.settings.find(candidate => candidate.key === key)
-  assert(
-    /run whatever this is set to|Has no effect in this port/.test(setting.description),
-    `${key}: the setting must not claim to gate an action the runtime always runs`,
-  )
+  assert.equal(setting.type, 'boolean', `${key} must stay boolean for the gate to bind`)
+  assert.equal(setting.required, true, `${key} must stay required so the gate always has a value`)
 }
+assert.equal(
+  manifest.actions.filter(action => action.enabledWhen !== undefined).length,
+  2,
+  'only the two entries upstream gates may carry enabledWhen',
+)
 
 console.log('Bilibili fixtures passed')
