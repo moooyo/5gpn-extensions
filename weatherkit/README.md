@@ -309,10 +309,10 @@ Finally, exercise authorized device traffic with the candidate enabled and
 confirm, from the plugin engine log stream:
 
 1. with the default gates, which provider requests are emitted; and
-2. with `Script.Enabled` off and `Worker.Enabled` on, that both paths leave for
-   `weatherkit.pages.dev`, that the rewrite is accepted under `network.any`
-   rather than refused for want of a declared origin, and that the client still
-   renders the response.
+2. with `Mode` set to `Cloud`, that both paths leave for
+   `weatherkit.pages.dev`, that the rewrite is accepted under the extension's
+   single `permissions.network` grant rather than refused for want of a
+   declared origin, and that the client still renders the response.
 
 ## Updating
 
@@ -351,7 +351,7 @@ decision.
 | Script contract | The two response actions use `entry: proxy-compat`; the two request actions are declarative rewrites and run no code. Changing an action back to the native contract requires a new reviewed script, not a manifest edit. |
 | Third-party endpoint | `https://weatherkit.pages.dev` and `https://dev.weatherkit.pages.dev` are the reviewed set. Changing one, adding an endpoint, or moving the choice out from behind the setting is a capability change and needs a disabled replacement. Removing one, as 6.0.0 did, is a capability reduction and needs the same review. |
 | Permission review gate | The network capability and persistent storage are part of the reviewed baseline. Removing either is a capability reduction and still needs a disabled replacement. |
-| Reviewed capability baseline | One capture host, two proxy-compat response actions gated on `Script.Enabled`, two request rewrites to one third-party endpoint gated on `Worker.Enabled`, eleven settings, four reject routing rules, the network capability, persistent storage, and no required egress. |
+| Reviewed capability baseline | One capture host, two proxy-compat response actions gated on `Mode: Script`, two request rewrites to one third-party endpoint gated on `Mode: Cloud`, eleven settings, four reject routing rules, the network capability, persistent storage, and no required egress. |
 | Operator state | A normal update retains valid settings, `capture_dns`, and execution order. Review all while disabled, and re-confirm which mode gate is on. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed URL. The extension-owned store is a cache, so discarding it costs only a refetch. |
 
@@ -366,7 +366,7 @@ decision.
    declared providers left at their defaults, then with one provider enabled,
    and confirm from the plugin engine log which external requests were made.
    Expect the air-quality lookup the exclusions describe in both runs.
-4. Exercise cloud endpoint mode separately, with `Script.Enabled` off, and
+4. Exercise cloud endpoint mode separately, with `Mode` set to `Cloud`, and
    confirm from the same log that both paths leave for `weatherkit.pages.dev`
    and that no provider request is made.
 5. Apply the same-ID candidate while disabled. Confirm settings, both mode

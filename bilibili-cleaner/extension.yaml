@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.bilibili-cleaner
   name: Bilibili Cleaner
-  version: 4.0.2
+  version: 4.0.3
   description: Runs the reviewed kokoryh/Sparkle Bilibili scripts and rewrite rules against the Bilibili app.
 
 permissions:
@@ -432,7 +432,7 @@ actions:
     script:
       jq: >-
         if (.data | type) == "object" then (
-        if .data.items then .data.items |= map(select((.banner_item == null) and (.ad_info == null) and (.card_goto == "av") and (.card_type | IN("small_cover_v2", "large_cover_single_v9", "large_cover_v1")))) end
+        if (.data.items | type) == "array" then .data.items |= map(select((.banner_item == null) and (.ad_info == null) and (.card_goto == "av") and (.card_type | IN("small_cover_v2", "large_cover_single_v9", "large_cover_v1")))) else . end
         ) else . end
       bodyMode: text
       timeoutMs: 1000
@@ -449,7 +449,7 @@ actions:
     script:
       jq: >-
         if (.data | type) == "object" then (
-        if .data.items then .data.items |= map(select((.ad_info == null) and (.card_goto | IN("vertical_ad_av", "vertical_ad_live", "vertical_ad_picture") | not)) | del(.story_cart_icon, .free_flow_toast, .image_infos, .course_info, .game_info)) end
+        if (.data.items | type) == "array" then .data.items |= map(select((.ad_info == null) and (.card_goto | IN("vertical_ad_av", "vertical_ad_live", "vertical_ad_picture") | not)) | del(.story_cart_icon, .free_flow_toast, .image_infos, .course_info, .game_info)) else . end
         ) else . end
       bodyMode: text
       timeoutMs: 1000

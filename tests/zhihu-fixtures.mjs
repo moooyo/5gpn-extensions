@@ -31,7 +31,7 @@ const blockedConfigKeys = [
 ]
 
 assert.equal(manifest.metadata.id, 'io.5gpn.zhihu-cleaner')
-assert.equal(manifest.metadata.version, '2.0.2')
+assert.equal(manifest.metadata.version, '2.1.0')
 assert.deepEqual(manifest.permissions, { persistentStorage: false })
 assert.equal(manifest.settings, undefined)
 assert.equal(manifest.requirements, undefined)
@@ -65,10 +65,12 @@ for (const action of manifest.actions) {
     assert.equal(action.script.source, undefined)
     assert.equal(action.script.bodyMode, 'none')
   } else {
-    // Every response action carries an expression, not code. The behavior of
-    // those expressions is verified against gojq -- the engine that runs them
-    // -- in the sidecar's jq suite; what is checked here is that nothing
-    // reintroduces a script.
+    // Every response action carries an expression, not code. Node has no jq, so
+    // behaviour is checked out of band against gojq at the sidecar's pinned
+    // version -- the sidecar's own jq suite holds a snapshot that currently lags
+    // these programs. What is checked here is that nothing reintroduces a
+    // script, and validate.mjs enforces the guard rules that keep a transform
+    // from answering 502 or inventing a key.
     assert.equal(typeof action.script.jq, 'string')
     assert.equal(action.script.source, undefined)
     assert.equal(action.script.inline, undefined)
@@ -146,9 +148,15 @@ const pathCases = new Map([
     matches: ['/comment_v5/answers/42/root_comment', '/comment_v5/pins/42/root_comment?order=1'],
     misses: ['/comment_v5/articles/42/root_comment', '/comment_v5/answers/42/child_comment'],
   }],
+  // Upstream's `ring_info`/`interaction_bar_plugins` directive covers
+  // (articles|answers|pins) and is scoped to api.zhihu.com. The port used to
+  // fold the answers case into clean-answer-responses, which also serves
+  // page-info.zhihu.com -- so that host lost two fields upstream keeps, and the
+  // README's own port mapping said it did not. Answers belong here, on the
+  // api-only action.
   ['clean-article-pin', {
-    matches: ['/articles/v4/42', '/pins/v4/42?include=x'],
-    misses: ['/answers/v4/42', '/articles/v4'],
+    matches: ['/articles/v4/42', '/pins/v4/42?include=x', '/answers/v4/42'],
+    misses: ['/articles/v4', '/comments/v4/42'],
   }],
   ['clean-comment-list-headers', {
     matches: ['/comment_v5/answers/42/list-headers', '/comment_v5/answers/42/list-headers?x=1'],

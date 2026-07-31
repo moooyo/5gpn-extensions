@@ -257,7 +257,7 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=4.0.2`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=4.0.3`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |
@@ -318,9 +318,11 @@ is what this repository ships and reviews.
 What this repository can no longer assert is what the scripts do. The previous
 revision shipped protobuf fixtures over local code; that code is gone, and
 running upstream's own bundle against fabricated frames would test upstream
-rather than this manifest. The jq expressions are executed against gojq -- the
-engine that runs them -- in the sidecar's jq suite; Node has no jq, so they
-cannot be executed here.
+rather than this manifest. Node has no jq, so the expressions cannot be
+executed here. The sidecar has a jq suite, but its copies of these expressions
+are a snapshot and currently lag what this manifest ships, so a green sidecar
+suite does not cover these programs. Behavioural checks are run out of band
+against gojq at the sidecar's pinned version.
 
 Before relying on the airborne helper, exercise it on a device while reviewing
 sidecar logs: it reaches `bsbsb.top` and replays to `grpc.biliapi.net`, and
