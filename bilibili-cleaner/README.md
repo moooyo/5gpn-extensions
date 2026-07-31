@@ -17,8 +17,9 @@ reject rules through the reviewed routing-rule contract. It requires no egress
 binding: every host it actually reaches is a mainland service, so the ordinary
 mihomo path is the correct one and the operator may still bind a group
 deliberately. It exposes the five settings declared by the pinned Loon plugin,
-requests no persistent storage, and takes the network permission for the
-SponsorBlock and request-optimization helpers.
+declares persistent storage because the pinned scripts keep their own values in
+it, and takes the network permission for the SponsorBlock and
+request-optimization helpers.
 
 ## What changed, and why
 
@@ -31,14 +32,14 @@ tree.
 The runtime now hosts the contract these scripts are written against, and it
 runs jq, so this extension carries the upstream module rather than a
 reimplementation of it. Five actions load the pinned scripts; eleven carry the
-pinned rewrite expressions verbatim; five keep local synthetic responses,
+pinned rewrite expressions verbatim; eight keep local synthetic responses,
 because a `mock-response-body` directive has no script and no input document to
 transform.
 
 Nothing GPL is redistributed any more. The scripts are fetched by the gateway
-from immutable raw URLs and pinned by digest, so this repository references them
-instead of shipping their bytes, and the corresponding-source obligation that
-required the build tree no longer applies. `bilibili-cleaner/source/` is gone.
+from immutable raw URLs, so this repository references them instead of shipping
+their bytes, and the corresponding-source obligation that required the build
+tree no longer applies. `bilibili-cleaner/source/` is gone.
 
 ## Pinned upstream artifacts
 
@@ -60,28 +61,36 @@ commit, so the bytes a gateway fetches are the reviewed revision's.
 | My-page replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.mine.jq` |
 
 The two `jq-path` programs are inlined into `extension.yaml` rather than fetched
-at runtime, because a jq action carries its expression in the manifest. Their
-bytes are recorded above, and the immutable commit in each URL binds the downloaded
-file with the inlined copy so the two cannot drift apart unnoticed.
+at runtime, because a jq action carries its expression in the manifest. Each URL
+above names the immutable commit its inlined copy was taken from, so re-fetching
+that URL is what checks the two against each other. Nothing does so
+automatically.
 
 ## Chronos client artifacts
 
-The response transformer directs supported Bilibili clients to Chronos
-archives. The upstream script uses a mutable branch, so every client-visible
-URL is changed only at the revision component and pinned to the current
-`kokoryh/chronos` commit
-`69a8996b1f1311b606021e3f194b0390280ab618`, committed on `2026-07-04`.
-These files were verified on `2026-07-22`.
+The response transformer directs supported Bilibili clients to Chronos archives.
+It builds every one of those URLs as
+`https://raw.githubusercontent.com/kokoryh/chronos/refs/heads/master/<name>.zip`,
+and that mutable branch is what the client fetches. Earlier revisions rebuilt
+the bundle from source and could rewrite its revision component; this revision
+loads upstream's bundle verbatim, so nothing here pins it, and a client gets
+whatever `kokoryh/chronos` serves on `master` at request time.
 
-| Client-fetched artifact |
+The six archives the bundle can select are below. They were reviewed at commit
+`69a8996b1f1311b606021e3f194b0390280ab618`, committed on `2026-07-04` and
+verified on `2026-07-22`. That commit records what these names resolved to at
+review time — it is not what a client will fetch later. To read the reviewed
+bytes, substitute it for `refs/heads/master` in the URL above; `LICENSE` at the
+same commit covers them.
+
+| Archive the bundle can select |
 | --- |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/e5a968f1a5055bbe5c12e67b100a6dcb.zip` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/ecca73e42e160074e0caf4b3ddb54a52.zip` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/f993a054969a4f6ae6b20a65f1292e47.zip` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/feaca416bbc1174b8e935cf87ff8f0b5.zip` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/932002070dc1b51241198a074d2279fc.zip` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/8c3feda2e92bf60e8a7aeade1a231586.zip` |
-| `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/LICENSE` |
+| `e5a968f1a5055bbe5c12e67b100a6dcb.zip` |
+| `ecca73e42e160074e0caf4b3ddb54a52.zip` |
+| `f993a054969a4f6ae6b20a65f1292e47.zip` |
+| `feaca416bbc1174b8e935cf87ff8f0b5.zip` |
+| `932002070dc1b51241198a074d2279fc.zip` |
+| `8c3feda2e92bf60e8a7aeade1a231586.zip` |
 
 The archives are fetched by the Bilibili client, not by
 `context.network.request`. This repository does not copy or redistribute them
@@ -91,8 +100,8 @@ preferred source.
 ## License and attribution
 
 The upstream module is GPL-3.0-only. This repository does not redistribute it:
-`extension.yaml` records immutable URLs and digests, and the gateway fetches the
-bytes itself. The manifest and this documentation are original works
+`extension.yaml` records immutable URLs, and the gateway fetches the bytes
+itself. The manifest and this documentation are original works
 distributed under GPL-3.0-only so the aggregate stays consistent with the
 module they accompany, and they retain kokoryh/Sparkle attribution.
 
@@ -112,7 +121,7 @@ Twenty-four actions, in three kinds:
 | --- | ---: | --- |
 | `entry: proxy-compat` | 5 | The pinned `dist/` scripts: the protobuf request transformer on both request paths, the protobuf response transformer, the live JSON transformer, and the activity webpage transformer. |
 | `script.jq` | 11 | The pinned `[Rewrite]` expressions, including the two `jq-path` programs inlined. |
-| `script.mock` | 8 | The `mock-response-body` and `reject-dict` directives, one action per distinct body exactly as upstream declares them. The three gRPC mocks carry upstream's base64 frames and its `grpc-status: 0` header. |
+| `script.mock` | 8 | The `mock-response-body` and `reject-dict` directives, one action per distinct body exactly as upstream declares them. The three gRPC mocks carry upstream's base64 frames and its `grpc-status: 0` header, and add the `application/grpc` content type upstream leaves to the client. |
 
 This directory ships no JavaScript. Earlier revisions carried `mock-json.js`
 and `mock-grpc.js` to match a URL and return a fixed body, which the manifest
@@ -172,7 +181,8 @@ script cannot inspect, name, select, or change it.
 
 Every call returns through authenticated mihomo SOCKS5. The extension has no
 ambient `fetch`, cookie jar, redirect following, DNS, socket, filesystem,
-process, timer, or module-loader access. It declares no persistent storage.
+process, timer, or module-loader access. It declares persistent storage, which
+is the extension-scoped store the pinned scripts read and write.
 
 ## Deliberate architecture boundary and remaining differences
 
@@ -197,8 +207,9 @@ process, timer, or module-loader access. It declares no persistent storage.
   failed.
 - Sponsor segment data from `bsbsb.top` is mutable. Network, status, parse, or
   schema failure preserves normal Bilibili behavior.
-- Client Chronos URLs are revision-pinned, but their GPL archives are not
-  redistributed because their repository lacks corresponding preferred source.
+- Client Chronos URLs are built on a mutable branch by upstream's own bundle,
+  and their GPL archives are not redistributed because their repository lacks
+  corresponding preferred source.
 - The webpage bundle parses the whole document with `DOMParser` and reserializes
   it, and gates itself on `hostname.includes("bilibili")`. Both are upstream
   behavior, so the runtime has to supply `DOMParser` for that action to work.
@@ -214,15 +225,16 @@ process, timer, or module-loader access. It declares no persistent storage.
    as the orchestration authority.
 2. Fetch the LPX, JQ programs, audited dist files, schemas, preferred-source
    closure, package metadata, and license from commit-pinned raw URLs.
-3. Resolve every client-visible Chronos file to one immutable commit without
-   redistributing an archive that lacks corresponding preferred source.
+3. Re-review the Chronos archives the bundle selects, record the `master` commit
+   they were reviewed at, and do not redistribute an archive that lacks
+   corresponding preferred source.
 4. Diff settings, matchers, rules, mocks, JSON/JQ behavior, Protobuf handlers,
    webpage behavior, outbound requests, and URLs independently.
 5. Re-pin every script and jq program to the new commit, re-inline the two
-   `jq-path` programs, and update the recorded sizes and digests, fixtures,
-   provenance, notices, and `metadata.version` together. Nothing is vendored,
-   so adoption is a URL and a digest rather than a rebuild.
-7. Keep actions inside capture hosts, name every reachable host in this README, and require
+   `jq-path` programs, and update the fixtures, provenance, notices, and
+   `metadata.version` together. Nothing is vendored, so adoption is a URL
+   rather than a rebuild.
+6. Keep actions inside capture hosts, name every reachable host in this README, and require
    fresh review for network, egress, routing, and execution-order changes.
 
 ## Migration and rollback
@@ -242,7 +254,7 @@ manual review decision.
 | Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |
 | Operator state | A normal same-ID update retains valid settings, egress binding, `capture_dns`, and execution position. Review all of them before enable. |
 | Source boundary | A changed GPL bundle must ship with complete corresponding preferred source and deterministic build inputs in the same revision. |
-| External artifacts | Chronos URLs may change only to reviewed immutable revisions; archives without corresponding preferred source remain referenced rather than redistributed. |
+| External artifacts | The bundle builds Chronos URLs on `kokoryh/chronos` `master` and this manifest cannot pin them; re-review what that branch serves whenever the Sparkle pin moves. Archives without corresponding preferred source remain referenced rather than redistributed. |
 | License review gate | Before any candidate or rollback publication, independently reconcile the aggregate SPDX expression and standalone-install notices with every Apache, MIT, BSD, and GPL bundle input; do not carry the existing expression forward by assumption. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
 
@@ -251,9 +263,8 @@ manual review decision.
 1. Complete the playbook record separately for the LPX orchestration, JQ and
    dist behavior, all schemas and preferred source, Chronos artifacts, embedded
    npm components, settings, mocks, routes, reachable hosts, and outbound disclosure.
-2. Update every immutable pin and inventory together.
-   compare it with the recorded size and digest, and reject inventory
-   drift before the build is accepted.
+2. Update every immutable pin and inventory together, and reject a pin that
+   names a mutable ref before the candidate is accepted.
 3. Before publishing either a forward candidate or rollback, reconcile the
    bundle's aggregate SPDX expression and retained component notices with the
    actual inputs, even when the input set appears unchanged. A reproducible
