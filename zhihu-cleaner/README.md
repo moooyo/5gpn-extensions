@@ -94,7 +94,7 @@ dispatch table. Nothing here expands the capture boundary.
 | Root-tab whitelist | The pinned upstream whitelist retained `ring_tab`. As a deliberate compatibility change, `clean-root-tab` handles both current `/root/tab` and versioned `/root/tab/vN` paths, keeps only `follow`, `recommend`, and `hot`, clears `ring_list`, and sets an existing `tab_ext.is_show_ring` flag to `false`. This removes the top Rings entry while preserving tab order and unrelated response fields. |
 | Two `topstory/recommend` JQ directives | The current API returns normal `type=feed` objects rather than only `ComponentCard`. The hardened branch therefore preserves unknown/normal items, removes only explicit ad/commercial markers, and still removes `children` entries whose `id` is `ring`. |
 | Question feeds and comment roots | Exact response branches remove root-level `ad_info` or `atmosphere_voting_config`; identically named nested fields are preserved. |
-| Answer detail directives on API and page-info hosts | `clean-answer-responses` removes `third_business` and `float_search_word`, then removes `card` segments. API answer URLs with or without a query also receive the generic content-field removals; page-info remains limited to the answer-specific fields. |
+| Answer detail directives on API and page-info hosts | `clean-answer-responses` removes `third_business` and `float_search_word` on both hosts, then removes `card` segments. `ring_info` and `interaction_bar_plugins` come from a separate api-only directive whose pattern is `(articles\|answers\|pins)`, so they are handled by `clean-article-pin`, which matches all three; page-info keeps them, as upstream does. Through `2.0.2` both fields were removed on page-info too, which contradicted this row. |
 | Article/answer/pin detail directive | The API branch accepts queryless and queried multi-digit versions, then removes root-level `third_business`, `ring_info`, and `interaction_bar_plugins`; answer handling is combined with the answer-specific directives above. |
 | Comment header and podcast directives | Exact response branches remove `continuous_consumption_module` or `banners`. |
 | Search recommendation, result, and tab directives | The native response branch keeps only `normal` recommended queries, removes root-level `pendant`, and uses a deliberate compatibility allowlist that adds `km_general`, `scholar`, and `publication` to the reviewed identifiers. |
@@ -106,9 +106,14 @@ This directory ships no JavaScript at all: every synthetic reply is declared and
 every response transform is a jq expression, and neither enters the JavaScript
 runtime.
 
-Those expressions are verified against gojq -- the engine that runs them -- in
-the sidecar's own jq suite. This repository checks their structure and their
-path patterns; it cannot execute them, because Node has no jq.
+This repository checks their structure and their path patterns; it cannot
+execute them, because Node has no jq. The sidecar carries a jq suite of its own,
+but its copies of these expressions are a snapshot and currently lag the ones
+shipped here, so do not read a green sidecar suite as covering this manifest.
+Behavioural checks are run out of band against gojq at the sidecar's pinned
+version; the `2.1.0` guards were verified that way -- every program against
+every degenerate envelope, plus an old-versus-new comparison on valid documents
+to prove no guard turned a program into a silent no-op.
 
 ## Current API compatibility hardening
 
@@ -205,7 +210,7 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.zhihu-cleaner`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.0.2`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=5`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=5`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | None. A same-ID update has no extension setting values to migrate. |
 | Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, five host-scoped UDP/443 reject rules, no JavaScript, and no network permission, mappings, settings, or egress requirement. |
@@ -233,7 +238,7 @@ decision.
 ### Rollback
 
 The publisher prepares a same-ID revert-forward candidate that restores the
-reviewed five-host, six-action, five-routing-rule baseline with a version incremented above the
+reviewed five-host, 18-action, five-routing-rule baseline with a version incremented above the
 failing candidate. Apply it while disabled, review ordering and `capture_dns`,
 then rerun every synthetic-response and JSON fixture before enable. Emergency
 reinstall from an old immutable manifest is data-safe because the extension is

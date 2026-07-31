@@ -363,14 +363,15 @@ for (const entry of entries) {
       // `X |= f` reads as an update in place, but jq CREATES X when it is
       // absent, so an unguarded update writes a null key into a body the origin
       // never sent one in. That is silent: no error, no 502, just a field the
-      // client did not ask for. Every update must first establish that its path
-      // is there -- `(X | type)` or a truthiness `if X then`.
+      // client did not ask for. The guard has to GOVERN the update, not merely
+      // appear somewhere in the program -- a type test on X elsewhere in the
+      // pipeline says nothing about whether this update is reached.
       for (const [, path] of action.script.jq.matchAll(/(\.[A-Za-z_][\w.]*)\s*\|=/g)) {
         const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const guarded = new RegExp(`\\(\\s*${escaped}\\s*\\|\\s*type\\s*\\)|if\\s+${escaped}\\s+then`)
+        const governs = new RegExp(`\\(\\s*${escaped}\\s*\\|\\s*type\\s*\\)\\s*==\\s*"(?:array|object)"[^;]*?then\\s*\\(?\\s*${escaped}\\s*\\|=`)
         assert(
-          guarded.test(action.script.jq),
-          `${entry.name}: ${action.id} updates ${path} without establishing it exists, so a body lacking it gains a null ${path}`,
+          governs.test(action.script.jq),
+          `${entry.name}: ${action.id} updates ${path} without a type test governing it, so a body lacking it gains a null ${path} and a wrongly typed one answers 502`,
         )
       }
       assert(action.script.source === undefined && action.script.inline === undefined, `${entry.name}: ${action.id} declares both jq and a script`)

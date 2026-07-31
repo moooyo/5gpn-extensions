@@ -136,8 +136,10 @@ The following native extensions are deliberate:
 - Only traffic for `testflight.apple.com` on the native interception ports 80
   and 443 is acquired. The extension does not alter DNS policy for other Apple
   hosts.
-- The action changes only the first recognized `storefrontId`. An absent or
-  changed field is left untouched, and a missing field is never synthesized.
+- The action changes EVERY recognized `storefrontId` in the body, not only the
+  first: the sidecar substitutes with Go's `ReplaceAll`
+  (`module_rewrite.go:229`), which replaces all matches. An absent or changed
+  field is left untouched, and a missing field is never synthesized.
 - Storefront selection and network exit selection are independent operator
   choices. A mismatched, unavailable, or Apple-rejected egress can still make
   installation fail.
@@ -230,8 +232,9 @@ For each update:
    enables without an egress binding while producing a real unlock only when
    the host leaves through a storefront-compatible region.
 3. Exercise every storefront option with both the exact upstream body syntax
-   and the documented native fallback, verifying that only the first value and
-   the upstream-specified whitespace normalization change.
+   and the documented native fallback. Include a body carrying the field twice
+   and verify BOTH occurrences change, along with the upstream-specified
+   whitespace normalization.
 4. Exercise missing, malformed, already-correct, and direct non-text fixture
    bodies and confirm the documented no-op or fail-closed behavior.
 5. Enable the global MITM master only on an authorized test device with the
