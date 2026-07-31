@@ -25,12 +25,12 @@ This revision runs `Yu9191/wloc`, which publishes proxy-client modules for Loon,
 Surge, Quantumult X, Stash, and Shadowrocket, and covers more:
 
 - an online point picker at `https://wloc-pages.pages.dev/` whose saved
-  coordinates take precedence over the manifest defaults, delivered by a second
-  request-phase script on `/wloc-settings/save`
+  coordinates take precedence over the configured settings, delivered by a
+  second request-phase script on `/wloc-settings/save`
 - a configurable reported accuracy and log level
 - GCJ-02 to WGS84 conversion for mainland Apple Maps
 
-Three costs were accepted rather than discovered later:
+Two costs were accepted rather than discovered later:
 
 1. **Upstream ships no `LICENSE` file.** The repository has none, so by default
    all rights are reserved. This extension does not redistribute the scripts:
@@ -41,10 +41,11 @@ Three costs were accepted rather than discovered later:
 2. **`failClosed` is gone.** That was a local safety behavior with no upstream
    equivalent: an unexpected protocol change now returns the original location
    response instead of blocking it.
-3. **The typed `location` setting is gone.** The scripts read `longitude`,
-   `latitude`, and `accuracy` as separate argument keys, so the manifest
-   declares them separately and the console no longer offers a single
-   coordinate picker for them. Upstream's own picker page replaces it.
+
+A third cost recorded here through `2.0.x` -- that the typed `location` setting
+and its coordinate picker were gone -- no longer applies. See "Settings and the
+picker" below: `2.1.0` gets the map back without changing what the scripts
+receive.
 
 ## Pinned upstream
 
@@ -55,7 +56,7 @@ mutable `main` branch; both entries below are re-pinned to that immutable
 commit, so the bytes a gateway fetches are the reviewed revision's.
 
 | Artifact | Immutable raw URL |
-||
+| --- | --- |
 | Loon plugin (argument and script source) | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/modules/wloc.lpx` |
 | WLOC response transformer | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc.js` |
 | Settings-save request script | `https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc-settings.js` |
@@ -75,14 +76,55 @@ it.
 
 ## Settings and the picker
 
-The four settings are the upstream `[Argument]` block: `longitude`, `latitude`,
-and `accuracy` as text inputs and `logLevel` as a select, with upstream's own
-defaults. They reach the scripts as the decoded object Loon supplies.
+The four settings follow the upstream `[Argument]` block: `longitude`,
+`latitude`, and `accuracy` as numbers and the log level as a select. They
+reach the scripts as the decoded object Loon supplies. Three things deviate
+from that block deliberately, because following it exactly produced a setting
+that did nothing:
 
-A coordinate saved through the picker page is stored in extension-scoped
-persistent storage by the `save-wloc-settings` action and takes precedence over
-these defaults, which is why this revision declares `persistentStorage: true`
-where the previous one declared none.
+- **The coordinates ship no default.** Upstream reads its own shipped
+  coordinate as "unconfigured": with empty storage and `longitude`/`latitude`
+  exactly `113.94114`/`22.544577` it nulls the pair, logs a passthrough notice,
+  and returns the response unmodified. Carrying those defaults left two
+  required settings looking complete on an extension that patched nothing. With
+  no default the extension stays not-ready until an operator sets a point,
+  which is the honest state.
+- **They are typed `number`, not `text`.** A same-ID update retains a stored
+  value only when the key and the type both match, so this type change is what
+  drops the sentinel every `2.0.x` install already persisted as a *value*.
+  Without it, dropping the default would have protected only fresh installs.
+  `number` also carries the `min`/`max` bounds that the Console and the daemon
+  both enforce, where a `text` coordinate accepts any non-empty string on both
+  sides. The cost is narrow and worth naming: the bundles guard their arguments
+  with `argument.longitude && …`, so a coordinate of exactly `0` is falsy and
+  is dropped. Longitude `0` or latitude `0` therefore behaves as unset.
+- **The log level is keyed `LogLevel`.** Upstream's block declares `logLevel`.
+  The response transformer reads both spellings and lets the capital one win,
+  but the settings-save script reads only `$argument.LogLevel` -- so under
+  upstream's own key that second script never receives the configured level.
+  `LogLevel` is the one spelling both scripts honour. The options and the
+  `info` default remain upstream's.
+
+### The map point picker
+
+The Console renders a map point picker with city search, a draggable
+OpenStreetMap marker, and an accuracy circle over the flat `longitude`,
+`latitude`, and `accuracy` trio, and writes those three keys.
+
+This is worth stating precisely, because it is not the framework's `location`
+setting type. A `location` value reaches a script nested under its own setting
+key, and these scripts read three separate flat keys, so declaring one here
+would give the console a map while the bundle silently ran on its own defaults.
+The picker binds the flat trio instead: the operator gets the map, and what the
+scripts receive is unchanged. Renaming any of those three keys takes the picker
+away silently, so the fixture pins the exact names.
+
+A coordinate saved through upstream's own picker page at
+`https://wloc-pages.pages.dev/` is stored in extension-scoped persistent
+storage by the `save-wloc-settings` action and takes precedence over these
+settings, which is why this revision declares `persistentStorage: true` where
+the pre-`2.0.0` one declared none. That page remains available and is not
+required: the Console map covers the same job without leaving the gateway.
 
 ## Algorithm and format boundary
 
@@ -111,7 +153,7 @@ unrecognized response is returned unchanged rather than blocked.
 | `Apple WLOC` response script | `rewrite-wloc-response`, `entry: proxy-compat`, binary body, 30 s |
 | `WLOC Settings` request script | `save-wloc-settings`, `entry: proxy-compat`, no body, 10 s |
 | `[MITM] hostname` | The same two exact names as `traffic.captureHosts` |
-| `[Argument]` block | The four settings above, with upstream's types and defaults |
+| `[Argument]` block | The four settings above. Types and options are upstream's; the coordinate defaults and the `LogLevel` spelling deviate deliberately, and "Settings and the picker" records why |
 
 The manifest declares no network permission, no upstream mapping, and no required
 egress-group binding. The scripts reach no third party: the picker page is
@@ -133,17 +175,15 @@ capture path, not through an outbound request from the script.
 2. Re-pin both scripts to the new immutable commit and record their sizes and
    digests in the table above. Nothing is vendored, so a candidate is adopted
    by changing a URL and its recorded digest, not by porting code.
-3. Re-read the upstream `[Argument]` block. The four settings are its types and
-   defaults verbatim, and a renamed key stops applying silently rather than
-   failing.
+3. Re-read the upstream `[Argument]` block. A renamed key stops applying
+   silently rather than failing. Two keys deviate from it on purpose -- the
+   undefaulted coordinates and the `LogLevel` spelling -- so check whether
+   upstream has fixed either before re-aligning them.
 4. Update provenance here and in `THIRD_PARTY_NOTICES.md` if the source
    project or pinned commit changes, including the statement that upstream
    publishes no license file.
 5. Refresh the canonical record after every manifest change, then review the
    diff and run the verification commands below.
-
-
-To independently refresh the pinned upstream-script digest without checking
 
 ## Migration and rollback
 
@@ -155,14 +195,14 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.apple-wloc`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.0.0`; `persistentStorage=true`; `settings=4`; `captureHosts=2`; `actions=2`; `routingRules=0`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.1.0`; `persistentStorage=true`; `settings=4`; `captureHosts=2`; `actions=2`; `routingRules=0`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true: the picker page's saved coordinate lives in extension-scoped storage. |
-| Settings | Keep `longitude`, `latitude`, and `accuracy` as required text values and `logLevel` as a required select, matching the upstream `[Argument]` block. Valid same-key, same-type values survive a normal update. |
+| Settings | Keep `longitude`, `latitude`, and `accuracy` as required numbers with their `min`/`max` bounds, and `LogLevel` as a required select. The three coordinate keys are also what the Console binds its map picker to, so renaming one removes the picker silently. `longitude` and `latitude` carry no default on purpose. Valid same-key, same-type values survive a normal update; changing a type deliberately does not. |
 | Sensitive values | Record whether each coordinate setting is complete, but never copy its value into a migration record, issue, or log. The same applies to a coordinate saved through the picker. |
 | Reviewed capability baseline | Two capture hosts, two proxy-compat actions (one response rewrite and one request settings-save), four settings, persistent storage, and no network permission, routing rules, upstream mappings, or required egress binding. |
-| Current migration baseline | Version `2.0.0` replaced the `FFF686868/proxypin-wloc-spoofer` port with the `Yu9191/wloc` proxy-client modules. The typed `location` setting and the local `failClosed` behavior were removed with the parser that backed them; see "What changed, and why" above. |
+| Current migration baseline | Version `2.0.0` replaced the `FFF686868/proxypin-wloc-spoofer` port with the `Yu9191/wloc` proxy-client modules, removing the typed `location` setting and the local `failClosed` behavior with the parser that backed them. Version `2.1.0` restored a Console map picker over the flat coordinate trio without changing what the scripts receive, retyped the coordinates to bounded `number`s so every existing install drops upstream's passthrough sentinel instead of carrying it forward, and re-keyed the log level to the `LogLevel` spelling both scripts actually read. |
 | Operator state | A normal same-ID update retains valid settings, stored picker coordinates, `capture_dns`, and execution position. There is no egress binding. Record presence, not sensitive coordinates. |
-| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. Reverting below `2.0.0` reintroduces the `location`/`failClosed` settings contract and drops the picker, so the operator must re-enter coordinates. |
+| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. Reverting to `2.0.x` changes the coordinate type back to `text`, so the numeric point set under `2.1.0` is dropped rather than retained and both coordinates fall back to upstream's `113.94114`/`22.544577` passthrough sentinel: the extension will report ready and patch nothing until a point is re-entered. It also restores the `logLevel` key, which the settings-save script does not read. Reverting below `2.0.0` reintroduces the `location`/`failClosed` settings contract, which is a different settings shape again. |
 
 ### Repeatable migration
 
@@ -179,7 +219,17 @@ upstream revision. Upstream selection remains a manual review decision.
    candidate validation boundary, document that the operator must re-enter the
    value before enable. A new install or emergency reinstall always requires
    re-entering the coordinates.
-5. Apply the candidate while disabled, confirm the retained setting presence,
+5. Updating from `2.0.x` drops both coordinates on purpose. A retained value
+   needs the key *and* the type to match, and the coordinates changed from
+   `text` to `number`, so every existing install loses its stored point instead
+   of carrying upstream's `113.94114`/`22.544577` passthrough sentinel forward
+   and going on reporting ready while patching nothing. The extension lands
+   not-ready; set a real point before re-enabling. The stored `logLevel` value
+   is discarded the same way, by rename rather than by type, and `LogLevel`
+   starts at upstream's `info` -- so an operator who had chosen `off` or `debug`
+   loses that choice and has to re-select it, and it now also reaches the
+   settings-save script, which under the old key never received it.
+6. Apply the candidate while disabled, confirm the retained setting presence,
    review the exact two-host boundary, and test authorized WLOC traffic before
    enabling it more broadly. Use a disposable non-sensitive test location and
    redact coordinates from response excerpts, screenshots, and packet captures.
@@ -208,8 +258,10 @@ if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" 
 ```
 
 The focused fixture checks the manifest boundary: both actions, the four
-settings against upstream's `[Argument]` block, the pinned immutable commit,
-and the three accepted costs recorded above. It cannot check what the scripts
+settings with their types, bounds, and the three places they deviate from
+upstream's `[Argument]` block, the exact coordinate keys the Console map picker
+binds, the pinned immutable commit, and the two accepted costs recorded above.
+It cannot check what the scripts
 do -- they are upstream's and are fetched at runtime -- so what binds which
 bytes run is the immutable commit in each URL.
 
@@ -218,8 +270,10 @@ bytes run is the immutable commit in each URL.
 - This modifies only eligible network-location responses; it does not modify
   GPS hardware readings. A device can prefer a real location source.
 - Apple can change endpoint behaviour, compression, framing, protobuf field
-  layout, or server-side validation without notice. The extension then fails
-  closed by default rather than claiming compatibility.
+  layout, or server-side validation without notice. The extension does not fail
+  closed when that happens: `failClosed` had no upstream equivalent, so an
+  unrecognized response is returned unchanged and the device receives its real
+  location rather than an error.
 - Only the two declared hosts and the action's exact path are in scope. It
   does not intercept other Apple services or change general DNS policy.
 - HTTPS interception requires an operator-installed and trusted interception
@@ -228,7 +282,6 @@ bytes run is the immutable commit in each URL.
 - All authorised devices using one enabled extension receive the same configured
   target. The extension has no per-device identity, GPS simulation, or account
   bypass capability.
-
-[upstream]: https://github.com/FFF686868/proxypin-wloc-spoofer
-[upstream-commit]: https://github.com/FFF686868/proxypin-wloc-spoofer/tree/edee9b955f673cc8c4a52eb0a9c687a2e25dde4a
-[upstream-source-commit]: https://github.com/FFF686868/proxypin-wloc-spoofer/tree/ab4d55ceed0593ad1ad8f3424088c291f7db748f
+- The Console map picker is an operator convenience over the three coordinate
+  settings. It is not the framework's `location` setting type, and it changes
+  nothing about what the pinned scripts receive.

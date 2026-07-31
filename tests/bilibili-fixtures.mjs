@@ -34,6 +34,12 @@ assert.deepEqual(
     ['purifyComment', 'boolean', true],
     ['optimizeRequest', 'boolean', true],
     ['sponsorBlock', 'boolean', true],
+    // Lowercase on purpose, and checked against the pinned bytes rather than
+    // assumed: dist/bilibili.json.js reads `argument.logLevel`. The sibling
+    // apple-wloc upstream declares the same key but reads `$argument.LogLevel`,
+    // so its setting was inert until it was re-keyed. A published bundle can
+    // spell this either way and the mismatch never fails, it just runs on the
+    // bundle's own default.
     ['logLevel', 'select', 'error'],
   ],
 )
