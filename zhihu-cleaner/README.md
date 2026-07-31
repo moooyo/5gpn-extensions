@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/exte
 This public raw URL is directly installable. For a private fork, use the
 Console's local-add/upload flow or an operator-controlled public HTTPS mirror;
 never embed repository credentials in an extension URL. Review the immutable
-snapshot digest, five capture hosts, six actions, five UDP/443 fallback rules,
+snapshot digest, five capture hosts, 18 actions, five UDP/443 fallback rules,
 and interception boundary before enabling it.
 
 ## Pinned upstream
@@ -90,7 +90,7 @@ dispatch table. Nothing here expands the capture boundary.
 | --- | --- |
 | `[MitM]` hosts `api.zhihu.com`, `m-cloud.zhihu.com`, `page-info.zhihu.com`, `www.zhihu.com`, and `zhida.zhihu.com` | The same five exact names are the complete `traffic.captureHosts` list. No wildcard or accidental `api.com`/`page-info.com` alternative is acquired. Five host-scoped UDP/443 reject rules additionally force QUIC fallback on preserved/custom gateway configurations. |
 | Eleven upstream `reject-dict` directives plus the current `/root/window` navigation entry | Five request actions declare a status 200, `Content-Type: application/json`, `{}` reply. Three group the API, web, and Zhida path sets by host and path. The two that upstream conditions on query values -- `next-render`, which needs `id` and `type=answer`, and Zhida's `feeds`, which needs `categoryId=1` -- are their own actions with the condition in the pattern, because a declared mock cannot decline after matching. RE2 has no lookahead, so both parameter orders are enumerated and the percent-encoded brace is matched explicitly. The duplicated token on the upstream `commercial_api` line is normalized to one synthetic response; `/root/window` is an explicit compatibility addition requested to remove the Kanshan entry. |
-| `m-cloud` configuration `drop_keys` JQ program | `clean-m-cloud-config` removes the same 17 HTTPDNS/QUIC config keys and removes `delayHttpdns`, `dnsParser`, and `HTTPDNS` only from retained object-valued configs. Arrays, scalars, and unrelated fields remain unchanged. |
+| `m-cloud` configuration `drop_keys` JQ program | `clean-transport-config` removes the same 17 HTTPDNS/QUIC config keys and removes `delayHttpdns`, `dnsParser`, and `HTTPDNS` only from retained object-valued configs. Arrays, scalars, and unrelated fields remain unchanged. |
 | Root-tab whitelist | The pinned upstream whitelist retained `ring_tab`. As a deliberate compatibility change, `clean-root-tab` handles both current `/root/tab` and versioned `/root/tab/vN` paths, keeps only `follow`, `recommend`, and `hot`, clears `ring_list`, and sets an existing `tab_ext.is_show_ring` flag to `false`. This removes the top Rings entry while preserving tab order and unrelated response fields. |
 | Two `topstory/recommend` JQ directives | The current API returns normal `type=feed` objects rather than only `ComponentCard`. The hardened branch therefore preserves unknown/normal items, removes only explicit ad/commercial markers, and still removes `children` entries whose `id` is `ring`. |
 | Question feeds and comment roots | Exact response branches remove root-level `ad_info` or `atmosphere_voting_config`; identically named nested fields are preserved. |
@@ -151,8 +151,13 @@ before adding a new destructive response filter.
 - Matchers accept current unversioned/multi-digit paths and common query
   variation, but they remain bounded to reviewed endpoint families. New hosts,
   renamed paths, encrypted payloads, and moved response fields remain no-ops.
-- A matched malformed JSON response is logged without body content and left
-  unchanged. Structural mismatches and already-clean responses are no-ops.
+- A matched response whose body does not parse as JSON is left unchanged: the
+  engine treats that one condition as a no-op rather than a failure.
+- A structural mismatch is a no-op only because every program guards for it.
+  That is not free behaviour: a jq runtime error is not swallowed, it fails the
+  action, and the response-phase exit answers 502. Every program here is
+  therefore written to return the document untouched on a shape it cannot
+  handle, and `.data` is checked before it is indexed.
 - Text response actions accept at most 8 MiB. Larger bodies fail the native
   body limit before script execution.
 - Synthetic responses always return an empty JSON object. Clients that require
@@ -200,7 +205,7 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.zhihu-cleaner`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.0.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=5`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.0.1`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=5`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | None. A same-ID update has no extension setting values to migrate. |
 | Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, five host-scoped UDP/443 reject rules, no JavaScript, and no network permission, mappings, settings, or egress requirement. |
@@ -212,7 +217,7 @@ decision.
 ### Repeatable migration
 
 1. Complete the shared playbook record with the exact LPX bytes, authorization,
-   rewrite counts, five capture hosts, six actions, five routing rules, and
+   rewrite counts, five capture hosts, 18 actions, five routing rules, and
    stateless contract.
 2. Diff every synthetic response, matcher, JQ expression, deletion path, and
    MITM hostname. Treat removals as explicit decisions.
@@ -243,7 +248,7 @@ For each update:
    against what this port declares.
 2. Import the candidate through **Install from URL** or the explicit update
    flow and confirm it remains disabled.
-3. Confirm exactly five capture hosts, six actions, five routing rules, zero
+3. Confirm exactly five capture hosts, 18 actions, five routing rules, zero
    settings, no network permission, zero mappings, and no egress requirement.
 4. Exercise all 11 upstream synthetic-response directives, the additional
    `/root/window` response, and all 15 upstream JSON directives, including

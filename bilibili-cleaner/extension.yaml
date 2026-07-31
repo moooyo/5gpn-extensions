@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.bilibili-cleaner
   name: Bilibili Cleaner
-  version: 4.0.0
+  version: 4.0.1
   description: Runs the reviewed kokoryh/Sparkle Bilibili scripts and rewrite rules against the Bilibili app.
 
 permissions:
@@ -240,7 +240,9 @@ actions:
       pathRegex: '^/xlive/open-interface/v2/tracker/conf\?.*$'
     script:
       jq: >-
+        if (.data | type) == "object" then (
         .data.domains=["wss://tracker.chat.bilibili.com"]
+        ) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -255,7 +257,7 @@ actions:
       pathRegex: '^/x/pd-proxy/tracker\?.*$'
     script:
       jq: >-
-        .data[][]?="stun.chat.bilibili.com:3478"
+        .data[]?[]? = "stun.chat.bilibili.com:3478"
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -270,7 +272,9 @@ actions:
       pathRegex: '^/pgc/view/v2/app/season\?.*$'
     script:
       jq: >-
+        if (.data | type) == "object" then (
         del(.data.payment)
+        ) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -285,7 +289,9 @@ actions:
       pathRegex: '^/pgc/page/channel\?.*$'
     script:
       jq: >-
-        .data.modules |= map(select(.type != "TIP") | if .type == "BANNER" then .module_data.items |= map(select(.url | startswith("https://www.bilibili.com/blackboard/era/") | not)) else . end)
+        if (.data | type) == "object" then (
+        if (.data.modules | type) == "array" then .data.modules |= map(select((type != "object") or (.type != "TIP")) | if (type == "object") and (.type == "BANNER") and ((.module_data | type) == "object") and ((.module_data.items | type) == "array") then .module_data.items |= map(select(((.url | type) != "string") or ((.url | startswith("https://www.bilibili.com/blackboard/era/")) | not))) else . end) else . end
+        ) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -300,7 +306,9 @@ actions:
       pathRegex: '^/x/resource/show/skin\?.*$'
     script:
       jq: >-
+        if (.data | type) == "object" then (
         del(.data.common_equip)
+        ) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -315,6 +323,7 @@ actions:
       pathRegex: '^/x/resource/show/tab/v2\?.*$'
     script:
       jq: |-
+        if (.data | type) == "object" then (
         .data.tab = [
             {
                 pos: 1,
@@ -392,6 +401,7 @@ actions:
                 icon_selected: "http://i0.hdslb.com/bfs/archive/a54a8009116cb896e64ef14dcf50e5cade401e00.png"
             }
         ]
+        ) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -406,7 +416,7 @@ actions:
       pathRegex: '^/x/v2/splash/(?:show|event/list2)\?.*$'
     script:
       jq: >-
-        .data |= with_entries(if .key | IN("show", "event_list") then .value = [] else . end)
+        .data |= (if type == "object" then with_entries(if .key | IN("show", "event_list") then .value = [] else . end) else . end)
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -421,7 +431,9 @@ actions:
       pathRegex: '^/x/v2/feed/index\?.*$'
     script:
       jq: >-
+        if (.data | type) == "object" then (
         if .data.items then .data.items |= map(select((.banner_item == null) and (.ad_info == null) and (.card_goto == "av") and (.card_type | IN("small_cover_v2", "large_cover_single_v9", "large_cover_v1")))) end
+        ) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -436,7 +448,9 @@ actions:
       pathRegex: '^/x/v2/feed/index/story\?.*$'
     script:
       jq: >-
+        if (.data | type) == "object" then (
         if .data.items then .data.items |= map(select((.ad_info == null) and (.card_goto | IN("vertical_ad_av", "vertical_ad_live", "vertical_ad_picture") | not)) | del(.story_cart_icon, .free_flow_toast, .image_infos, .course_info, .game_info)) end
+        ) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -451,6 +465,7 @@ actions:
       pathRegex: '^/x/v2/account/mine(?:/ipad)?\?.*$'
     script:
       jq: |-
+        if (.data | type) == "object" then (
         .data |= (
             del(.answer, .live_tip, .vip_section, .vip_section_v2, .modular_vip_section) | 
             .vip_type = 2 | 
@@ -633,6 +648,7 @@ actions:
                 ] 
             end 
         )
+        ) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -647,7 +663,9 @@ actions:
       pathRegex: '^/x/v2/account/myinfo\?.*$'
     script:
       jq: >-
+        if (.data | type) == "object" then (
         .data.vip |= if . != null and .status == 0 then . + { status: 1, type: 2, due_date: 9005270400000, role: 15 } else . end
+        ) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608

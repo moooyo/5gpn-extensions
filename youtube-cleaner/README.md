@@ -91,8 +91,7 @@ this action, those three booleans carry the operator's configured values, where
 upstream — which passes only `captionLang` here — always sends the bundle's own
 `true`, `true`, `false`. An operator who keeps the defaults therefore sends the
 query upstream sends, and one who changes a toggle discloses that choice.
-`debug` is not among them: the Loon branch copies only the keys the bundle's
-defaults declare. The original URL can contain playback tokens and other request
+The original URL can contain playback tokens and other request
 metadata. The `encryptKey` remains in extension-scoped storage and is used
 locally only to decide whether the request key matches.
 
@@ -134,9 +133,8 @@ host mapping or typed mihomo routing rule.
 | `blockImmersive` | boolean | `true` | Removes `FEmusic_immersive` from the guide. |
 | `blockShorts` | boolean | `false` | Removes `FEshorts` from the guide; feed classification remains independent. |
 | `captionLang` | text | `off` | Uses a Google Translate language code such as `en` or `zh-Hans`, or disables caption rewriting. |
-| `debug` | boolean | `false` | Carried for upstream parity. Nothing enables the bundles' logger from it, so it has no effect at this pin. |
 
-Every setting except `debug` is disclosed to the external Worker on a matched
+Every setting is disclosed to the external Worker on a matched
 Onesie request, because the request bundle appends its whole parameter object to
 that URL. See [Onesie Worker and network
 permission](#onesie-worker-and-network-permission).
@@ -145,12 +143,33 @@ Caption handling — the track-selection order, its observable English priority,
 and the advertised translation language list — is the bundle's own behavior and
 is not re-specified here.
 
-`debug` is upstream's own argument, declared here so the settings page matches
-the published module, but nothing at this pin reads it. The bundles take their
-debug flag from an options argument to the client constructor and then build the
-client without one, so their logger stays off; the Loon branch separately copies
-only the four keys its defaults declare, so `debug` never reaches the parameter
-object either. Upstream's module has the same property.
+### Why there is no `debug` setting
+
+Upstream's argument block declares `debug`, and this extension declared it too
+through `5.0.x` for parity. It was removed in `5.1.0` because at this pin it
+provably does nothing, and a console toggle that cannot move anything is worse
+than an absent one: the operator cannot tell it apart from a broken one.
+
+Two independent reasons, either sufficient on its own:
+
+1. The Loon branch resolves arguments with
+   `decodeParams(e){ for(let t of Object.keys(e)){ let n=$argument?.[t]; n!==void 0&&(e[t]=n) } }`.
+   It iterates the keys of the bundle's *own defaults literal*, which is
+   `{captionLang:"off", blockUpload:!0, blockImmersive:!0, blockShorts:!1}` in
+   both bundles. A key absent from that literal is never fetched from
+   `$argument`, so `debug` never reaches the parameter object.
+2. The bundles do read a `debug` property, but off the third argument to the
+   logger constructor (`this.isDebug = n?.debug ?? !1`), and the only
+   instantiation is `getInstance("YouTube")` — one argument. The third is
+   always `undefined`, so `isDebug` is always false.
+
+Even wired, it would only gate `console.log` verbosity; it changes no
+interception behavior. Upstream's own module has the same property, so this is
+a deliberate divergence from `[Argument]` parity rather than an oversight.
+
+Restore it only when a re-pin makes it real: check that the new bundles' defaults
+literal contains `debug`, or that the logger is constructed with an options
+argument. `scripts/validate.mjs` fails if the key reappears without that check.
 
 ## Persistent state
 
@@ -238,19 +257,19 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.youtube-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=5.0.1`; `persistentStorage=true`; `settings=5`; `captureHosts=2`; `actions=3`; `routingRules=0`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
-| Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
+| Current manifest | `version=5.1.0`; `persistentStorage=true`; `settings=4`; `captureHosts=2`; `actions=3`; `routingRules=0`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Settings | Preserve the four current keys and types when possible. `debug` was removed in `5.1.0`; see "Why there is no `debug` setting" before re-adding it. A normal update retains only values that remain valid under the candidate definitions. |
 | State class | Stateful. Keep `persistentStorage: true` during normal migration and rollback. |
 | Advertisement cache | `YouTubeAdvertiseInfo` is a non-authoritative version `1.0` cache. An incompatible schema may reset and relearn only when that behavior is documented and tested. |
 | Key configuration | `YouTubeConfig` contains sensitive YouTube and YouTube Music `clientKey`/`encryptKey` pairs. Never copy values into migration records or logs. An incompatible format requires an additive versioned key and dual-read strategy. |
-| Reviewed capability baseline | Two capture-host patterns, three proxy-compat actions, five settings, one exact Worker origin, no routing rules, and no required egress binding. |
+| Reviewed capability baseline | Two capture-host patterns, three proxy-compat actions, four settings, one exact Worker origin, no routing rules, and no required egress binding. |
 | Operator state | A normal same-ID update retains valid settings, `capture_dns`, execution position, and the ID-scoped storage bucket while storage permission remains enabled. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. The baseline must remain able to read retained state or safely relearn it. |
 
 ### Repeatable migration
 
 1. Complete the playbook record for both upstream bundles, all ten response
-   endpoints, both request paths, five settings, two storage schemas, the
+   endpoints, both request paths, four settings, two storage schemas, the
    Worker URL and disclosure, capture hosts, protobuf paths, and exclusions.
 2. Keep `YouTubeAdvertiseInfo` schema-compatible, or write an additive new key
    while retaining the rollback-readable `1.0` value. If reset-and-relearn is

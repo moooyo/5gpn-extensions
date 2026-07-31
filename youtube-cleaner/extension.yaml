@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.youtube-cleaner
   name: YouTube Application Cleaner
-  version: 5.0.1
+  version: 5.1.0
   description: Runs the reviewed Maasea YouTube Enhance scripts against YouTube responses and the Onesie playback path.
 
 permissions:
@@ -41,12 +41,6 @@ settings:
     description: Uses a Google Translate language code such as en or zh-Hans, or off to disable caption translation.
     required: true
     default: "off"
-  - key: debug
-    type: boolean
-    label: Debug logging
-    description: Carried for upstream argument parity. The pinned bundles never enable their logger from it, so it currently changes nothing.
-    required: true
-    default: false
 
 actions:
   - id: prepare-onesie-initplayback

@@ -129,9 +129,18 @@ can now declare; splitting them raised the action count because a declared mock
 has one body, the way upstream writes one `[Map Local]` line per body.
 
 The five settings are unchanged and already match the upstream `[Argument]`
-names, so they reach the scripts as the decoded object Loon supplies. Two of
-them are not script arguments upstream at all: they gate a whole entry, and are
-bound to their actions with `enabledWhen`. See the gate boundary below.
+names, so where a bundle reads them they arrive as the decoded object Loon
+supplies. They do not all reach every action, and that mirrors upstream rather
+than being a porting gap: the argument middleware is mounted per route, not
+globally. `bilibili.protobuf.request.js` takes it globally;
+`bilibili.protobuf.response.js` takes it on the routes that need it;
+`bilibili.json.js` mounts it on one route this extension does not match; and
+`webpage.bilibili.js` never invokes it at all. So `logLevel` governs the two
+protobuf actions and has no effect on `clean-live-json` or `clean-webpage` —
+upstream's own `bilibili.live` and `bilibili.webpage` entries likewise pass no
+`argument=`. Two of the five are not script arguments upstream at all: they gate
+a whole entry, and are bound to their actions with `enabledWhen`. See the gate
+boundary below.
 
 `clean-app-skin` carries the Loon plugin's own
 `response-body-json-del data.common_equip` directive. The reviewed LPX declares
@@ -248,7 +257,7 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=4.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=4.0.1`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |
