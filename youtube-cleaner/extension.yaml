@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.youtube-cleaner
   name: YouTube Application Cleaner
-  version: 5.0.0
+  version: 5.0.1
   description: Runs the reviewed Maasea YouTube Enhance scripts against YouTube responses and the Onesie playback path.
 
 permissions:
@@ -44,7 +44,7 @@ settings:
   - key: debug
     type: boolean
     label: Debug logging
-    description: Enables the upstream scripts' own verbose logging.
+    description: Carried for upstream argument parity. The pinned bundles never enable their logger from it, so it currently changes nothing.
     required: true
     default: false
 

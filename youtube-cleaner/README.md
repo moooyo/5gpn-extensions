@@ -65,8 +65,12 @@ and there is no per-publisher encoding to get wrong.
 
 Upstream passes only `captionLang` to the initplayback entry and nothing at all
 to `log_event`; this runtime passes the full settings object to every action.
-That is a superset — each bundle reads the keys it knows — and it is the one
-place the wiring is deliberately broader than the published module.
+That is the one place the wiring is deliberately broader than the published
+module, and it is not free. `log_event` never reads the parameters at all, but
+the initplayback entry forwards every parameter it holds to the external Worker,
+so the three block toggles leave this gateway with the operator's configured
+values where the published module always sends the bundle's own literals. The
+section below states exactly what that query contains.
 
 ## Onesie Worker and network permission
 
@@ -78,13 +82,19 @@ https://init-stream.maasea.workers.dev/
 
 The bundle does this itself. On a cache hit it calls `$done({url})` with
 `https://init-stream.maasea.workers.dev/?ck=<clientKey>&target=<original URL>`
-plus its own parameters, so the gateway follows a rewritten request URL rather
-than the script making an outbound call. That query discloses the cached
-`clientKey`, the complete original `initplayback` URL, the selected caption
-language, and the pinned module's fixed boolean defaults to that service. The
-original URL can contain playback tokens and other request metadata. The
-`encryptKey` remains in extension-scoped storage and is used locally only to
-decide whether the request key matches.
+followed by every key of its parameter object, so the gateway follows a
+rewritten request URL rather than the script making an outbound call. That query
+discloses the cached `clientKey`, the complete original `initplayback` URL, and
+all four parameters the bundle holds: `captionLang`, `blockUpload`,
+`blockImmersive`, and `blockShorts`. Because this manifest passes the settings to
+this action, those three booleans carry the operator's configured values, where
+upstream — which passes only `captionLang` here — always sends the bundle's own
+`true`, `true`, `false`. An operator who keeps the defaults therefore sends the
+query upstream sends, and one who changes a toggle discloses that choice.
+`debug` is not among them: the Loon branch copies only the keys the bundle's
+defaults declare. The original URL can contain playback tokens and other request
+metadata. The `encryptKey` remains in extension-scoped storage and is used
+locally only to decide whether the request key matches.
 
 A cross-host request patch also preserves the original HTTP method, decoded
 binary request body, and end-to-end request headers. The sidecar removes
@@ -123,12 +133,24 @@ host mapping or typed mihomo routing rule.
 | `blockUpload` | boolean | `true` | Removes `FEuploads` from the guide. |
 | `blockImmersive` | boolean | `true` | Removes `FEmusic_immersive` from the guide. |
 | `blockShorts` | boolean | `false` | Removes `FEshorts` from the guide; feed classification remains independent. |
-| `captionLang` | text | `off` | Uses a bounded language code such as `en` or `zh-Hans`, or disables caption rewriting. The value is also disclosed to the external Worker on matched Onesie requests. |
-| `debug` | boolean | `false` | Logs bounded transformation counters without response or key content. |
+| `captionLang` | text | `off` | Uses a Google Translate language code such as `en` or `zh-Hans`, or disables caption rewriting. |
+| `debug` | boolean | `false` | Carried for upstream parity. Nothing enables the bundles' logger from it, so it has no effect at this pin. |
+
+Every setting except `debug` is disclosed to the external Worker on a matched
+Onesie request, because the request bundle appends its whole parameter object to
+that URL. See [Onesie Worker and network
+permission](#onesie-worker-and-network-permission).
 
 Caption handling — the track-selection order, its observable English priority,
 and the advertised translation language list — is the bundle's own behavior and
 is not re-specified here.
+
+`debug` is upstream's own argument, declared here so the settings page matches
+the published module, but nothing at this pin reads it. The bundles take their
+debug flag from an options argument to the client constructor and then build the
+client without one, so their logger stays off; the Loon branch separately copies
+only the four keys its defaults declare, so `debug` never reaches the parameter
+object either. Upstream's module has the same property.
 
 ## Persistent state
 
@@ -216,7 +238,7 @@ upstream revision. Upstream selection remains a manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.youtube-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=5.0.0`; `persistentStorage=true`; `settings=5`; `captureHosts=2`; `actions=3`; `routingRules=0`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=5.0.1`; `persistentStorage=true`; `settings=5`; `captureHosts=2`; `actions=3`; `routingRules=0`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | State class | Stateful. Keep `persistentStorage: true` during normal migration and rollback. |
 | Advertisement cache | `YouTubeAdvertiseInfo` is a non-authoritative version `1.0` cache. An incompatible schema may reset and relearn only when that behavior is documented and tested. |
