@@ -257,7 +257,7 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=4.0.1`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=4.0.2`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |

@@ -70,7 +70,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     size: 251617,
   }])
   const zhihu = catalog.entries.find(entry => entry.id === 'io.5gpn.zhihu-cleaner')
-  assert.equal(zhihu.version, '2.0.1')
+  assert.equal(zhihu.version, '2.0.2')
   assert.deepEqual(
     [zhihu.capabilities.captureHostCount, zhihu.capabilities.actionCount, zhihu.capabilities.routingRuleCount],
     [5, 18, 5],
