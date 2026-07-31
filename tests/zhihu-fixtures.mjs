@@ -31,7 +31,7 @@ const blockedConfigKeys = [
 ]
 
 assert.equal(manifest.metadata.id, 'io.5gpn.zhihu-cleaner')
-assert.equal(manifest.metadata.version, '2.0.0')
+assert.equal(manifest.metadata.version, '2.0.1')
 assert.deepEqual(manifest.permissions, { persistentStorage: false })
 assert.equal(manifest.settings, undefined)
 assert.equal(manifest.requirements, undefined)

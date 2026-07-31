@@ -347,6 +347,19 @@ for (const entry of entries) {
       assert(action.script.jq.length <= 32768, `${entry.name}: ${action.id} jq expression is too long`)
       assert(action.script.entry === undefined, `${entry.name}: ${action.id} declares both jq and an entry`)
       assert(action.script.bodyMode === 'text', `${entry.name}: ${action.id} jq requires a text body`)
+      // A jq runtime error is not a no-op. The engine swallows exactly one
+      // condition -- a body that is not JSON -- and treats everything else as a
+      // failed action, which the response-phase exit answers with 502. So a
+      // program that indexes `.data` without checking it turns an origin's
+      // error envelope, or a `"data": []` standing in for an empty object, into
+      // a gateway error on a page that was working. Ten programs across two
+      // extensions had this shape. Check `.data` before indexing it.
+      if (/\.data\.[A-Za-z_]/.test(action.script.jq)) {
+        assert(
+          /\(\s*\.data\s*\|\s*type\s*\)/.test(action.script.jq),
+          `${entry.name}: ${action.id} indexes .data without checking its type first, so a body without it answers 502 instead of passing through`,
+        )
+      }
       assert(action.script.source === undefined && action.script.inline === undefined, `${entry.name}: ${action.id} declares both jq and a script`)
       continue
     }
@@ -450,7 +463,11 @@ for (const entry of entries) {
     assert(actions.filter((action) => typeof action.script.jq === 'string').length === 11, 'bilibili-cleaner: the eleven reviewed rewrite expressions are incomplete')
   }
   if (entry.name === 'youtube-cleaner') {
-    assert(actions.length === 3 && manifest.settings?.length === 5 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')
+    assert(actions.length === 3 && manifest.settings?.length === 4 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')
+    // The bundles copy only the keys their own defaults literal declares, so a
+    // setting they do not declare is dead weight the operator can still toggle.
+    // `debug` was exactly that and was removed; keep it from drifting back.
+    assert(!(manifest.settings ?? []).some((setting) => setting.key === 'debug'), 'youtube-cleaner: the pinned bundles never read a debug argument')
     assert(actions.every((action) => action.script.entry === 'proxy-compat'), 'youtube-cleaner: every action must run the published bundle')
     // Two entries, one per upstream transformer: the request script serves both
     // request actions and the response script serves the response action.
