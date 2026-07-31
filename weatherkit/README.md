@@ -133,12 +133,12 @@ exchange is handled and never which exchanges are touched.
 
 `Endpoint` is upstream's own argument, carried the same way: its Loon module
 interpolates `{endpoint}` into the rewrite line, and the manifest interpolates
-`{{settings.Endpoint}}` into the rewrite target. All three of upstream's
+`{{settings.Endpoint}}` into the rewrite target. Two of upstream's three
 endpoints are offered. `weatherkit.pages.dev` is the default because upstream
-describes it as directly reachable; `weather.nanocat.cloud` is upstream's Worker
-deployment and it documents that one as requiring a proxy, so an operator
-selecting it should bind an egress group or route it themselves. The setting
-does nothing in `Script` mode.
+describes it as directly reachable. Upstream's third, `weather.nanocat.cloud`,
+is not offered: it no longer resolves, so selecting it could only fail. The
+exclusions below record what was checked. The setting does nothing in `Script`
+mode.
 
 Both script actions use `entry: proxy-compat`. The runtime presents itself as Loon,
 supplies `$request`, `$response`, `$argument`, `$done`, `$persistentStore`,
@@ -173,7 +173,7 @@ from its rewrite module.
 | Key | Type and default | Effect |
 | --- | --- | --- |
 | `Mode` | select, `Script` | `Script` runs the bundle on this gateway; `Cloud` sends both matched paths to the selected endpoint instead, and every setting below `Endpoint` stops applying. |
-| `Endpoint` | select, `weatherkit.pages.dev` | The host `Cloud` mode sends captured requests to. Upstream's three: `weatherkit.pages.dev`, `dev.weatherkit.pages.dev`, `weather.nanocat.cloud`. |
+| `Endpoint` | select, `weatherkit.pages.dev` | The host `Cloud` mode sends captured requests to. Two of upstream's three: `weatherkit.pages.dev` and `dev.weatherkit.pages.dev`. |
 | `Weather.Provider` | select, `WeatherKit` | Replaces weather data with the selected provider. `WeatherKit` leaves Apple's data alone. |
 | `NextHour.Provider` | select, `WeatherKit` | Fills next-hour precipitation from the selected provider. |
 | `AirQuality.Calculate.Algorithm` | select, `None` | Calculates the air-quality index locally from reported pollutants. |
@@ -241,14 +241,21 @@ off. See the exclusions below for why declaring more of them would not.
 
 ## Deliberate exclusions and limitations
 
-- The services behind all three endpoints are not distributed artifacts of this
+- The services behind both endpoints are not distributed artifacts of this
   repository, and their deployments are not pinned by anything here. What this
   port transcribes is upstream's rewrite module — the paths and the endpoint
   list — and that says nothing about what those hosts run today. Treat cloud
   endpoint mode as trusting their operator, not as running reviewed code.
-- `weather.nanocat.cloud` is upstream's Worker deployment and upstream documents
-  it as requiring a proxy. This extension requires no egress binding, so an
-  operator selecting it has to route it themselves.
+- Upstream's third endpoint, `weather.nanocat.cloud`, is not offered. It stopped
+  resolving: checked on `2026-07-31`, it returned no address and no connection
+  could be opened, while `weatherkit.pages.dev` and `dev.weatherkit.pages.dev`
+  both answered on the same two paths. Upstream has itself dropped that module's
+  `endpoint` argument and hard-coded `https://weatherkit.pages.dev`, so the
+  choice is narrowing upstream too. Revision 6.0.0 removes the option; an
+  install that had selected it does not retain the value, because the shared
+  playbook retains a value only while it stays valid under the candidate, so the
+  required select applies its default, `weatherkit.pages.dev`. Re-confirm the
+  endpoint while disabled.
 - Cloud endpoint mode reads none of the bundle settings, and no channel exists
   to pass them: upstream's service takes its configuration from its own
   defaults. Enabling it silently discards every provider, token, and algorithm
@@ -338,11 +345,11 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.weatherkit`; bump `metadata.version` for every manifest or pinned-bundle change. |
-| Current manifest | `version=5.0.0`; `persistentStorage=true`; `settings=11`; `captureHosts=1`; `actions=4`; `routingRules=4`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=6.0.0`; `persistentStorage=true`; `settings=11`; `captureHosts=1`; `actions=4`; `routingRules=4`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the bundle caches provider lookups in the extension-scoped store. |
 | Settings | Preserve the eight upstream argument keys, the `Storage` pin, and the two mode gates with their types. A normal same-ID update retains only values that remain valid under the candidate; a candidate that drops a gate must state which mode an existing install lands in. |
 | Script contract | The two response actions use `entry: proxy-compat`; the two request actions are declarative rewrites and run no code. Changing an action back to the native contract requires a new reviewed script, not a manifest edit. |
-| Third-party endpoint | `https://weatherkit.pages.dev` is part of the reviewed snapshot. Changing it, adding a second endpoint, or moving it behind a setting is a capability change and needs a disabled replacement. |
+| Third-party endpoint | `https://weatherkit.pages.dev` and `https://dev.weatherkit.pages.dev` are the reviewed set. Changing one, adding an endpoint, or moving the choice out from behind the setting is a capability change and needs a disabled replacement. Removing one, as 6.0.0 did, is a capability reduction and needs the same review. |
 | Permission review gate | The network capability and persistent storage are part of the reviewed baseline. Removing either is a capability reduction and still needs a disabled replacement. |
 | Reviewed capability baseline | One capture host, two proxy-compat response actions gated on `Script.Enabled`, two request rewrites to one third-party endpoint gated on `Worker.Enabled`, eleven settings, four reject routing rules, the network capability, persistent storage, and no required egress. |
 | Operator state | A normal update retains valid settings, `capture_dns`, and execution order. Review all while disabled, and re-confirm which mode gate is on. |

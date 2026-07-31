@@ -12,7 +12,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '5.0.0')
+assert.equal(manifest.metadata.version, '6.0.0')
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
 // Three of these are upstream's exact-name rejects, which revisions before
 // 3.2.0 simply omitted. The fourth approximates upstream's ASN-plus-QUIC rule;
@@ -93,11 +93,13 @@ assert.deepEqual(mode.options, ['Script', 'Cloud'])
 assert.equal(mode.default, 'Script', 'a third-party endpoint must never be the default')
 
 // Every option is a third party a captured Apple request can be handed to, so
-// the set is pinned here and each one is named in the README.
+// the set is pinned here and each one is named in the README. Upstream's third
+// endpoint is deliberately absent: it stopped resolving, and an option that can
+// only fail is worse than no option.
 const endpoint = manifest.settings.find((setting) => setting.key === 'Endpoint')
 assert.equal(endpoint.type, 'select')
 assert.equal(endpoint.required, true)
-assert.deepEqual(endpoint.options, ['weatherkit.pages.dev', 'dev.weatherkit.pages.dev', 'weather.nanocat.cloud'])
+assert.deepEqual(endpoint.options, ['weatherkit.pages.dev', 'dev.weatherkit.pages.dev'])
 assert.equal(endpoint.default, 'weatherkit.pages.dev', 'upstream calls this one directly reachable')
 assert.match(endpoint.description, /authorization/i)
 

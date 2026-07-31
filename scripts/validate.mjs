@@ -485,9 +485,10 @@ for (const entry of entries) {
     assert(selectorsOf(scripted) === selectorsOf(cloud), 'weatherkit: the two modes must cover the same paths and methods')
     // Every endpoint an operator can select is a third party this extension may
     // hand a captured Apple request to, so the README has to name all of them
-    // and the rewrite must resolve to exactly that setting.
+    // and the rewrite must resolve to exactly that setting. Two, not upstream's
+    // three: the third stopped resolving and the exclusions record the check.
     const endpoint = manifest.settings.find((setting) => setting.key === 'Endpoint')
-    assert(endpoint?.type === 'select' && endpoint.required === true && endpoint.options.length === 3, 'weatherkit: Endpoint must offer the three upstream endpoints')
+    assert(endpoint?.type === 'select' && endpoint.required === true && endpoint.options.length === 2, 'weatherkit: Endpoint must offer the two reachable upstream endpoints')
     for (const option of endpoint.options) {
       assert(validHost(option) && !option.startsWith('*.'), `weatherkit: Endpoint option ${option} is not a host`)
       assert(readme.includes(option), `weatherkit: README does not record the cloud endpoint ${option}`)
