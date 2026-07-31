@@ -25,7 +25,7 @@ for (const id of ['mock-grpc-teenagers', 'mock-grpc-default-words', 'mock-grpc-e
   assert.equal(mockBodies.get(id).headers['Grpc-Status'], '0', `${id} must carry upstream's grpc-status header`)
 }
 
-assert.equal(manifest.metadata.version, '4.0.1')
+assert.equal(manifest.metadata.version, '4.0.2')
 assert.equal(manifest.permissions.persistentStorage, true)
 assert.deepEqual(
   manifest.settings.map(setting => [setting.key, setting.type, setting.default]),

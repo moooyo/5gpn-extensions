@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.bilibili-cleaner
   name: Bilibili Cleaner
-  version: 4.0.1
+  version: 4.0.2
   description: Runs the reviewed kokoryh/Sparkle Bilibili scripts and rewrite rules against the Bilibili app.
 
 permissions:
@@ -416,7 +416,7 @@ actions:
       pathRegex: '^/x/v2/splash/(?:show|event/list2)\?.*$'
     script:
       jq: >-
-        .data |= (if type == "object" then with_entries(if .key | IN("show", "event_list") then .value = [] else . end) else . end)
+        if (.data | type) == "object" then .data |= with_entries(if .key | IN("show", "event_list") then .value = [] else . end) else . end
       bodyMode: text
       timeoutMs: 1000
       maxBodyBytes: 8388608
@@ -469,10 +469,10 @@ actions:
         .data |= (
             del(.answer, .live_tip, .vip_section, .vip_section_v2, .modular_vip_section) | 
             .vip_type = 2 | 
-            .vip |= if . != null and .status == 0 
+            (if (.vip | type) == "object" then .vip |= (if .status == 0 
                 then . + { status: 1, type: 2, due_date: 9005270400000, role: 15 }
                 else . 
-            end | 
+            end) else . end) | 
             if .sections_v2 then .sections_v2 = 
                 [
                     {
@@ -664,7 +664,7 @@ actions:
     script:
       jq: >-
         if (.data | type) == "object" then (
-        .data.vip |= if . != null and .status == 0 then . + { status: 1, type: 2, due_date: 9005270400000, role: 15 } else . end
+        if (.data.vip | type) == "object" then .data.vip |= (if .status == 0 then . + { status: 1, type: 2, due_date: 9005270400000, role: 15 } else . end) else . end
         ) else . end
       bodyMode: text
       timeoutMs: 1000

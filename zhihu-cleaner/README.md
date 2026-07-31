@@ -205,7 +205,7 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.zhihu-cleaner`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.0.1`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=5`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.0.2`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=5`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | None. A same-ID update has no extension setting values to migrate. |
 | Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, five host-scoped UDP/443 reject rules, no JavaScript, and no network permission, mappings, settings, or egress requirement. |

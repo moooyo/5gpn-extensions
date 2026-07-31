@@ -360,6 +360,19 @@ for (const entry of entries) {
           `${entry.name}: ${action.id} indexes .data without checking its type first, so a body without it answers 502 instead of passing through`,
         )
       }
+      // `X |= f` reads as an update in place, but jq CREATES X when it is
+      // absent, so an unguarded update writes a null key into a body the origin
+      // never sent one in. That is silent: no error, no 502, just a field the
+      // client did not ask for. Every update must first establish that its path
+      // is there -- `(X | type)` or a truthiness `if X then`.
+      for (const [, path] of action.script.jq.matchAll(/(\.[A-Za-z_][\w.]*)\s*\|=/g)) {
+        const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const guarded = new RegExp(`\\(\\s*${escaped}\\s*\\|\\s*type\\s*\\)|if\\s+${escaped}\\s+then`)
+        assert(
+          guarded.test(action.script.jq),
+          `${entry.name}: ${action.id} updates ${path} without establishing it exists, so a body lacking it gains a null ${path}`,
+        )
+      }
       assert(action.script.source === undefined && action.script.inline === undefined, `${entry.name}: ${action.id} declares both jq and a script`)
       continue
     }
