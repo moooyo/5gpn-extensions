@@ -35,20 +35,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   }
 
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
-  assert.equal(catalog.entries.length, 8)
-  const adPlatform = catalog.entries.find(entry => entry.id === 'io.5gpn.ad-platform-blocker')
-  assert.deepEqual(
-    [adPlatform.capabilities.captureHostCount, adPlatform.capabilities.actionCount, adPlatform.capabilities.routingRuleCount],
-    [277, 3, 201],
-  )
-  // The published projection is what the gateway checks its own Go compile
-  // against, so a drift in either compiler has to be visible here.
-  assert.deepEqual(adPlatform.policy, {
-    clientRules: 553,
-    policyRules: 201,
-    captureRules: 352,
-    digest: 'a65ccac63b95fd5b8395770118ca3941dffbc17105c4ac7ec56deb996bb0a936',
-  })
+  assert.equal(catalog.entries.length, 6)
   for (const entry of catalog.entries) {
     assert.equal(entry.policy.clientRules, entry.policy.policyRules + entry.policy.captureRules)
     assert.equal(entry.policy.policyRules, entry.capabilities.routingRuleCount,
@@ -88,6 +75,14 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     [zhihu.capabilities.captureHostCount, zhihu.capabilities.actionCount, zhihu.capabilities.routingRuleCount],
     [5, 18, 5],
   )
+  // The published projection is what the gateway checks its own Go compile
+  // against, so a drift in either compiler has to be visible here.
+  assert.deepEqual(zhihu.policy, {
+    clientRules: 15,
+    policyRules: 5,
+    captureRules: 10,
+    digest: 'e7d7baaa94c139160a879aad2cbbec2aabfdbc476972ba914cff84dc038030eb',
+  })
   // All sixteen of zhihu's actions are declarative, so it names no script for
   // the gateway to fetch or pin.
   assert.deepEqual(zhihu.resources.map(resource => resource.path), [])
@@ -109,7 +104,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   try {
     await execFileAsync(process.execPath, [script, '--revision', revision, '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 8, 'the index must describe every shipped extension')
+    assert.equal(JSON.parse(generated).entries.length, 6, 'the index must describe every shipped extension')
     await execFileAsync(process.execPath, [script, '--revision', revision, '--check', output], { cwd: repositoryRoot })
 
     // --profile is gone with the split it selected. An unknown option is

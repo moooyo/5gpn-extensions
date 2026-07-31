@@ -6,6 +6,7 @@ path = [
   ".gitattributes",
   ".gitignore",
   "AGENTS.md",
+  "CLAUDE.md",
   "KELEEONE-LICENSE.md",
   "LICENSE",
   "MIGRATION.md",
@@ -61,18 +62,6 @@ SPDX-License-Identifier = "Apache-2.0"
 # Exact immutable artifact provenance and source metadata credits are retained
 # in each extension README and in THIRD_PARTY_NOTICES.md. They are not promoted
 # to unverified copyright claims.
-[[annotations]]
-path = "ad-platform-blocker/*"
-precedence = "override"
-SPDX-FileCopyrightText = "2026 moooyo"
-SPDX-License-Identifier = "CC-BY-NC-SA-4.0"
-
-[[annotations]]
-path = "httpdns-interceptor/*"
-precedence = "override"
-SPDX-FileCopyrightText = "2026 moooyo"
-SPDX-License-Identifier = "CC-BY-NC-SA-4.0"
-
 [[annotations]]
 path = "testflight-region-unlock/*"
 precedence = "override"

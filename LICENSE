@@ -20,9 +20,9 @@ owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.
   whose published bundles they load. Neither vendors upstream source. The
   complete Apache text is in
   [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
-- `ad-platform-blocker`, `httpdns-interceptor`, `testflight-region-unlock`,
-  and the separately authorized `zhihu-cleaner` port are Kelee-derived adapted
-  material under `CC-BY-NC-SA-4.0`. The complete text is in
+- `testflight-region-unlock` and the separately authorized `zhihu-cleaner`
+  port are Kelee-derived adapted material under `CC-BY-NC-SA-4.0`. The
+  complete text is in
   [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt).
 
 One extension's license never overrides another extension's license. A

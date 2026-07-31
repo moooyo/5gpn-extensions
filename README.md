@@ -12,10 +12,8 @@ operator egress requirement before enabling it.
 
 | Extension | Purpose | License |
 | --- | --- | --- |
-| `ad-platform-blocker` | Acquire bounded selectors and block 201 reviewed advertising-platform routes | CC BY-NC-SA 4.0 |
 | `apple-wloc` | Rewrite Apple WLOC responses to an operator-selected point | MIT |
 | `bilibili-cleaner` | Remove selected Bilibili ads and promotions | GPL-3.0-only |
-| `httpdns-interceptor` | Acquire 58 HTTPDNS domains; reject 59 gateway-visible CIDR routes and block seven request paths | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | Rewrite TestFlight storefront with operator-selected egress | CC BY-NC-SA 4.0 |
 | `weatherkit` | Run the reviewed WeatherKit bundle on the gateway, or send both captured paths to an upstream cloud endpoint | Apache-2.0 |
 | `youtube-cleaner` | Clean YouTube responses and prepare the reviewed external Onesie playback path | Apache-2.0 |
@@ -31,10 +29,8 @@ public HTTPS origin; never embed repository credentials in an extension URL.
 
 | Extension | Manifest URL |
 | --- | --- |
-| `ad-platform-blocker` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/ad-platform-blocker/extension.yaml> |
 | `apple-wloc` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/apple-wloc/extension.yaml> |
 | `bilibili-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml> |
-| `httpdns-interceptor` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/httpdns-interceptor/extension.yaml> |
 | `testflight-region-unlock` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-unlock/extension.yaml> |
 | `weatherkit` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/weatherkit/extension.yaml> |
 | `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
@@ -356,8 +352,6 @@ checked at all.
    if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
    npm test
    if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-   npm run routing:check
-   if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
    ```
 
    Then run the current core parser integration command in
@@ -398,8 +392,6 @@ npm ci
 if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-npm run routing:check
-if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --output marketplace.json
 if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --check marketplace.json
@@ -409,9 +401,6 @@ if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTE
 The validation gate checks manifest structure, local script references,
 capture-host ownership, JavaScript syntax, forbidden compatibility globals,
 upstream provenance documentation, and per-extension behavior fixtures.
-The separate upstream command downloads every immutable source URL recorded in
-the READMEs and verifies that its actual SHA-256 is present in the same
-document; it intentionally requires network access.
 
 Marketplace generation reads only reviewed market metadata from
 `marketplace/metadata.json`; names, versions, descriptions, resources,

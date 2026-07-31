@@ -294,8 +294,6 @@ off. See the exclusions below for why declaring more of them would not.
 ```powershell
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-npm run routing:check
-if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 ```
 
 Runtime-facing changes must also pass the current 5gpn core parser/marketplace

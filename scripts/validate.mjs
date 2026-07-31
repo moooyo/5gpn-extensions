@@ -29,13 +29,11 @@ for (const [filename, expectedDigest] of expectedLicenseFiles) {
 assert(licenseSummary.includes('multi-licensed repository'), 'root LICENSE does not describe the multi-license boundary')
 assert(packageMetadata.license === 'SEE LICENSE IN LICENSE', 'package.json must point to the multi-license boundary')
 const expectedExtensions = new Map([
-  ['ad-platform-blocker', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
   // Yu9191/wloc publishes no LICENSE file. That is recorded rather than
   // papered over: the README must say so, because "no upstream license digest"
   // and "we forgot to record one" must not look the same.
   ['apple-wloc', { license: 'MIT', pin: 'eec07a8dc8de6dbaee8eac1fb376e4d03020154a', unlicensed: true }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '12e89d6d93d72d39eb283ef81d2b58eb204cdb58' }],
-  ['httpdns-interceptor', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
   ['weatherkit', { license: 'Apache-2.0', pin: '1a2f64883d866a6974a9a5369a82191c49413617' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525' }],
@@ -450,24 +448,6 @@ for (const entry of entries) {
       assert(action.script.source.startsWith('https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/'), `bilibili-cleaner: ${action.id} is not the reviewed immutable commit`)
     }
     assert(actions.filter((action) => typeof action.script.jq === 'string').length === 11, 'bilibili-cleaner: the eleven reviewed rewrite expressions are incomplete')
-  }
-  if (entry.name === 'ad-platform-blocker') {
-    assert(routingRules.length === 201, 'ad-platform-blocker: reviewed upstream routing rules are incomplete')
-    assert(captureHosts.length === 277, 'ad-platform-blocker: reviewed routing domains are not fully acquired')
-    assert(actions.length === 3 && actions.every((action) => action.match.hosts.length === 1), 'ad-platform-blocker: reviewed path actions are incomplete')
-  }
-  if (entry.name === 'httpdns-interceptor') {
-    assert(routingRules.length === 117, 'httpdns-interceptor: reviewed hostname/CIDR routing rules are incomplete')
-    const routeDomains = routingRules.flatMap((rule) => rule.domain === undefined ? [] : [rule.domain])
-    const routeCIDRs = routingRules.flatMap((rule) => rule.ipCIDR === undefined ? [] : [rule.ipCIDR])
-    const requiredCaptureHosts = new Set([...routeDomains, ...actions.flatMap((action) => action.match.hosts)])
-    assert(routeDomains.length === 58 && routeCIDRs.length === 59, 'httpdns-interceptor: routing selector split is incomplete')
-    assert(actions.length === 7, 'httpdns-interceptor: reviewed hostname path actions are incomplete')
-    assert(
-      captureHosts.length === 64 && captureHosts.length === requiredCaptureHosts.size &&
-        captureHosts.every((host) => requiredCaptureHosts.has(host)),
-      'httpdns-interceptor: every domain route and action host must acquire traffic exactly once',
-    )
   }
   if (entry.name === 'youtube-cleaner') {
     assert(actions.length === 3 && manifest.settings?.length === 5 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 0, 'youtube-cleaner: application parity capability set is incomplete')

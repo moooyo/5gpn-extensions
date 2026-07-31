@@ -183,8 +183,6 @@ Run the common gates from the repository root:
 ```powershell
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-npm run routing:check
-if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
 ```
 

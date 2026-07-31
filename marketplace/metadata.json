@@ -8,11 +8,6 @@
   },
   "entries": [
     {
-      "directory": "ad-platform-blocker",
-      "licenseSpdx": "CC-BY-NC-SA-4.0",
-      "tags": ["ads", "blocking", "privacy"]
-    },
-    {
       "directory": "apple-wloc",
       "licenseSpdx": "MIT",
       "tags": ["apple", "location", "testing"]
@@ -21,11 +16,6 @@
       "directory": "bilibili-cleaner",
       "licenseSpdx": "GPL-3.0-only",
       "tags": ["ads", "bilibili", "media"]
-    },
-    {
-      "directory": "httpdns-interceptor",
-      "licenseSpdx": "CC-BY-NC-SA-4.0",
-      "tags": ["blocking", "dns", "privacy"]
     },
     {
       "directory": "testflight-region-unlock",

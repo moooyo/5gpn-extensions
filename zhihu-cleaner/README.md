@@ -267,8 +267,6 @@ node tests/zhihu-fixtures.mjs
 if ($LASTEXITCODE -ne 0) { throw "Zhihu fixtures failed with exit code $LASTEXITCODE" }
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-npm run routing:check
-if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 ```
 
 Run the current 5gpn core parser integration command from

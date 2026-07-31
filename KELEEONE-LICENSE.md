@@ -1,23 +1,21 @@
 # KeleeOne-derived extension license
 
-The maintained native extensions listed below contain modified material
+The maintained native extension listed below contains modified material
 retrieved from the `mihoyo-typ/KeleeOne` repository at commit
 `ab6c3182fb2b09bcc34456f496282ec0b8e9217b`:
 
-- `ad-platform-blocker`
-- `httpdns-interceptor`
 - `testflight-region-unlock`
 
 The upstream snapshot is licensed under the Creative Commons
 Attribution-NonCommercial-ShareAlike 4.0 International license
-(CC BY-NC-SA 4.0). These native ports are adapted material and are distributed
+(CC BY-NC-SA 4.0). This native port is adapted material and is distributed
 under the same license, separately from 5gpn's MIT-licensed core code.
 The complete local legal text is stored at
 [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt).
 
-The ports are modified: Loon manifests, rules, and rewrites are translated into
+The port is modified: Loon manifests, rules, and rewrites are translated into
 strict `5gpn.io/v1` manifests whose actions are declarative: typed routing
-rules, `reject`, `mock`, and `jq` expressions rather than code.
+rules, `reject`, `replaceBody`, and `jq` expressions rather than code.
 Each extension README identifies its exact upstream files, immutable URLs,
 digests, creator metadata, behavioral mapping, omitted features, and changes.
 

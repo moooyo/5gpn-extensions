@@ -288,8 +288,6 @@ data-safe because the extension is stateless, but it loses settings, egress,
 ```powershell
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-npm run routing:check
-if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 ```
 
 Nothing re-downloads the pinned artifacts to compare them any more. Each URL

@@ -9,10 +9,8 @@
 
 | 扩展 | 用途 | 许可证 |
 | --- | --- | --- |
-| `ad-platform-blocker` | 获取有界选择器流量并阻止 201 条经审查的广告平台路由 | CC BY-NC-SA 4.0 |
 | `apple-wloc` | 将 Apple WLOC 响应改写为运营者选择的位置 | MIT |
 | `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
-| `httpdns-interceptor` | 获取 58 个 HTTPDNS 域名；拒绝 59 条网关可见 CIDR 路由，并拦截 7 条请求路径 | CC BY-NC-SA 4.0 |
 | `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
 | `weatherkit` | 在网关上运行评审过的 WeatherKit bundle，或按 `Mode` 把两条捕获路径交给上游云端端点 | Apache-2.0 |
 | `youtube-cleaner` | 清理 YouTube 响应并准备经审查的外部 Onesie 播放链路 | Apache-2.0 |
@@ -25,10 +23,8 @@
 
 | 扩展 | 清单 URL |
 | --- | --- |
-| `ad-platform-blocker` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/ad-platform-blocker/extension.yaml> |
 | `apple-wloc` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/apple-wloc/extension.yaml> |
 | `bilibili-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml> |
-| `httpdns-interceptor` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/httpdns-interceptor/extension.yaml> |
 | `testflight-region-unlock` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-unlock/extension.yaml> |
 | `weatherkit` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/weatherkit/extension.yaml> |
 | `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
@@ -241,7 +237,7 @@ traffic:
 
 1. 选择权威上游仓库和不可变提交。不得将扩展商店或镜像的根许可证视为比更具体的原始文件许可证更有权威性。
 2. 移植行为前，记录并验证每个源文件和许可证文件的原始 URL、大小、SHA-256、获取日期、创作者署名和许可证。
-3. 仅将经审查的行为转换为严格的原生清单。优先使用声明式动作(`reject`/`mock`/`jq`/`headers`/`rewrite`/`replaceBody`)——本仓库的八个扩展全部由它们和 `proxy-compat` 构成,不含任何 JavaScript。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
+3. 仅将经审查的行为转换为严格的原生清单。优先使用声明式动作(`reject`/`mock`/`jq`/`headers`/`rewrite`/`replaceBody`)——本仓库的六个扩展全部由它们和 `proxy-compat` 构成,不含任何 JavaScript。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
 4. 仅在使用时声明存储、联网权限、上游映射和所需出口。记录获准的网络调用可能泄露哪些已解密数据。
 5. 添加正向、无操作、格式错误输入和边界测试样例。保留无关字段，并在部分转换不安全时以拒绝方式失败（fail closed）。
 6. 运行目录验证器和当前核心解析器门禁：
@@ -251,8 +247,6 @@ traffic:
    if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
    npm test
    if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-   npm run routing:check
-   if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
    ```
 
    随后运行 [`MIGRATION.md`](MIGRATION.md) 中的当前核心解析器集成命令。
@@ -277,15 +271,13 @@ npm ci
 if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-npm run routing:check
-if ($LASTEXITCODE -ne 0) { throw "routing check failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --output marketplace.json
 if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
 npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --check marketplace.json
 if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTEXITCODE" }
 ```
 
-验证门禁检查清单结构、本地脚本引用、捕获主机所有权、JavaScript 语法、禁止的兼容性全局对象、上游溯源文档及每个扩展的行为测试样例。独立的上游命令会下载 README 中记录的每个不可变源 URL，并验证其实际 SHA-256 是否出现在同一文档中；它有意要求网络访问。
+验证门禁检查清单结构、本地脚本引用、捕获主机所有权、JavaScript 语法、禁止的兼容性全局对象、上游溯源文档及每个扩展的行为测试样例。
 
 Marketplace 生成器只读取 `marketplace/metadata.json` 中经审查的市场元数据；名称、版本、描述、资源、摘要、大小和能力摘要均从严格扩展 manifest 与本地文件派生。对于同一个 revision，输出是确定的。生成器会创建不存在的 `--output` 父目录，`--check` 则要求逐字节完全一致。fixture 测试会编译公开的 Draft 2020-12 schema，并使用它校验真实生成的目录。Pages 工作流会重新运行所有校验和上游检查，从已检出的 `GITHUB_SHA` 生成列表、复核生成字节，并且只部署静态 marketplace 与 schema。
 

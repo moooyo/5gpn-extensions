@@ -11,17 +11,12 @@ CC BY-NC-SA 4.0:
 
 | Extension | Creator metadata retained from the source file |
 | --- | --- |
-| `ad-platform-blocker` | 可莉🅥 (`iKeLee`, linked to `luestr/ProxyResource`) |
-| `httpdns-interceptor` | 可莉🅥 (`iKeLee`) and VirgilClyne |
 | `testflight-region-unlock` | 可莉🅥 (`iKeLee`, linked to `luestr/ProxyResource`) |
 | `zhihu-cleaner` | 可莉🅥 (`iKeLee`, linked to `luestr/ProxyResource`) |
 
-The distribution snapshot for the first three directories is
+The distribution snapshot for `testflight-region-unlock` is
 `mihoyo-typ/KeleeOne@ab6c3182fb2b09bcc34456f496282ec0b8e9217b`.
-The `Loon` branch HEAD was revalidated on `2026-07-22`. For
-`Plugin/BlockAdvertisers.lpx`, the most recent file-changing commit is
-`d218662ec4d85d6578fa30a2df8bbf167b5d9823`, whose artifact is byte-identical
-to the distribution snapshot.
+The `Loon` branch HEAD was revalidated on `2026-07-22`.
 Its root license is CC BY-NC-SA 4.0. The local legal text is
 [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt), and the exact
 scope and attribution requirements are described in
