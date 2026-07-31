@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.apple-wloc
   name: Apple WLOC Location Override
-  version: 2.0.0
+  version: 2.1.0
   description: Runs the reviewed Yu9191/wloc scripts against Apple Wi-Fi and cellular location responses.
 
 permissions:
@@ -16,25 +16,49 @@ traffic:
     - gs-loc-cn.apple.com
 
 settings:
+  # Typed `number`, not `text`, for two reasons beyond the obvious one.
+  #
+  # A same-ID update retains a stored value only when the key AND the type both
+  # match, so changing the type is what drops the coordinate an existing install
+  # carries. That matters here: every 2.0.x install persisted upstream's own
+  # 113.94114/22.544577 as a value, and upstream reads exactly that pair with
+  # empty storage as "unconfigured" -- it nulls the coordinates and returns the
+  # response untouched. Dropping the default alone would have fixed only fresh
+  # installs and left every existing one reporting ready while patching nothing.
+  #
+  # `number` also carries min/max, which the console and the daemon both
+  # enforce; a `text` coordinate accepts any non-empty string on both sides.
+  #
+  # No default: the extension stays not-ready until an operator sets a point,
+  # which is the honest state for a location override nobody has aimed yet.
   - key: longitude
-    type: text
+    type: number
     label: Longitude
-    description: Default longitude in decimal degrees. A point saved from the online picker takes precedence.
+    description: Target longitude in decimal degrees. A point saved from the online picker takes precedence.
     required: true
-    default: "113.94114"
+    min: -180
+    max: 180
   - key: latitude
-    type: text
+    type: number
     label: Latitude
-    description: Default latitude in decimal degrees. A point saved from the online picker takes precedence.
+    description: Target latitude in decimal degrees. A point saved from the online picker takes precedence.
     required: true
-    default: "22.544577"
+    min: -90
+    max: 90
   - key: accuracy
-    type: text
+    type: number
     label: Accuracy
     description: Reported horizontal accuracy in metres.
     required: true
-    default: "25"
-  - key: logLevel
+    min: 1
+    max: 100000
+    default: 25
+  # Upstream's [Argument] block declares `logLevel`. The response transformer
+  # reads both spellings and lets the capital one win; the settings-save script
+  # reads only `$argument.LogLevel`, so under upstream's own key that second
+  # script never gets the level. `LogLevel` is the one spelling both scripts
+  # read. The options and default remain upstream's.
+  - key: LogLevel
     type: select
     label: Script log level
     description: Selects the log level used by the reviewed WLOC scripts.

@@ -24,7 +24,7 @@ function sha256(bytes) {
 
 const appleManifest = await readManifest('apple-wloc/extension.yaml')
 assert.equal(appleManifest.metadata.id, 'io.5gpn.apple-wloc')
-assert.equal(appleManifest.metadata.version, '2.0.0')
+assert.equal(appleManifest.metadata.version, '2.1.0')
 // The picker page saves a coordinate into extension-scoped storage, which is
 // why this revision declares storage where the previous one declared none.
 assert.deepEqual(appleManifest.permissions, { persistentStorage: true })
@@ -32,14 +32,54 @@ assert.equal(appleManifest.requirements, undefined)
 assert.deepEqual(appleManifest.traffic, {
   captureHosts: ['gs-loc.apple.com', 'gs-loc-cn.apple.com'],
 })
-// The four settings are upstream's [Argument] block verbatim, including its
-// types and defaults, so they reach the scripts as the object Loon supplies.
+// Three deliberate deviations from upstream's [Argument] block, all because
+// following it exactly produced a setting that did nothing.
+//
+// The coordinates ship no default. Upstream reads its own shipped coordinate as
+// "unconfigured": with empty storage and longitude/latitude exactly
+// 113.94114/22.544577 it nulls the pair and returns the response unmodified. So
+// carrying those defaults left two required settings looking complete while the
+// extension patched nothing at all.
+//
+// They are typed `number` rather than `text`. A same-ID update retains a stored
+// value only when the key and the type both match, so the type change is what
+// drops the sentinel an existing 2.0.x install carries -- without it this
+// release would have fixed only fresh installs. `number` also carries the
+// min/max the console and the daemon enforce.
+//
+// The log level is keyed `LogLevel`. Upstream's block declares `logLevel`; the
+// response transformer reads both and lets the capital one win, but the
+// settings-save script reads only `$argument.LogLevel`, so upstream's own key
+// leaves that second script on its built-in level. `LogLevel` is the single
+// spelling both scripts honour.
 assert.deepEqual(appleManifest.settings.map(({ key, type, default: value }) => ({ key, type, value })), [
-  { key: 'longitude', type: 'text', value: '113.94114' },
-  { key: 'latitude', type: 'text', value: '22.544577' },
-  { key: 'accuracy', type: 'text', value: '25' },
-  { key: 'logLevel', type: 'select', value: 'info' },
+  { key: 'longitude', type: 'number', value: undefined },
+  { key: 'latitude', type: 'number', value: undefined },
+  { key: 'accuracy', type: 'number', value: 25 },
+  { key: 'LogLevel', type: 'select', value: 'info' },
 ])
+assert.deepEqual(appleManifest.settings.map(({ key, min, max }) => ({ key, min, max })), [
+  { key: 'longitude', min: -180, max: 180 },
+  { key: 'latitude', min: -90, max: 90 },
+  { key: 'accuracy', min: 1, max: 100000 },
+  { key: 'LogLevel', min: undefined, max: undefined },
+])
+// The console renders a map point picker with city search over a flat
+// longitude/latitude/accuracy trio. That is the only way an operator gets a map
+// for a proxy-compat bundle: a `location` setting arrives nested under one key
+// and these scripts read the three flat keys. Renaming one silently takes the
+// picker away, so the exact names and their order are pinned here.
+assert.deepEqual(
+  appleManifest.settings.filter(({ type }) => type === 'number').map(({ key }) => key),
+  ['longitude', 'latitude', 'accuracy'],
+  'the console map picker binds these exact three keys',
+)
+assert(
+  appleManifest.settings
+    .filter(({ key }) => key === 'longitude' || key === 'latitude')
+    .every((setting) => setting.required === true && setting.default === undefined),
+  'the coordinates must be required and undefaulted, or the extension reports ready while passing traffic through',
+)
 
 assert.equal(appleManifest.actions.length, 2)
 const [wlocAction, settingsAction] = appleManifest.actions
@@ -100,7 +140,7 @@ const testflightReadme = await readFile(path.join(root, 'testflight-region-unloc
 assert.match(appleReadme, /License: \[`MIT`\]/)
 assert.match(appleReadme, /eec07a8dc8de6dbaee8eac1fb376e4d03020154a/)
 // The upstream repository has no LICENSE file. The README has to say so, and
-// the three accepted costs have to remain visible rather than being quietly
+// the two accepted costs have to remain visible rather than being quietly
 // dropped in a later edit.
 assert.match(appleReadme, /upstream publishes no license file/i)
 assert.match(appleReadme, /failClosed/)
