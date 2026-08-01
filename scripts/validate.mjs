@@ -64,13 +64,44 @@ function hasOwn(object, key) {
   return Object.prototype.hasOwnProperty.call(object, key)
 }
 
+// canonicalIPv4CIDR requires the exact spelling the gateway stores.
+//
+// The gateway parses ipCIDR with net.ParseCIDR and stores network.String(),
+// while typed-policy.mjs digests the manifest text. A non-canonical spelling
+// therefore produces two different digests for one policy, and the gateway
+// refuses the install with a message accusing itself of enforcing something
+// other than what was reviewed -- when both sides compiled the same rule.
+// Requiring the canonical spelling here removes the possibility instead of
+// reimplementing Go's renderer.
+//
+// IPv4 only, and deliberately: both resolver boundaries answer AAAA with
+// synthetic NODATA and the data plane dials IPv4, so an IPv6 rule cannot match
+// anything a published extension will see -- and canonical IPv6 text is RFC 5952
+// (lowercase, longest zero run compressed, leftmost on a tie), which is not
+// something this validator should be guessing at.
 function validCIDR(value) {
   if (typeof value !== 'string' || value.trim() !== value || value === '') return false
-  const parts = value.split('/')
-  if (parts.length !== 2 || !/^\d+$/.test(parts[1])) return false
-  const family = isIP(parts[0])
-  const prefix = Number(parts[1])
-  return family !== 0 && prefix >= 0 && prefix <= (family === 4 ? 32 : 128)
+  const slash = value.indexOf('/')
+  if (slash <= 0 || value.indexOf('/', slash + 1) !== -1) return false
+  const address = value.slice(0, slash)
+  const suffix = value.slice(slash + 1)
+  if (isIP(address) !== 4) return false
+  if (!/^(0|[1-9]\d*)$/.test(suffix)) return false
+  const prefix = Number(suffix)
+  if (prefix > 32) return false
+  const octets = address.split('.')
+  if (octets.length !== 4) return false
+  let bits = 0
+  for (const octet of octets) {
+    // No leading zeros: "010.0.0.0/8" parses and renders back as "10.0.0.0/8".
+    if (!/^(0|[1-9]\d*)$/.test(octet)) return false
+    const value = Number(octet)
+    if (value > 255) return false
+    bits = bits * 256 + value
+  }
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0
+  // No host bits: "203.0.113.5/24" renders back as "203.0.113.0/24".
+  return ((bits & mask) >>> 0) === bits
 }
 
 function sortedUnique(values) {
@@ -290,6 +321,21 @@ for (const entry of entries) {
     // no code at all. Exactly one kind applies to an action.
     const kinds = ['jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody', 'source', 'inline'].filter((key) => action.script[key] !== undefined)
     assert(kinds.length === 1, `${entry.name}: ${action.id} must declare exactly one action kind, found ${kinds.join(', ') || 'none'}`)
+    // The two limits the gateway and the sidecar both bound, for the two kinds
+    // that actually run with a timeout and a body. Neither validator checked
+    // them, so a manifest declaring `timeoutMs: 20` passed CI and the core
+    // parser and was refused several layers later by
+    // `5gpn-intercept --check-config` with an error naming no field -- a
+    // refusal that then gates every later unrelated document mutation.
+    if (action.script.jq !== undefined || action.script.source !== undefined) {
+      for (const [key, min, max] of [['timeoutMs', 50, 30000], ['maxBodyBytes', 1024, 67108864]]) {
+        if (action.script[key] === undefined) continue
+        assert(
+          Number.isInteger(action.script[key]) && action.script[key] >= min && action.script[key] <= max,
+          `${entry.name}: ${action.id}.script.${key} must be an integer between ${min} and ${max}`,
+        )
+      }
+    }
     for (const [key, allowed] of [
       ['headers', new Set(['set', 'remove'])],
       ['rewrite', new Set(['pattern', 'to', 'status'])],
