@@ -3,6 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYAML } from 'yaml'
 import { compileManifestPolicy, compileRoutingRule, OVERLAY_LIMITS, policyDigest } from '../scripts/typed-policy.mjs'
+import { validateRoutingRules } from '../scripts/generate-marketplace.mjs'
 
 // Every declared policy must compile to the typed runtime overlay.
 //
@@ -145,6 +146,36 @@ function compileCaptureRulesFor(hosts) {
   })
   return projection.rules.filter((r) => r.action === 'capture')
 }
+
+// --- the digest depends on the manifest's exact text ------------------------
+
+// This file digests what the manifest says; the gateway digests what it parsed,
+// and for ipCIDR alone those differ, because net.ParseCIDR + network.String()
+// rewrites a non-canonical spelling. Two digests for one policy would make the
+// gateway refuse the install claiming it would enforce something other than
+// what was reviewed. The validators therefore require the canonical spelling,
+// which is what this pins.
+check('a non-canonical CIDR is refused rather than digested as written', () => {
+  const cases = {
+    'host bits set': '203.0.113.5/24',
+    'leading zero octet': '010.0.0.0/8',
+    // The data plane is IPv4-only at both resolver boundaries, and canonical
+    // IPv6 text is RFC 5952 rather than something a validator should guess at.
+    'IPv6': '2001:db8::/32',
+    'IPv6 uppercase': '2001:DB8::/32',
+  }
+  for (const [name, cidr] of Object.entries(cases)) {
+    let refused = false
+    try {
+      validateRoutingRules([{ action: 'reject', ipCIDR: cidr }], 'fixture')
+    } catch {
+      refused = true
+    }
+    assert(refused, `${name} (${cidr}) was accepted; its digest cannot match the gateway's`)
+  }
+  // The canonical spelling still works, or this test would prove nothing.
+  validateRoutingRules([{ action: 'reject', ipCIDR: '203.0.113.0/24' }], 'fixture')
+})
 
 // --- every shipped manifest -------------------------------------------------
 

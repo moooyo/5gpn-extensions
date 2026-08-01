@@ -108,12 +108,17 @@ per mode, over the same two paths -- plus one host-scoped transport rule:
    fallback to interceptable TCP.
 
    That fourth rule remains a narrower approximation of upstream's
-   `AND,((OR,((IP-ASN,714),(IP-ASN,6185))),(PROTOCOL,QUIC))`. Routing rules can
-   now select on `ipASN`, so the ASN half is expressible, but adopting it is
-   declined on purpose: it would reject traffic to every address in two Apple
-   autonomous systems, far outside the one host this extension captures, and
-   mihomo has no `PROTOCOL,QUIC` matcher to narrow it back down with. Widening
-   one extension's reach that far is not a change to make silently.
+   `AND,((OR,((IP-ASN,714),(IP-ASN,6185))),(PROTOCOL,QUIC))`. The ASN half is
+   not expressible at all: `ipASN` was accepted by the gateway's manifest parser
+   for a while, but nothing downstream could carry it — not the sidecar's
+   decoder, not the typed overlay, not this repository's validator — so a rule
+   using it would have been rendered in the enable review as an enforced deny
+   and then dropped from the published generation. The selector has since been
+   removed. Even if it returned, adopting it would be declined on purpose: it
+   would reject traffic to every address in two Apple autonomous systems, far
+   outside the one host this extension captures, and mihomo has no
+   `PROTOCOL,QUIC` matcher to narrow it back down with. Widening one extension's
+   reach that far is not a change to make silently.
 
 ### Choosing a mode
 

@@ -55,17 +55,32 @@ function validHost(value) {
   return host.split('.').length >= 2 && host.split('.').every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
 }
 
+// See validate.mjs: the canonical spelling is required so the manifest text this
+// digests and the network.String() the gateway compiles are the same bytes.
 function validCIDR(value) {
-  if (typeof value !== 'string' || value !== value.trim()) return false
-  const slash = value.lastIndexOf('/')
-  if (slash <= 0) return false
+  if (typeof value !== 'string' || value !== value.trim() || value === '') return false
+  const slash = value.indexOf('/')
+  if (slash <= 0 || value.indexOf('/', slash + 1) !== -1) return false
   const address = value.slice(0, slash)
-  const family = isIP(address)
-  const prefix = Number(value.slice(slash + 1))
-  return family !== 0 && Number.isInteger(prefix) && prefix >= 0 && prefix <= (family === 4 ? 32 : 128)
+  const suffix = value.slice(slash + 1)
+  if (isIP(address) !== 4) return false
+  if (!/^(0|[1-9]\d*)$/.test(suffix)) return false
+  const prefix = Number(suffix)
+  if (prefix > 32) return false
+  const octets = address.split('.')
+  if (octets.length !== 4) return false
+  let bits = 0
+  for (const octet of octets) {
+    if (!/^(0|[1-9]\d*)$/.test(octet)) return false
+    const parsed = Number(octet)
+    if (parsed > 255) return false
+    bits = bits * 256 + parsed
+  }
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0
+  return ((bits & mask) >>> 0) === bits
 }
 
-function validateRoutingRules(rules, directory) {
+export function validateRoutingRules(rules, directory) {
   assert(Array.isArray(rules) && rules.length <= 256, `${directory}: routingRules must be a bounded array`)
   const seenRules = new Set()
   for (const [index, rule] of rules.entries()) {
@@ -191,6 +206,17 @@ function parseStrictManifest(body, directory) {
     assertKeys(action.match, new Set(['hosts', 'schemes', 'methods', 'pathRegex', 'statusCodes']), `${directory}: action ${action.id}.match`)
     assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
     assert(action.script.inline === undefined, `${directory}: published actions must use immutable local script sources`)
+    // Bounded for the two kinds that run with a timeout and a body, matching the
+    // gateway parser and the sidecar. See validate.mjs.
+    if (action.script.jq !== undefined || action.script.source !== undefined) {
+      for (const [key, min, max] of [['timeoutMs', 50, 30000], ['maxBodyBytes', 1024, 67108864]]) {
+        if (action.script[key] === undefined) continue
+        assert(
+          Number.isInteger(action.script[key]) && action.script[key] >= min && action.script[key] <= max,
+          `${directory}: action ${action.id}.script.${key} must be an integer between ${min} and ${max}`,
+        )
+      }
+    }
     // A jq action carries an expression rather than a script, so it contributes
     // no resource to the index and has no source to pin.
     if (action.script.jq !== undefined) {
