@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://moooyo.github.io/5gpn-extensions/marketplace/v1/schema.json",
+  "$id": "https://moooyo.github.io/5gpn-extensions/marketplace/v2/schema.json",
   "title": "5gpn Extension Marketplace",
   "type": "object",
   "additionalProperties": false,
@@ -103,7 +103,8 @@
         "documentationUrl",
         "manifest",
         "resources",
-        "capabilities"
+        "capabilities",
+        "policy"
       ],
       "properties": {
         "id": {
@@ -279,7 +280,7 @@
       }
     },
     "policy": {
-      "description": "The typed runtime-overlay projection this extension compiles to. Present only in the v1beta profile: the stable core parses the index with DisallowUnknownFields and refuses a document carrying a field it does not know, so the v1 profile omits it.",
+      "description": "The typed runtime-overlay projection this extension compiles to. Required: the gateway compares its own compilation against this digest before installing, and an absent digest is treated as \"not verified\" rather than \"does not match\", so omitting it would buy an install with no policy verification at all.",
       "type": "object",
       "additionalProperties": false,
       "required": [
