@@ -321,20 +321,37 @@ for (const entry of entries) {
     // no code at all. Exactly one kind applies to an action.
     const kinds = ['jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody', 'source', 'inline'].filter((key) => action.script[key] !== undefined)
     assert(kinds.length === 1, `${entry.name}: ${action.id} must declare exactly one action kind, found ${kinds.join(', ') || 'none'}`)
-    // The two limits the gateway and the sidecar both bound, for the two kinds
-    // that actually run with a timeout and a body. Neither validator checked
-    // them, so a manifest declaring `timeoutMs: 20` passed CI and the core
-    // parser and was refused several layers later by
-    // `5gpn-intercept --check-config` with an error naming no field -- a
-    // refusal that then gates every later unrelated document mutation.
-    if (action.script.jq !== undefined || action.script.source !== undefined) {
-      for (const [key, min, max] of [['timeoutMs', 50, 30000], ['maxBodyBytes', 1024, 67108864]]) {
-        if (action.script[key] === undefined) continue
-        assert(
-          Number.isInteger(action.script[key]) && action.script[key] >= min && action.script[key] <= max,
-          `${entry.name}: ${action.id}.script.${key} must be an integer between ${min} and ${max}`,
-        )
-      }
+    // Every action kind carries a body mode and the two limits, so all three are
+    // checked here for all seven -- not just for the two that run code.
+    //
+    // Both gateway validators used to check them below a `continue` that five
+    // of the seven kinds took, so nothing anywhere bounded them. What that
+    // allowed: `maxBodyBytes: 1024` beside a 2 KiB mock body failed every
+    // matching request with a 502, `maxBodyBytes: -1` failed every one of them
+    // unconditionally, and `bodyMode: banana` reached the sidecar and defeated
+    // the streaming fast path, which requires every matched rule to be exactly
+    // `none`.
+    const bodyMode = action.script.bodyMode ?? 'none'
+    assert(['none', 'text', 'binary'].includes(bodyMode), `${entry.name}: ${action.id}.script.bodyMode must be none, text, or binary`)
+    for (const [key, min, max] of [['timeoutMs', 50, 30000], ['maxBodyBytes', 1024, 67108864]]) {
+      if (action.script[key] === undefined) continue
+      assert(
+        Number.isInteger(action.script[key]) && action.script[key] >= min && action.script[key] <= max,
+        `${entry.name}: ${action.id}.script.${key} must be an integer between ${min} and ${max}`,
+      )
+    }
+    // A rewrite acts on the request URL. It is the one declarative kind whose
+    // executor never reads the phase, so declaring `response` produced a URL
+    // change on the response path -- which that path refuses, turning an
+    // exchange the upstream had already answered into a 502 for the client.
+    if (action.script.rewrite !== undefined) {
+      assert(action.phase === 'request', `${entry.name}: ${action.id} rewrite requires phase request`)
+    }
+    // replaceBody edits a body, so it needs one delivered. Its executor reads
+    // the message body without consulting bodyMode, and that only works because
+    // the response path buffers unconditionally today.
+    if (action.script.replaceBody !== undefined) {
+      assert(bodyMode !== 'none', `${entry.name}: ${action.id} replaceBody requires bodyMode text or binary`)
     }
     for (const [key, allowed] of [
       ['headers', new Set(['set', 'remove'])],
