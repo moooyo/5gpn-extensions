@@ -21,9 +21,25 @@ jobs:
   build:
     # workflow_dispatch carries no workflow_run context, so accept it on its own
     # terms; a triggered run must have succeeded and must be main.
+    #
+    # `head_branch == 'main'` is not by itself a statement about this repository.
+    # validate also runs on `pull_request`, and for a pull request from a fork
+    # head_branch is the branch name *in the fork* -- which for a plain fork is
+    # `main`. That satisfied the gate, and the checkout below then took the
+    # fork's head_sha and ran npm ci / npm test from it, in this repository's
+    # context, feeding an artifact to a deploy job that holds `pages: write`.
+    # Because `pull_request` runs the workflow files from the PR head, the same
+    # commit could also make validate trivially green. The published document is
+    # the one the gateway hardcodes as its recommended marketplace, so this is
+    # the whole catalogue's trust boundary.
+    #
+    # head_repository pins it to this repository and `event == 'push'` drops the
+    # pull_request trigger as a publication source entirely.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
