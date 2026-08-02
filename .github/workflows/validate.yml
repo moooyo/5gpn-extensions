@@ -30,6 +30,16 @@ jobs:
       # field either channel does not know costs those gateways their whole
       # catalogue rather than one entry. Checking only the channel a field lands
       # on first is what would let that through.
+      # jq is this catalogue's main action kind and nothing here can compile
+      # one: gojq lives in the sidecar. Without this step a manifest carrying an
+      # unbalanced expression passes every gate and fails at an operator's
+      # install. The expressions are handed over as JSON because the sidecar's
+      # module has a fixed dependency list that does not include yaml.
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          repository: moooyo/mihomo-extension-sidecar
+          ref: main
+          path: 5gpn-sidecar
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           repository: moooyo/5gpn
@@ -44,6 +54,16 @@ jobs:
         with:
           go-version-file: 5gpn-core-stable/cmd/5gpn-dns/go.mod
           cache-dependency-path: 5gpn-core-stable/cmd/*/go.sum
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: 5gpn-sidecar/go.mod
+          cache-dependency-path: 5gpn-sidecar/go.sum
+      - name: Compile every jq expression with the engine that runs them
+        run: |
+          node scripts/extract-jq.mjs "${{ runner.temp }}/jq-programs.json"
+          cd 5gpn-sidecar
+          grep -Fq 'func TestExternalMaintainedJQProgramsCompile' module_jq_test.go
+          FIVEGPN_JQ_PROGRAMS="${{ runner.temp }}/jq-programs.json"             go test ./... -count=1 -run '^TestExternalMaintainedJQProgramsCompile$'
       - name: Validate with the stable core parser
         working-directory: 5gpn-core-stable/cmd/5gpn-dns
         env:
