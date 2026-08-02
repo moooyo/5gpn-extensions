@@ -5,14 +5,14 @@ import { parse } from 'yaml'
 
 const root = path.resolve(import.meta.dirname, '..')
 
-// This extension runs a published upstream bundle rather than a local script,
-// so there is nothing here to execute: the runtime behavior is covered by the
+// This extension runs published upstream bundles rather than local scripts, so
+// there is nothing here to execute: the runtime behavior is covered by the
 // sidecar's proxy-compat tests. What this repository still owns is the manifest
 // it publishes, and that is what these fixtures pin.
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '6.0.0')
+assert.equal(manifest.metadata.version, '7.0.0')
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
 // Three of these are upstream's exact-name rejects, which revisions before
 // 3.2.0 simply omitted. The fourth approximates upstream's ASN-plus-QUIC rule;
@@ -30,29 +30,46 @@ assert.equal(manifest.permissions.persistentStorage, true)
 assert.equal(manifest.permissions.network, true)
 assert.equal(manifest.requirements, undefined, 'no operator egress binding is required')
 
-const BUNDLE = 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js'
+const RELEASE = 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5'
+const RESPONSE_BUNDLE = `${RELEASE}/response.bundle.js`
+const REQUEST_BUNDLE = `${RELEASE}/request.bundle.js`
 const ENDPOINT = 'https://{{settings.Endpoint}}'
-assert.equal(manifest.actions.length, 4)
+// Upstream's own matcher for the alerts path, transcribed. The `&ids=` prefix is
+// deliberate and is upstream's: Apple's native alerts carry UUIDs, and the
+// coordinate form only exists because the response bundle wrote it into an alert
+// collection's detailsUrl.
+const ALERTS_PATH = '^/api/v1/weatherAlerts\\?[^#]*&ids=-?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+),-?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)(?:&|$)'
+assert.equal(manifest.actions.length, 6)
 
-// Gateway script mode: the two response scripts the release module declares.
+// Gateway script mode: the three scripts the release module declares.
 const scripted = manifest.actions.filter((action) => action.script.entry === 'proxy-compat')
-assert.equal(scripted.length, 2)
+assert.equal(scripted.length, 3)
 for (const action of scripted) {
-  assert.equal(action.phase, 'response')
   assert.deepEqual(action.enabledWhen, { key: 'Mode', equals: 'Script' })
-  assert.equal(action.script.source, BUNDLE, 'both actions must run the same pinned release')
   assert.deepEqual(action.match.hosts, ['weatherkit.apple.com'])
   assert.equal(action.script.inline, undefined)
   assert(action.script.timeoutMs >= 50 && action.script.timeoutMs <= 30000)
+}
+// Two response scripts and one request script. The request one is not a request
+// editor: for its path it answers the exchange itself, so it carries no status
+// matcher and its phase is asserted rather than assumed.
+const scriptedResponses = scripted.filter((action) => action.phase === 'response')
+assert.equal(scriptedResponses.length, 2)
+for (const action of scriptedResponses) {
+  assert.equal(action.script.source, RESPONSE_BUNDLE, 'both response actions must run the same pinned release')
   assert.deepEqual(action.match.statusCodes, [200])
 }
+const scriptedRequests = scripted.filter((action) => action.phase === 'request')
+assert.equal(scriptedRequests.length, 1)
+assert.equal(scriptedRequests[0].script.source, REQUEST_BUNDLE)
+assert.equal(scriptedRequests[0].match.statusCodes, undefined, 'a request action has no status to match')
 
-// Cloud endpoint mode: the two URL rewrites the upstream Rewrite module
+// Cloud endpoint mode: the three URL rewrites the upstream Rewrite module
 // declares, including its endpoint argument. The target resolves the operator's
 // Endpoint setting the same way Loon interpolates {endpoint} into a rewrite
-// line, so all three upstream endpoints are reachable without a manifest edit.
+// line.
 const cloud = manifest.actions.filter((action) => action.script.rewrite !== undefined)
-assert.equal(cloud.length, 2)
+assert.equal(cloud.length, 3)
 for (const action of cloud) {
   assert.equal(action.phase, 'request')
   assert.deepEqual(action.enabledWhen, { key: 'Mode', equals: 'Cloud' })
@@ -68,7 +85,7 @@ for (const action of cloud) {
 }
 
 // A gate switches how an exchange is handled, never which exchanges are
-// touched: both modes select the same two paths with the same methods.
+// touched: both modes select the same three paths with the same methods.
 const selectors = (list) => list.map((action) => `${action.match.pathRegex}|${(action.match.methods ?? []).join(',')}`).sort()
 assert.deepEqual(selectors(scripted), selectors(cloud))
 
@@ -79,10 +96,45 @@ const weather = manifest.actions.find((action) => action.id === 'weather-data')
 assert.equal(weather.script.bodyMode, 'binary')
 assert.equal(weather.match.pathRegex, '^/api/v2/weather/')
 assert.deepEqual(weather.match.methods, ['GET'])
+// Upstream declares no requires-body for the alerts script, so no request body
+// is delivered to it. It answers from the query string alone.
+const alerts = manifest.actions.find((action) => action.id === 'weather-alerts')
+assert.equal(alerts.phase, 'request')
+assert.equal(alerts.script.bodyMode, 'none')
+assert.equal(alerts.match.pathRegex, ALERTS_PATH)
+assert.equal(alerts.match.methods, undefined, 'upstream constrains this path by query, not method')
 const availabilityCloud = manifest.actions.find((action) => action.id === 'weather-availability-cloud')
 assert.equal(availabilityCloud.script.rewrite.to, `${ENDPOINT}/api/v1/availability/$1`)
 const weatherCloud = manifest.actions.find((action) => action.id === 'weather-data-cloud')
 assert.equal(weatherCloud.script.rewrite.to, `${ENDPOINT}/api/v2/weather/$1`)
+const alertsCloud = manifest.actions.find((action) => action.id === 'weather-alerts-cloud')
+assert.equal(alertsCloud.script.rewrite.to, `${ENDPOINT}/api/v1/weatherAlerts$1`)
+assert.equal(alertsCloud.match.pathRegex, ALERTS_PATH)
+
+// The `&ids=` constraint is the only thing keeping this action off Apple's own
+// alerts, so it is exercised rather than eyeballed. A UUID id is Apple's native
+// form and must pass through untouched; the coordinate form only exists because
+// the response bundle wrote it. The cloud twin's rewrite must fire on exactly
+// what the matcher selects, or the action would match and then do nothing.
+const alertsMatcher = new RegExp(alerts.match.pathRegex)
+const alertsRewrite = new RegExp(alertsCloud.script.rewrite.pattern)
+for (const [query, selected] of [
+  ['?lang=zh-CN&ids=39.9042,116.4074&timezone=Asia%2FShanghai', true],
+  ['?lang=en-US&ids=-33.86,151.2', true],
+  ['?country=CN&ids=6E9A1B2C-0000-4444-8888-AAAABBBBCCCC', false],
+  ['?ids=39.9042,116.4074', false],
+]) {
+  const path = `/api/v1/weatherAlerts${query}`
+  assert.equal(alertsMatcher.test(path), selected, `${path} must ${selected ? '' : 'not '}be selected`)
+  const url = `https://weatherkit.apple.com${path}`
+  assert.equal(alertsRewrite.test(url), selected, `${path} must ${selected ? '' : 'not '}be rewritten in cloud mode`)
+  if (!selected) continue
+  assert.equal(
+    url.replace(alertsRewrite, alertsCloud.script.rewrite.to),
+    `${ENDPOINT}/api/v1/weatherAlerts${query}`,
+    'the whole query, coordinates included, must reach the endpoint unchanged',
+  )
+}
 
 // One select drives both action sets, so "both modes at once" is not a state an
 // operator can reach. The default keeps every byte on this gateway.
@@ -149,24 +201,35 @@ for (const key of ['API.ColorfulClouds.Token', 'API.QWeather.Host', 'API.QWeathe
   const setting = manifest.settings.find((entry) => entry.key === key)
   assert.equal(setting.type, 'text')
   assert.equal(setting.required, false, `${key} must not block enable`)
-  assert.equal(setting.default, undefined, `${key} must not ship a token`)
 }
+for (const key of ['API.ColorfulClouds.Token', 'API.QWeather.Token', 'API.WAQI.Token']) {
+  assert.equal(manifest.settings.find((entry) => entry.key === key).default, undefined, `${key} must not ship a token`)
+}
+// Not a token, and not optional in practice. $argument is merged over the
+// bundle's own database defaults, so leaving this blank overwrites upstream's
+// devapi.qweather.com with "" and every QWeather URL is built against a hostless
+// https://. The alerts action answers from that host.
+assert.equal(manifest.settings.find((entry) => entry.key === 'API.QWeather.Host').default, 'devapi.qweather.com')
 
 // The README is the record of what runs and where it goes. Byte-level pinning
 // is gone with the verifier, so what it still has to name is every URL this
 // extension loads or sends captured traffic to.
 const readme = await readFile(path.join(root, 'weatherkit', 'README.md'), 'utf8')
-assert(readme.includes(BUNDLE), 'README must record the bundle URL')
+assert(readme.includes(RESPONSE_BUNDLE), 'README must record the response bundle URL')
+assert(readme.includes(REQUEST_BUNDLE), 'README must record the request bundle URL')
 assert(/exact coordinates/i.test(readme), 'README must state what an enabled provider receives')
 
 // Cloud mode transcribes a second upstream artifact. Nothing pins the live
 // service behind those hostnames, which is the point the README has to make.
-const REWRITE_MODULE = 'https://raw.githubusercontent.com/NSRingo/WeatherKit/1a2f64883d866a6974a9a5369a82191c49413617/modules/iRingo.WeatherKit.Rewrite.plugin'
+const REWRITE_MODULE = 'https://raw.githubusercontent.com/NSRingo/WeatherKit/33ec3297387e7444fec65bb48a0a042969b97167/modules/iRingo.WeatherKit.Rewrite.lpx'
 assert(readme.includes(REWRITE_MODULE), 'README must record the cloud rewrite module it transcribes')
 for (const option of endpoint.options) {
   assert(readme.includes(option), `README must record the cloud endpoint ${option}`)
 }
-assert(readme.includes('/api/v1/availability/') && readme.includes('/api/v2/weather/'), 'README must record both rewritten paths')
+assert(
+  readme.includes('/api/v1/availability/') && readme.includes('/api/v2/weather/') && readme.includes('/api/v1/weatherAlerts'),
+  'README must record all three rewritten paths',
+)
 assert(/authorization/i.test(readme), 'README must state which request headers an enabled cloud mode discloses')
 assert(/deployment is not pinned|not pinned by|pinned by nothing/i.test(readme), 'README must state that the live endpoint is unpinned')
 

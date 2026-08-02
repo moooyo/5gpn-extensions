@@ -15,7 +15,7 @@ operator egress requirement before enabling it.
 | `apple-wloc` | Rewrite Apple WLOC responses to an operator-selected point | MIT |
 | `bilibili-cleaner` | Remove selected Bilibili ads and promotions | GPL-3.0-only |
 | `testflight-region-unlock` | Rewrite TestFlight storefront with operator-selected egress | CC BY-NC-SA 4.0 |
-| `weatherkit` | Run the reviewed WeatherKit bundle on the gateway, or send both captured paths to an upstream cloud endpoint | Apache-2.0 |
+| `weatherkit` | Run the reviewed WeatherKit bundles on the gateway, or send all three captured paths to an upstream cloud endpoint | Apache-2.0 |
 | `youtube-cleaner` | Clean YouTube responses and prepare the reviewed external Onesie playback path | Apache-2.0 |
 | `zhihu-cleaner` | Remove selected Zhihu transport configuration, advertisements, promotions, and navigation entries | CC BY-NC-SA 4.0 |
 

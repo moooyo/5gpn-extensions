@@ -84,40 +84,51 @@ implementation.
 The external `init-stream.maasea.workers.dev` service is not distributed by this
 repository and its implementation is not present in the pinned upstream tree.
 
-## WeatherKit release bundle
+## WeatherKit release bundles
 
-`weatherkit` does not vendor upstream source. It loads the Apache-2.0
-`NSRingo/WeatherKit` published release bundle at runtime and executes it under
-the `5gpn.io/v1` proxy-compat script contract. The reviewed asset is
-`v3.2.0-beta2/response.bundle.js`, 251,617 bytes, SHA-256
-`4d368808a17c42eef18135f04d1bc9f01cbf7878d227006521ef0a6598941ff2`, built from
-commit `1a2f64883d866a6974a9a5369a82191c49413617`. The upstream tree contains
-no `NOTICE` file.
+`weatherkit` does not vendor upstream source. It loads two Apache-2.0
+`NSRingo/WeatherKit` published release bundles at runtime and executes them under
+the `5gpn.io/v1` proxy-compat script contract. The reviewed assets are
+`v3.2.0-beta5/response.bundle.js`, 267,124 bytes, SHA-256
+`0c1f9d73ae82310073933be480f71f7eb7c142593159c0683d598ff2a8993482`, and
+`v3.2.0-beta5/request.bundle.js`, 236,646 bytes, SHA-256
+`250c7970861e365501b1b0586bf3e951ed9e24e01af26391758c3a87051a2613`, both built
+from commit `33ec3297387e7444fec65bb48a0a042969b97167`. The upstream tree
+contains no `NOTICE` file.
 
-Because the bundle is fetched rather than copied, this repository distributes
-none of its bytes and adds no derived work of it. `weatherkit/extension.yaml`
+Because the bundles are fetched rather than copied, this repository distributes
+none of their bytes and adds no derived work of them. `weatherkit/extension.yaml`
 and `weatherkit/README.md` are original and Apache-2.0. The upstream package
 metadata credits VirgilClyne, WordlessEcho, and 001ProMax; those are retained
 creator attributions, not copyright assertions by this repository.
 
 GitHub release assets are publisher-replaceable, and GitHub reports
 `immutable: false` for this release. Nothing here re-checks those bytes, so
-upstream replacing that asset changes what runs without a review. No statement
-in this file is a line-by-line review of the bundle's contents either, and the
-bundle carries whatever third-party runtimes upstream chose to include.
+upstream replacing an asset changes what runs without a review. No statement
+in this file is a line-by-line review of the bundles' contents either, and they
+carry whatever third-party runtimes upstream chose to include.
 
 An enabled provider receives the request's exact coordinates and the operator's
-API token in the provider URL. The extension therefore declares the network
-capability and persistent storage, and its README states this boundary before
-enable.
+API token in the provider URL. Since `v3.2.0-beta5` the request bundle also
+reaches QWeather with those coordinates under no provider gate, and answers the
+client from what it returns rather than forwarding the request to Apple. The
+extension therefore declares the network capability and persistent storage, and
+its README states this boundary before enable.
 
 The same extension also ports upstream's cloud rewrite module,
-`modules/iRingo.WeatherKit.Rewrite.plugin` at the same commit. Its two rewrite
-targets and all three of the endpoints it offers are transcribed. Those services
+`modules/iRingo.WeatherKit.Rewrite.lpx` at the same commit. Its three rewrite
+targets are transcribed, and two of the three endpoints its argument config
+offers; the third no longer resolves and the extension README records the check.
+Those services
 are not distributed by this repository and their deployments are pinned by
 nothing here; the mode that uses them is off by default, and an operator who
 turns it on sends the captured request, including Apple's authorization header
 and the coordinates in its path, to the selected third party.
+
+Upstream moved the `v3.2.0-beta5` tag and replaced both assets during the
+`2026-08-03` review. The commit and digests above are the ones current at the
+end of it; the extension README records the pair they superseded and why nothing
+transcribed here changed.
 
 ## Apple WLOC response transformer
 

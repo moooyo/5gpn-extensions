@@ -35,7 +35,7 @@ const expectedExtensions = new Map([
   ['apple-wloc', { license: 'MIT', pin: 'eec07a8dc8de6dbaee8eac1fb376e4d03020154a', unlicensed: true }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '12e89d6d93d72d39eb283ef81d2b58eb204cdb58' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
-  ['weatherkit', { license: 'Apache-2.0', pin: '1a2f64883d866a6974a9a5369a82191c49413617' }],
+  ['weatherkit', { license: 'Apache-2.0', pin: '33ec3297387e7444fec65bb48a0a042969b97167' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525' }],
   ['zhihu-cleaner', { license: 'CC-BY-NC-SA-4.0', pin: '8d0e2791f531d4a02e1bd00d0f64427984bc999a' }],
 ])
@@ -564,27 +564,34 @@ for (const entry of entries) {
   }
   if (entry.name === 'weatherkit') {
     assert(
-      actions.length === 4 && manifest.settings?.length === 11 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 4,
+      actions.length === 6 && manifest.settings?.length === 11 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 4,
       'weatherkit: reviewed two-mode capability set is incomplete',
     )
-    // Upstream publishes the same two paths twice: a release module that runs
-    // the bundle in the client and a repository module that rewrites both paths
-    // to a cloud endpoint. Both are carried, and one select chooses between
+    // Upstream publishes the same three paths twice: a release module that runs
+    // the bundles in the client and a repository module that rewrites all three
+    // paths to a cloud endpoint. Both are carried, and one select chooses between
     // them, so "both at once" is not a state an operator can reach.
     const scripted = actions.filter((action) => action.script.entry === 'proxy-compat')
     const cloud = actions.filter((action) => action.script.rewrite !== undefined)
-    assert(scripted.length === 2 && cloud.length === 2 && scripted.length + cloud.length === actions.length, 'weatherkit: each mode must declare exactly the two upstream paths')
-    assert(scripted.every((action) => action.enabledWhen?.key === 'Mode' && action.enabledWhen.equals === 'Script' && action.phase === 'response'), 'weatherkit: every bundle action must be a response action gated on Mode=Script')
+    assert(scripted.length === 3 && cloud.length === 3 && scripted.length + cloud.length === actions.length, 'weatherkit: each mode must declare exactly the three upstream paths')
+    assert(scripted.every((action) => action.enabledWhen?.key === 'Mode' && action.enabledWhen.equals === 'Script'), 'weatherkit: every bundle action must be gated on Mode=Script')
     assert(cloud.every((action) => action.enabledWhen?.key === 'Mode' && action.enabledWhen.equals === 'Cloud' && action.phase === 'request'), 'weatherkit: every cloud rewrite must be a request action gated on Mode=Cloud')
+    // The release module declares two response scripts and, since v3.2.0-beta5,
+    // one request script. That third one is not a request editor: for its path
+    // it answers the exchange itself, so the phase split is load-bearing and is
+    // pinned here rather than left to whoever edits the manifest next.
+    assert(scripted.filter((action) => action.phase === 'response').length === 2, 'weatherkit: the two upstream response scripts must stay response actions')
+    const alerts = scripted.filter((action) => action.phase === 'request')
+    assert(alerts.length === 1 && alerts[0].match.statusCodes === undefined, 'weatherkit: the upstream request script must be one request action with no status matcher')
+    // Both modes must select the same exchanges, so Mode changes only how a
+    // request is handled and never which requests the extension touches.
+    const selectorsOf = (list) => JSON.stringify(list.map((action) => `${action.match.pathRegex}|${(action.match.methods ?? []).join(',')}`).sort())
+    assert(selectorsOf(scripted) === selectorsOf(cloud), 'weatherkit: the two modes must cover the same paths and methods')
     const mode = manifest.settings.find((setting) => setting.key === 'Mode')
     assert(mode?.type === 'select' && mode.required === true, 'weatherkit: Mode must be a required select')
     // The default keeps every byte on this gateway. Cloud mode is opt-in
     // because it hands the captured request to someone else.
     assert(mode.default === 'Script' && mode.options.join(',') === 'Script,Cloud', 'weatherkit: Mode must default to the gateway')
-    // Both modes must select the same exchanges, so Mode changes only how a
-    // request is handled and never which requests the extension touches.
-    const selectorsOf = (list) => JSON.stringify(list.map((action) => `${action.match.pathRegex}|${(action.match.methods ?? []).join(',')}`).sort())
-    assert(selectorsOf(scripted) === selectorsOf(cloud), 'weatherkit: the two modes must cover the same paths and methods')
     // Every endpoint an operator can select is a third party this extension may
     // hand a captured Apple request to, so the README has to name all of them
     // and the rewrite must resolve to exactly that setting. Two, not upstream's
@@ -600,17 +607,29 @@ for (const entry of entries) {
       assert(action.script.rewrite.to.endsWith('$1'), `weatherkit: ${action.id} must carry the rest of the URL through`)
       assert(action.script.rewrite.pattern.includes(String.raw`weatherkit\.apple\.com`), `weatherkit: ${action.id} must rewrite only the captured host`)
     }
-    // Without this the bundle's switch reads persistent storage and discards
+    // Without this the bundles' switch reads persistent storage and discards
     // $argument, so every other setting on the page silently does nothing.
     const storage = manifest.settings.find((setting) => setting.key === 'Storage')
     assert(storage?.default === '$argument' && storage.options?.length === 1, 'weatherkit: settings must be declared as reaching the bundle through $argument')
-    // The bundle is remote and no longer digest-pinned, so what this still binds
-    // is that both script actions load the same reviewed release.
+    // $argument is merged last, over the bundle's own database defaults, so a
+    // declared-but-empty host would overwrite upstream's devapi.qweather.com
+    // with "" and every QWeather URL would be built against a hostless https://.
+    // The alerts action answers from that host, so an empty value is the
+    // difference between an alert list and none.
+    const qweatherHost = manifest.settings.find((setting) => setting.key === 'API.QWeather.Host')
+    assert(qweatherHost?.default === 'devapi.qweather.com', "weatherkit: API.QWeather.Host must carry upstream's own default host")
+    // The bundles are remote and no longer digest-pinned, so what this still
+    // binds is that both come from one reviewed release. Upstream ships
+    // request.bundle.js and response.bundle.js per release, and a manifest that
+    // mixed two releases would run halves of different versions against each
+    // other.
     const bundleSources = new Set(scripted.map((action) => action.script.source))
-    assert(bundleSources.size === 1, 'weatherkit: actions must load the same bundle release')
-    const [bundleSource] = bundleSources
-    assert(/^https:\/\/github\.com\/NSRingo\/WeatherKit\/releases\/download\//.test(bundleSource), 'weatherkit: bundle must come from the reviewed upstream release')
-    assert(readme.includes(bundleSource), 'weatherkit: README does not record the bundle URL')
+    assert(bundleSources.size === 2, 'weatherkit: actions must pin exactly the two upstream bundles')
+    assert(new Set([...bundleSources].map((source) => source.slice(0, source.lastIndexOf('/')))).size === 1, 'weatherkit: both bundles must come from the same reviewed release')
+    for (const bundleSource of bundleSources) {
+      assert(/^https:\/\/github\.com\/NSRingo\/WeatherKit\/releases\/download\//.test(bundleSource), 'weatherkit: bundle must come from the reviewed upstream release')
+      assert(readme.includes(bundleSource), `weatherkit: README does not record the bundle URL ${bundleSource}`)
+    }
     assert(reuseParagraphFor('weatherkit/extension.yaml', 'Apache-2.0'), 'weatherkit: manifest license mapping is missing')
   }
   if (entry.name === 'zhihu-cleaner') {

@@ -51,7 +51,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const weatherkit = catalog.entries.find(entry => entry.id === 'io.5gpn.weatherkit')
   assert.deepEqual(weatherkit.capabilities, {
     captureHostCount: 1,
-    actionCount: 4,
+    actionCount: 6,
     settingCount: 11,
     network: true,
     persistentStorage: true,
@@ -60,14 +60,21 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     egressGroupRequired: false,
   })
   // The core derives this list from every action that names a script source and
-  // refuses an install whose entry does not match, so the remote bundle is listed
-  // with the digest the gateway will compute for itself. The two cloud rewrites
-  // name no source, so nothing about that mode is pinned by a digest.
+  // refuses an install whose entry does not match, so each remote bundle is
+  // listed with the digest the gateway will compute for itself. Upstream ships
+  // one request bundle and one response bundle per release, and the list is
+  // sorted by URL. The three cloud rewrites name no source, so nothing about
+  // that mode is pinned by a digest.
   assert.deepEqual(weatherkit.resources, [{
-    path: 'NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js',
-    url: 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js',
-    sha256: '4d368808a17c42eef18135f04d1bc9f01cbf7878d227006521ef0a6598941ff2',
-    size: 251617,
+    path: 'NSRingo/WeatherKit/releases/download/v3.2.0-beta5/request.bundle.js',
+    url: 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/request.bundle.js',
+    sha256: '250c7970861e365501b1b0586bf3e951ed9e24e01af26391758c3a87051a2613',
+    size: 236646,
+  }, {
+    path: 'NSRingo/WeatherKit/releases/download/v3.2.0-beta5/response.bundle.js',
+    url: 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/response.bundle.js',
+    sha256: '0c1f9d73ae82310073933be480f71f7eb7c142593159c0683d598ff2a8993482',
+    size: 267124,
   }])
   const zhihu = catalog.entries.find(entry => entry.id === 'io.5gpn.zhihu-cleaner')
   assert.equal(zhihu.version, '2.1.0')

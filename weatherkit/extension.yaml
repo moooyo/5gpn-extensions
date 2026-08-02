@@ -4,8 +4,8 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Enhancer
-  version: 6.0.0
-  description: Runs the reviewed NSRingo WeatherKit release bundle on the gateway, or sends the same two paths to the reviewed upstream cloud endpoint.
+  version: 7.0.0
+  description: Runs the reviewed NSRingo WeatherKit release bundles on the gateway, or sends the same three paths to the reviewed upstream cloud endpoint.
 
 permissions:
   persistentStorage: true
@@ -27,16 +27,16 @@ traffic:
       destinationPort: 443
 
 settings:
-  # Upstream publishes the same two paths twice: a release module that runs the
-  # bundle in the client, and a repository module that rewrites both paths to a
-  # cloud endpoint and runs nothing locally. Both are carried here, and one
-  # select chooses between them -- two booleans could each be switched on, and
-  # this cannot. Every setting below Endpoint belongs to the bundle, so cloud
-  # mode reads none of them.
+  # Upstream publishes the same three paths twice: a release module that runs
+  # the bundles in the client, and a repository module that rewrites all three
+  # paths to a cloud endpoint and runs nothing locally. Both are carried here,
+  # and one select chooses between them -- two booleans could each be switched
+  # on, and this cannot. Every setting below Endpoint belongs to the bundles, so
+  # cloud mode reads none of them.
   - key: Mode
     type: select
     label: Where the transformation happens
-    description: Script runs the pinned upstream bundle on this gateway. Cloud sends both matched paths to the selected endpoint, which fetches from Apple and transforms the response there.
+    description: Script runs the pinned upstream bundles on this gateway. Cloud sends all three matched paths to the selected endpoint, which fetches from Apple and transforms the response there.
     required: true
     options:
       - Script
@@ -51,7 +51,7 @@ settings:
       - weatherkit.pages.dev
       - dev.weatherkit.pages.dev
     default: weatherkit.pages.dev
-  # The bundle only merges $argument into its settings when this says so. Its
+  # The bundles only merge $argument into their settings when this says so. The
   # switch defaults to reading persistent storage and ignoring $argument
   # entirely, which is what every setting below was doing until this was added.
   # One option, because the other branches would silently discard them again.
@@ -101,11 +101,17 @@ settings:
     label: ColorfulClouds token
     description: ColorfulClouds API token. Required only when a ColorfulClouds source is selected.
     required: false
+  # Upstream's own argument default, carried rather than left blank. $argument is
+  # merged over the bundle's database defaults, so an empty value here would
+  # overwrite devapi.qweather.com with "" and every QWeather URL would be built
+  # against https:// with no host. That now decides whether the weather-alerts
+  # action can answer at all, not just whether a comparison lookup succeeds.
   - key: API.QWeather.Host
     type: text
     label: QWeather host
-    description: QWeather API host, for example devapi.qweather.com.
+    description: QWeather API host. Upstream's default is devapi.qweather.com.
     required: false
+    default: devapi.qweather.com
   - key: API.QWeather.Token
     type: text
     label: QWeather token
@@ -131,8 +137,11 @@ settings:
     default: WARN
 
 actions:
-  # Gateway script mode: the two response scripts the published release module
-  # declares, running the pinned bundle here.
+  # Gateway script mode: the three scripts the published release module declares
+  # -- two response scripts and, since v3.2.0-beta5, one request script --
+  # running the pinned bundles here. The three paths are disjoint, so upstream's
+  # declaration order carries no meaning and the new action is appended rather
+  # than interleaved.
   - id: weather-availability
     phase: response
     enabledWhen:
@@ -148,7 +157,7 @@ actions:
       statusCodes:
         - 200
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/response.bundle.js
       bodyMode: text
       entry: proxy-compat
       timeoutMs: 10000
@@ -170,12 +179,38 @@ actions:
       statusCodes:
         - 200
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta2/response.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/response.bundle.js
       bodyMode: binary
       entry: proxy-compat
       timeoutMs: 25000
       maxBodyBytes: 16777216
-  # Cloud endpoint mode: the two URL rewrites the upstream Rewrite module
+  # The request script upstream added in v3.2.0-beta5. It does not edit a
+  # request and forward it: for this path it answers locally, fetching the
+  # alerts from QWeather with the coordinates in the query and returning a
+  # synthesized 200. The path regex is upstream's own matcher transcribed, and
+  # the `&ids=<latitude>,<longitude>` constraint is the whole gate -- Apple's
+  # native alerts carry UUIDs, and only the response bundle above rewrites an
+  # alert collection's detailsUrl to the coordinate form this matches. Upstream
+  # declares no requires-body for it, so no request body is delivered.
+  - id: weather-alerts
+    phase: request
+    enabledWhen:
+      key: Mode
+      equals: Script
+    match:
+      hosts:
+        - weatherkit.apple.com
+      schemes:
+        - http
+        - https
+      pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+),-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:&|$)'
+    script:
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/request.bundle.js
+      bodyMode: none
+      entry: proxy-compat
+      timeoutMs: 10000
+      maxBodyBytes: 1048576
+  # Cloud endpoint mode: the three URL rewrites the upstream Rewrite module
   # declares, with its endpoint argument carried as a setting the same way Loon
   # interpolates {endpoint} into the rewrite line. No script runs, on the gateway
   # or in the client, and the response this extension sees is whatever that host
@@ -218,6 +253,29 @@ actions:
       rewrite:
         pattern: '^https?://weatherkit\.apple\.com/api/v2/weather/(.*)$'
         to: https://{{settings.Endpoint}}/api/v2/weather/$1
+      bodyMode: none
+      timeoutMs: 500
+      maxBodyBytes: 65536
+  # Cloud mode's twin of weather-alerts. The match is the script action's own so
+  # the two modes still select the same exchanges; the rewrite pattern is
+  # upstream's, which captures the whole query string and replays it after the
+  # path, so the coordinates reach the endpoint exactly as the client sent them.
+  - id: weather-alerts-cloud
+    phase: request
+    enabledWhen:
+      key: Mode
+      equals: Cloud
+    match:
+      hosts:
+        - weatherkit.apple.com
+      schemes:
+        - http
+        - https
+      pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+),-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:&|$)'
+    script:
+      rewrite:
+        pattern: '^https?://weatherkit\.apple\.com/api/v1/weatherAlerts(\?[^#]*&ids=-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+),-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:&[^#]*)?)$'
+        to: https://{{settings.Endpoint}}/api/v1/weatherAlerts$1
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 65536
