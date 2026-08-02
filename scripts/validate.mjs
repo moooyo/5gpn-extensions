@@ -298,6 +298,15 @@ for (const entry of entries) {
       if (gate.type === 'select') {
         assert(gate.options.includes(action.enabledWhen.equals), `${entry.name}: ${action.id} enabledWhen compares against an option ${gate.key} does not offer`)
       }
+      // A whitelist, matching both gateway validators. The runtime compares the
+      // setting's rendered text, so a number gate written `equals: "1.0"` never
+      // matches the value 1 (canonically "1") and a location renders as a Go map
+      // literal no author can write in advance. Both compile to an action that
+      // is silently skipped.
+      assert(
+        gate.type === 'boolean' || gate.type === 'select',
+        `${entry.name}: ${action.id} gates on a ${gate.type} setting; only boolean and select settings can gate an action`,
+      )
       if (gate.type === 'boolean') {
         assert(['true', 'false'].includes(action.enabledWhen.equals), `${entry.name}: ${action.id} enabledWhen compares a boolean against ${action.enabledWhen.equals}`)
       }
