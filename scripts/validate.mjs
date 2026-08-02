@@ -410,19 +410,18 @@ for (const entry of entries) {
       assert(action.script.jq.length <= 32768, `${entry.name}: ${action.id} jq expression is too long`)
       assert(action.script.entry === undefined, `${entry.name}: ${action.id} declares both jq and an entry`)
       assert(action.script.bodyMode === 'text', `${entry.name}: ${action.id} jq requires a text body`)
-      // A jq runtime error is not a no-op. The engine swallows exactly one
-      // condition -- a body that is not JSON -- and treats everything else as a
-      // failed action, which the response-phase exit answers with 502. So a
-      // program that indexes `.data` without checking it turns an origin's
-      // error envelope, or a `"data": []` standing in for an empty object, into
-      // a gateway error on a page that was working. Ten programs across two
-      // extensions had this shape. Check `.data` before indexing it.
-      if (/\.data\.[A-Za-z_]/.test(action.script.jq)) {
-        assert(
-          /\(\s*\.data\s*\|\s*type\s*\)/.test(action.script.jq),
-          `${entry.name}: ${action.id} indexes .data without checking its type first, so a body without it answers 502 instead of passing through`,
-        )
-      }
+      // A jq runtime error used to be a failed action, which the response-phase
+      // exit answers with 502, so a program that indexed `.data` without
+      // checking it turned an origin's error envelope into a gateway error on a
+      // page that was working. That is now handled where it belongs: the engine
+      // classifies a shape the filter cannot act on and skips the action, the
+      // same answer it already gave a body that is not JSON at all.
+      //
+      // The rule that used to live here checked for a literal `.data` type test.
+      // It only ever ran for extensions published from this repository -- never
+      // for a manifest installed from a URL or pasted in -- and it could not see
+      // past that one literal path, so seven top-level `del(...)` calls in
+      // zhihu-cleaner alone were outside it.
       // `X |= f` reads as an update in place, but jq CREATES X when it is
       // absent, so an unguarded update writes a null key into a body the origin
       // never sent one in. That is silent: no error, no 502, just a field the
