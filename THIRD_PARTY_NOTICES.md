@@ -39,7 +39,7 @@ licensing authority.
 the GPL-3.0-only `kokoryh/Sparkle` project at runtime under the `5gpn.io/v1`
 proxy-compat contract, and carries that project's own rewrite expressions as jq
 actions. Every artifact is pinned at commit
-`12e89d6d93d72d39eb283ef81d2b58eb204cdb58` in the extension README, which is the
+`a26c3412a760fb8d7d4d1bcc124d126e19d630e5` in the extension README, which is the
 immutable revision a gateway fetches from.
 
 Because the scripts are fetched by the gateway rather than shipped here, this

@@ -33,7 +33,7 @@ const expectedExtensions = new Map([
   // papered over: the README must say so, because "no upstream license digest"
   // and "we forgot to record one" must not look the same.
   ['apple-wloc', { license: 'MIT', pin: 'eec07a8dc8de6dbaee8eac1fb376e4d03020154a', unlicensed: true }],
-  ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '12e89d6d93d72d39eb283ef81d2b58eb204cdb58' }],
+  ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: 'a26c3412a760fb8d7d4d1bcc124d126e19d630e5' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
   ['weatherkit', { license: 'Apache-2.0', pin: '33ec3297387e7444fec65bb48a0a042969b97167' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525' }],
@@ -543,7 +543,7 @@ for (const entry of entries) {
     const compat = actions.filter((action) => action.script.entry === 'proxy-compat')
     assert(compat.length === 5, 'bilibili-cleaner: the five upstream transformers must all be loaded')
     for (const action of compat) {
-      assert(action.script.source.startsWith('https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/'), `bilibili-cleaner: ${action.id} is not the reviewed immutable commit`)
+      assert(action.script.source.startsWith('https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/'), `bilibili-cleaner: ${action.id} is not the reviewed immutable commit`)
     }
     assert(actions.filter((action) => typeof action.script.jq === 'string').length === 11, 'bilibili-cleaner: the eleven reviewed rewrite expressions are incomplete')
   }

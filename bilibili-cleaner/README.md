@@ -44,21 +44,35 @@ tree no longer applies. `bilibili-cleaner/source/` is gone.
 ## Pinned upstream artifacts
 
 Reviewed at commit
-[`12e89d6d93d72d39eb283ef81d2b58eb204cdb58`](https://github.com/kokoryh/Sparkle/tree/12e89d6d93d72d39eb283ef81d2b58eb204cdb58).
+[`a26c3412a760fb8d7d4d1bcc124d126e19d630e5`](https://github.com/kokoryh/Sparkle/tree/a26c3412a760fb8d7d4d1bcc124d126e19d630e5)
+on `2026-08-03`.
 The published module points its `script-path` and `jq-path` values at the
 mutable `master` branch; every entry below is re-pinned to that immutable
 commit, so the bytes a gateway fetches are the reviewed revision's.
 
+Revision 4.1.0 refreshes that pin from `12e89d6d93d72d39eb283ef81d2b58eb204cdb58`,
+four commits back. Nothing this manifest declares changed: the Loon plugin and
+both jq programs are byte-identical across the two commits, so the matchers,
+arguments, rules, and capture hosts are the reviewed ones already. What changed
+is inside the four scripts the gateway loads — upstream rewrote its error
+handling and script-ending logic, added a `grpc-status` response header on
+error, and routed the SponsorBlock lookup through the request context. Upstream's
+fourth commit removes more webpage ads, but only for sites this extension does
+not capture. The ending refactor is worth naming because it looks alarming and
+is not: the fake-response path it now dispatches through
+(`$done({ response })`) was already what the pinned protobuf request script
+used, so no runtime capability is newly required.
+
 | Artifact | Immutable raw URL |
 ||
-| Sparkle GPL license | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/LICENSE` |
-| Loon plugin (rule and directive source) | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/release/loon/plugin/bilibili.lpx` |
-| Protobuf request transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.request.js` |
-| Protobuf response transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.protobuf.response.js` |
-| Live JSON transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/bilibili.json.js` |
-| Activity webpage transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/webpage.bilibili.js` |
-| Tab replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.tab.jq` |
-| My-page replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/jq/bilibili.mine.jq` |
+| Sparkle GPL license | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/LICENSE` |
+| Loon plugin (rule and directive source) | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/release/loon/plugin/bilibili.lpx` |
+| Protobuf request transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/bilibili.protobuf.request.js` |
+| Protobuf response transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/bilibili.protobuf.response.js` |
+| Live JSON transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/bilibili.json.js` |
+| Activity webpage transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/webpage.bilibili.js` |
+| Tab replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/jq/bilibili.tab.jq` |
+| My-page replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/jq/bilibili.mine.jq` |
 
 The two `jq-path` programs are inlined into `extension.yaml` rather than fetched
 at runtime, because a jq action carries its expression in the manifest. Each URL
@@ -257,7 +271,7 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=4.0.3`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=4.1.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |

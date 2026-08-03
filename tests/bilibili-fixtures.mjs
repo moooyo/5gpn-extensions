@@ -25,7 +25,7 @@ for (const id of ['mock-grpc-teenagers', 'mock-grpc-default-words', 'mock-grpc-e
   assert.equal(mockBodies.get(id).headers['Grpc-Status'], '0', `${id} must carry upstream's grpc-status header`)
 }
 
-assert.equal(manifest.metadata.version, '4.0.3')
+assert.equal(manifest.metadata.version, '4.1.0')
 assert.equal(manifest.permissions.persistentStorage, true)
 assert.deepEqual(
   manifest.settings.map(setting => [setting.key, setting.type, setting.default]),
@@ -65,7 +65,7 @@ assert.deepEqual(byKind.compat, [
   'clean-protobuf-responses',
 ])
 
-const PIN = 'https://raw.githubusercontent.com/kokoryh/Sparkle/12e89d6d93d72d39eb283ef81d2b58eb204cdb58/dist/'
+const PIN = 'https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/'
 for (const id of byKind.compat) {
   const action = manifest.actions.find(candidate => candidate.id === id)
   assert(action.script.source.startsWith(PIN), `${id} must load the reviewed immutable commit`)
