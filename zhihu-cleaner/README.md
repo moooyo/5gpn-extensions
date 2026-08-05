@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/exte
 This public raw URL is directly installable. For a private fork, use the
 Console's local-add/upload flow or an operator-controlled public HTTPS mirror;
 never embed repository credentials in an extension URL. Review the immutable
-snapshot digest, five capture hosts, 18 actions, five UDP/443 fallback rules,
+source revision, five capture hosts, 18 actions, five UDP/443 fallback rules,
 and interception boundary before enabling it.
 
 ## Pinned upstream
@@ -24,8 +24,8 @@ and interception boundary before enabling it.
 The authoritative distribution URL is the mutable upstream file
 `https://kelee.one/Tool/Loon/Lpx/Zhihu_remove_ads.lpx`. The upstream does not
 publish this exact 2026 snapshot from a stable public Git ref. The reviewed
-immutable source is therefore the earliest byte-identical synchronized Git
-snapshot found during the manual source review:
+immutable source is therefore the earliest synchronized Git snapshot found
+during the manual source review:
 
 | Field | Value |
 | --- | --- |
@@ -34,8 +34,9 @@ snapshot found during the manual source review:
 | Pinned commit | `8d0e2791f531d4a02e1bd00d0f64427984bc999a` |
 | Commit timestamp | `2026-06-23T16:04:03Z` (`2026-06-24 00:04:03+08:00`) |
 | Original path | `Modules/Loon/Kelee/Official/Zhihu_remove_ads.lpx` |
-| Upstream metadata date | `2026-06-01 17:11:35`; this metadata predates the final mirrored bytes and is not used as the immutable revision |
+| Upstream metadata date | `2026-06-01 17:11:35`; this metadata predates the synchronized snapshot and is not used as the immutable revision |
 | Fetched and reviewed | `2026-07-23` |
+| Latest path audit | The pinned Romeo path and two synchronized mirrors still carried the reviewed behavior on `2026-08-05`. The mutable canonical URL returned Cloudflare HTTP 403, so its current contents could not be compared. |
 
 Every upstream artifact used for behavior or licensing is pinned below. Each
 row binds one immutable raw URL to what it is used for.
@@ -45,10 +46,10 @@ row binds one immutable raw URL to what it is used for.
 | Reviewed Loon plugin | `https://raw.githubusercontent.com/ifflagged/Romeo/8d0e2791f531d4a02e1bd00d0f64427984bc999a/Modules/Loon/Kelee/Official/Zhihu_remove_ads.lpx` | `2026-07-23` |
 | Upstream CC BY-NC-SA 4.0 legal text | `https://raw.githubusercontent.com/luestr/ProxyResource/d6d0c513ae27495645dde8cfa467804d6e363b8d/LICENSE` | `2026-07-23` |
 
-The synchronized source snapshot is byte-identical to the canonical upstream
-file retrieved during review. The
-mirror is used only to make the selected bytes immutable; it is not treated as
-the creator or licensing authority.
+The synchronized source snapshot matched the canonical upstream file retrieved
+during the `2026-07-23` review. The mirror commit records the selected revision;
+it is not treated as the creator or licensing authority. No claim is made that
+the inaccessible canonical URL still serves that revision today.
 
 The reviewed native snapshot is:
 
@@ -99,7 +100,7 @@ dispatch table. Nothing here expands the capture boundary.
 | Comment header and podcast directives | Exact response branches remove `continuous_consumption_module` or `banners`. |
 | Search recommendation, result, and tab directives | The native response branch keeps only `normal` recommended queries, removes root-level `pendant`, and uses a deliberate compatibility allowlist that adds `km_general`, `scholar`, and `publication` to the reviewed identifiers. |
 | `people/self` directive | The native response branch removes only `vip_info.entrance_new.right_button` and `vip_info.entrance_v2`, preserving sibling values. |
-| Loon metadata | Name and purpose become native metadata. Creator, version-date caveat, immutable bytes, authorization, and update provenance remain in this README. |
+| Loon metadata | Name and purpose become native metadata. Creator, version-date caveat, immutable source revision, authorization, and update provenance remain in this README. |
 
 The upstream has no external `[Script]` dependency, and neither does this port.
 This directory ships no JavaScript at all: every synthetic reply is declared and
@@ -181,21 +182,22 @@ before adding a new destructive response filter.
 
 1. Select one upstream version manually. Do not poll the plugin store or bind
    the manifest to a mutable runtime script.
-2. Retrieve only the reviewed canonical `Zhihu_remove_ads.lpx`, record its byte
-   provenance, and locate or create an authorized immutable Git
-   snapshot of exactly those bytes.
+2. Retrieve only the reviewed canonical `Zhihu_remove_ads.lpx`, record its
+   source URL and fetch date, and locate or create an authorized immutable Git
+   snapshot for the reviewed revision.
 3. Confirm that the retained authorization covers the selected replacement
    and still permits modification, public redistribution, and the documented
    license.
 4. Diff metadata, every rewrite directive, and `[MitM]` independently. Record
    exact added, removed, and changed directive counts.
-5. Map every accepted behavior into bounded native matchers and local
-   `transform(context)` code. Document exclusions instead of adding Loon or
-   other proxy-client compatibility globals.
+5. Map every accepted behavior into bounded declarative actions. Prefer
+   `mock` and `jq` as this revision does; document exclusions instead of adding
+   proxy-client compatibility globals or unnecessary native code.
 6. Recheck all capture hosts, permissions, action counts, path boundaries,
    overlap behavior, fixtures, notices, `REUSE.toml`, and marketplace metadata.
-7. Bump `metadata.version` whenever immutable manifest or script bytes change,
-   then refresh all source and local digests in the same change.
+7. Bump `metadata.version` whenever the immutable source revision, manifest, or
+   local program changes, then refresh the pinned commit, immutable raw URLs,
+   and fetch dates in the same change.
 
 
 
@@ -216,21 +218,21 @@ decision.
 | Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, five host-scoped UDP/443 reject rules, no JavaScript, and no network permission, mappings, settings, or egress requirement. |
 | Operator state | A normal update retains `capture_dns` and execution position; both still require review before enable. |
 | Ordering | Review every other extension that captures a listed Zhihu host. Request and response actions execute in configured extension order. |
-| Authorization gate | Confirm the retained upstream permission covers the candidate bytes and documented public redistribution terms before implementation or publication. |
+| Authorization gate | Confirm the retained upstream permission covers the candidate revision and documented public redistribution terms before implementation or publication. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
 
 ### Repeatable migration
 
-1. Complete the shared playbook record with the exact LPX bytes, authorization,
-   rewrite counts, five capture hosts, 18 actions, five routing rules, and
-   stateless contract.
+1. Complete the shared playbook record with the pinned LPX commit, immutable raw
+   URL, fetch date, authorization, rewrite counts, five capture hosts, 18
+   actions, five routing rules, and stateless contract.
 2. Diff every synthetic response, matcher, JQ expression, deletion path, and
    MITM hostname. Treat removals as explicit decisions.
-3. Synchronize immutable source and local digests, authorization scope,
+3. Synchronize the immutable source URL and fetch date, authorization scope,
    attribution, license mapping, notices, fixtures, limitations, marketplace
    metadata, and `metadata.version` in one change.
 4. Run the focused fixtures, full repository gates, upstream verification, and
-   current core parser integration gate.
+   the pinned external parser-contract fallback documented in `MIGRATION.md`.
 5. Apply the candidate while disabled, inspect the complete host and action
    summary, review extension ordering, and enable only on an authorized test
    device.
@@ -268,7 +270,8 @@ For each update:
    chain returns the synthetic body `{}` from `mock-api-json`.
 7. Confirm the five UDP/443 rules are active, clear cached Zhihu HTTPDNS/QUIC
    state, and verify at least one real `action completed` log.
-8. Run the repository and current core parser gates before publication.
+8. Run the repository gates and pinned external parser-contract fallback before
+   publication. The fallback is not current-channel validation.
 
 The repository-local gates are:
 
@@ -279,5 +282,6 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 ```
 
-Run the current 5gpn core parser integration command from
-[`MIGRATION.md`](../MIGRATION.md) after the local gates pass.
+Run the immutable external parser-contract fallback from
+[`MIGRATION.md`](../MIGRATION.md) after the local gates pass, and retain its
+documented current-channel limitation in the review record.

@@ -5,12 +5,12 @@ import { parse as parseYaml } from 'yaml'
 
 const root = path.resolve(import.meta.dirname, '..')
 
-
 const manifest = parseYaml(await readFile(path.join(root, 'bilibili-cleaner', 'extension.yaml'), 'utf8'))
+const actionsById = new Map(manifest.actions.map(action => [action.id, action]))
+assert.equal(actionsById.size, manifest.actions.length, 'action ids must be unique')
 
-// This extension ships no JavaScript. What was mock-json.js and mock-grpc.js
-// is now declared in the manifest, one action per distinct body, the way
-// upstream writes one [Map Local] line per body.
+// Fixed responses stay declarative: one action per distinct body, matching the
+// way upstream writes one [Map Local] line per body.
 const mockBodies = new Map(manifest.actions
   .filter(action => action.script.mock !== undefined)
   .map(action => [action.id, action.script.mock]))
@@ -34,12 +34,8 @@ assert.deepEqual(
     ['purifyComment', 'boolean', true],
     ['optimizeRequest', 'boolean', true],
     ['sponsorBlock', 'boolean', true],
-    // Lowercase on purpose, and checked against the pinned bytes rather than
-    // assumed: dist/bilibili.json.js reads `argument.logLevel`. The sibling
-    // apple-wloc upstream declares the same key but reads `$argument.LogLevel`,
-    // so its setting was inert until it was re-keyed. A published bundle can
-    // spell this either way and the mismatch never fails, it just runs on the
-    // bundle's own default.
+    // Keep the exact upstream LPX spelling. Changing its case silently
+    // disconnects this setting from bundles that read `argument.logLevel`.
     ['logLevel', 'select', 'error'],
   ],
 )
@@ -65,15 +61,65 @@ assert.deepEqual(byKind.compat, [
   'clean-protobuf-responses',
 ])
 
-const PIN = 'https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/'
-for (const id of byKind.compat) {
-  const action = manifest.actions.find(candidate => candidate.id === id)
-  assert(action.script.source.startsWith(PIN), `${id} must load the reviewed immutable commit`)
+const SCRIPT_BASE = 'https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/'
+const expectedScriptActions = new Map([
+  ['transform-airborne', [`${SCRIPT_BASE}bilibili.protobuf.request.js`, 'binary', 12000, 1048576]],
+  ['transform-optimized-request', [`${SCRIPT_BASE}bilibili.protobuf.request.js`, 'binary', 12000, 1048576]],
+  ['clean-live-json', [`${SCRIPT_BASE}bilibili.json.js`, 'text', 3000, 8388608]],
+  ['clean-webpage', [`${SCRIPT_BASE}webpage.bilibili.js`, 'text', 3000, 8388608]],
+  ['clean-protobuf-responses', [`${SCRIPT_BASE}bilibili.protobuf.response.js`, 'binary', 3000, 8388608]],
+])
+assert.deepEqual(byKind.compat, [...expectedScriptActions.keys()])
+assert.equal(new Set([...expectedScriptActions.values()].map(([source]) => source)).size, 4)
+for (const [id, [source, bodyMode, timeoutMs, maxBodyBytes]] of expectedScriptActions) {
+  const action = actionsById.get(id)
+  assert.equal(action.script.source, source, `${id} must load its exact reviewed script`)
+  assert.equal(action.script.bodyMode, bodyMode, `${id} has the wrong body mode`)
+  assert.equal(action.script.timeoutMs, timeoutMs, `${id} has the wrong timeout`)
+  assert.equal(action.script.maxBodyBytes, maxBodyBytes, `${id} has the wrong body bound`)
 }
 for (const id of byKind.jq) {
-  const action = manifest.actions.find(candidate => candidate.id === id)
+  const action = actionsById.get(id)
   assert.equal(action.script.bodyMode, 'text', `${id} must take a text body`)
+  assert.equal(action.script.timeoutMs, 1000, `${id} has the wrong timeout`)
+  assert.equal(action.script.maxBodyBytes, 8388608, `${id} has the wrong body bound`)
   assert.equal(action.script.source, undefined, `${id} must not also name a script`)
+}
+for (const id of byKind.mock) {
+  const action = actionsById.get(id)
+  assert.equal(action.script.bodyMode, 'none', `${id} must not read a captured body`)
+  assert.equal(action.script.timeoutMs, 500, `${id} has the wrong timeout`)
+  assert.equal(action.script.maxBodyBytes, 1024, `${id} has the wrong body bound`)
+}
+
+// The LPX names two jq-path programs. They are inlined, so pin their action,
+// route, and characteristic source fragments instead of pretending they have a
+// runtime source URL.
+const inlinedJqMappings = [
+  {
+    id: 'clean-app-tab',
+    upstreamFile: 'jq/bilibili.tab.jq',
+    pathRegex: '^/x/resource/show/tab/v2\\?.*$',
+    markers: ['.data.tab = [', '.data.top = [', '.data.bottom = [', 'bilibili://pegasus/hottopic'],
+    foreignMarker: '.sections_v2 =',
+  },
+  {
+    id: 'clean-app-mine',
+    upstreamFile: 'jq/bilibili.mine.jq',
+    pathRegex: '^/x/v2/account/mine(?:/ipad)?\\?.*$',
+    markers: ['.sections_v2 =', '.ipad_sections =', '.ipad_more_sections =', 'bilibili://user_center/watch_later_v2'],
+    foreignMarker: '.data.tab = [',
+  },
+]
+for (const { id, upstreamFile, pathRegex, markers, foreignMarker } of inlinedJqMappings) {
+  const action = actionsById.get(id)
+  assert.deepEqual(action.match.hosts, ['app.bilibili.com'], `${upstreamFile} is mapped to the wrong host`)
+  assert.equal(action.match.pathRegex, pathRegex, `${upstreamFile} is mapped to the wrong route`)
+  assert.equal(action.script.source, undefined, `${upstreamFile} must stay inline`)
+  for (const marker of markers) {
+    assert(action.script.jq.includes(marker), `${id} does not contain the reviewed ${upstreamFile} program`)
+  }
+  assert(!action.script.jq.includes(foreignMarker), `${id} contains the other inlined jq program`)
 }
 
 // The airborne path is the one that reaches a third party, so its match is

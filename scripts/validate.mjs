@@ -35,7 +35,7 @@ const expectedExtensions = new Map([
   ['apple-wloc', { license: 'MIT', pin: 'eec07a8dc8de6dbaee8eac1fb376e4d03020154a', unlicensed: true }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: 'a26c3412a760fb8d7d4d1bcc124d126e19d630e5' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
-  ['weatherkit', { license: 'Apache-2.0', pin: '33ec3297387e7444fec65bb48a0a042969b97167' }],
+  ['weatherkit', { license: 'Apache-2.0', pin: 'c66350d91457f9a1b8a6c5e6aba46370fa6da254' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525' }],
   ['zhihu-cleaner', { license: 'CC-BY-NC-SA-4.0', pin: '8d0e2791f531d4a02e1bd00d0f64427984bc999a' }],
 ])
@@ -451,10 +451,12 @@ for (const entry of entries) {
     const hasSource = typeof action.script.source === 'string'
     assert(hasSource, `${entry.name}: ${action.id} must declare a script source`)
     if (scriptEntry === 'proxy-compat') {
-      // A published bundle is fetched by URL and is not ours to lint: it is
-      // async, it defines no transform(context), and it uses the proxy-client
-      // globals on purpose. Its provenance is bound by the README record and by
-      // the immutable revision in the URL itself.
+      // proxy-compat is a supported core execution form for a reviewed
+      // published bundle. The extension does not supply a compatibility
+      // runtime or globals, and the bundle is not ours to lint: it is async,
+      // defines no transform(context), and intentionally uses the documented
+      // core-provided proxy-client surface. Per-extension checks below bind its
+      // exact source and wiring to the reviewed provenance record.
       const parsed = new URL(action.script.source)
       assert(parsed.protocol === 'https:', `${entry.name}: ${action.id} bundle source must be HTTPS`)
       assert(readme.includes(action.script.source), `${entry.name}: ${action.id} bundle is not recorded in the README`)
@@ -630,6 +632,10 @@ for (const entry of entries) {
       assert(/^https:\/\/github\.com\/NSRingo\/WeatherKit\/releases\/download\//.test(bundleSource), 'weatherkit: bundle must come from the reviewed upstream release')
       assert(readme.includes(bundleSource), `weatherkit: README does not record the bundle URL ${bundleSource}`)
     }
+    assert(
+      readme.includes('immutable: false') && readme.includes('direct official release asset'),
+      'weatherkit: README must disclose and justify the reviewed mutable release-asset source',
+    )
     assert(reuseParagraphFor('weatherkit/extension.yaml', 'Apache-2.0'), 'weatherkit: manifest license mapping is missing')
   }
   if (entry.name === 'zhihu-cleaner') {

@@ -37,7 +37,7 @@ public HTTPS origin; never embed repository credentials in an extension URL.
 | `zhihu-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/extension.yaml> |
 
 Every import starts disabled. Before enabling it, review the immutable
-snapshot digest, capture hosts, actions, settings, exact routing rules, the network permission, execution
+snapshot, capture hosts, actions, settings, exact routing rules, the network permission, execution
 position, and any required operator egress binding. Installing an extension
 does not enable the global interception master or trust its interception CA on
 a device.
@@ -62,14 +62,15 @@ execution position, and egress binding are reviewed.
 
 The marketplace is discovery metadata, not an executable trust boundary. Each
 entry points to the normal `main` manifest and local script URLs so the existing
-explicit update check can continue to refetch the installed source. The list
-also records the exact SHA-256 and byte size produced from its 40-character
-build commit. The gateway must verify the advertised manifest and script
-digests against the fetched bytes and then apply the full strict `5gpn.io/v1`
-parser; it must not trust the list's description or capability summary as
-runtime authority.
+explicit update check can continue to refetch the installed source. During the
+build, the generator derives and records the exact SHA-256 and byte size from
+the content at its 40-character build commit; these fields are not
+maintainer-recorded upstream provenance pins. The gateway must verify the
+advertised manifest and script digests and sizes against the fetched bytes and
+then apply the full strict `5gpn.io/v1` parser; it must not trust the list's
+description or capability summary as runtime authority.
 Scripts are fetched, validated, and stored by the normal immutable snapshot
-pipeline. A digest mismatch fails closed.
+pipeline. A digest or size mismatch fails closed.
 
 GitHub Pages exposes the current list at the stable URL above. The public JSON
 Schema is available at
@@ -86,8 +87,10 @@ maintained manually.
 The normative runtime contract is the core project's
 [`5gpn.io/v1` author guide](https://github.com/moooyo/5gpn/blob/beta/docs/native-extensions.md).
 This section is a self-contained maintainer checklist for extensions in this
-catalog. 5gpn accepts only the native format described here; do not ship Loon,
-Surge, Quantumult X, Stash, or other compatibility globals or manifests.
+catalog. 5gpn accepts only the native manifest format described here; do not
+ship Loon, Surge, Quantumult X, or Stash manifests. `proxy-compat` remains part
+of that native format: it uses the core-provided sandbox rather than an
+extension-supplied compatibility runtime or globals.
 
 ### Directory layout
 
@@ -100,11 +103,14 @@ example-cleaner/
   README.md
 ```
 
-`extension.yaml` and every script needed at runtime must be immutable local
-files in the directory. The README must document the governing license,
-creator attribution, every upstream source pinned to a commit, raw URLs,
-SHA-256 digests, fetch dates, porting decisions, exclusions, limitations,
-update procedure, and verification steps.
+`extension.yaml` and every repository-local script must be immutable files in
+the directory. A reviewed remote script source should use an immutable commit
+URL. When upstream publishes a generated bundle only as an official release
+asset, the direct asset URL is also supported; record its tag object, source
+commit, and replaceability. The README must document the governing license,
+creator attribution, every upstream source binding, URLs, fetch dates, porting
+decisions, exclusions, limitations, update procedure, and verification steps.
+Do not maintain a second byte-size or digest pin in the README.
 
 ### Available capabilities
 
@@ -199,10 +205,15 @@ or uploaded manifests must use inline scripts or absolute HTTPS script URLs.
 
 ### Action kinds
 
-An action declares exactly one of seven kinds. Six are declarative and never
-reach the JavaScript runtime: `reject`, `mock`, `jq`, `headers`, `rewrite`, and
-`replaceBody`. Prefer them — every extension in this repository is built from
-those plus `proxy-compat`, and none ships JavaScript.
+An action uses exactly one execution form. Six are declarative and never reach
+the JavaScript runtime: `reject`, `mock`, `jq`, `headers`, `rewrite`, and
+`replaceBody`. A scripted action instead declares exactly one of `source` or
+`inline`; its `entry` is `native` by default or explicitly `proxy-compat` for a
+reviewed upstream proxy-client bundle. `proxy-compat` is a supported execution
+form, not a legacy exception; use it when a declarative action cannot faithfully
+represent the published behavior. Prefer declarative forms when they are
+equivalent. The catalog currently uses both and contains no repository-local
+JavaScript or extension-supplied compatibility runtime.
 
 ```yaml
 script: { reject: true, bodyMode: none, timeoutMs: 500, maxBodyBytes: 1024 }
@@ -213,9 +224,9 @@ script: { source: https://…/pinned.js, entry: proxy-compat, bodyMode: text, ..
 
 ### Script contract
 
-The seventh kind is a local script. It is still supported and still reviewed
-the same way, but nothing in this repository uses it. A script defines exactly
-one global entry point:
+The native scripted form (`entry: native`, the default) is still supported and
+reviewed the same way, but nothing in this repository uses it. Its source
+defines exactly one global entry point:
 
 ```javascript
 function transform(context) {
@@ -262,7 +273,19 @@ responses are returned to the script rather than silently followed.
 
 ### Proxy-compat contract
 
-`script.entry: proxy-compat` runs a published proxy-client bundle unmodified.
+`script.entry: proxy-compat` is the supported native-manifest form for running a
+published proxy-client bundle unmodified. The compatibility surface belongs to
+the core; an extension supplies only the reviewed source, phase, matchers,
+settings, permissions, and execution bounds. It must not carry a compatibility
+shim or define additional client globals.
+
+Every use requires the same review discipline as a native port: record immutable
+source provenance and the authoritative module, map every matcher and setting,
+declare storage and the global network permission only when used, document data
+disclosure and deliberate exclusions, preserve the upstream license boundary,
+and fix the exact action-to-bundle wiring, `bodyMode`, timeout, and body limit in
+fixtures.
+
 The runtime presents itself as **Loon**: `$loon` is defined, and the bundles
 that probe `$task`, `$loon`, `$rocket`, `Egern`, `$environment["surge-version"]`
 in that fixed order therefore take their Loon branch. No Surge, Quantumult X,
@@ -335,17 +358,22 @@ checked at all.
 1. Choose the authoritative upstream repository and immutable commit. Do not
    treat an extension store or mirror's root license as authority over a more
    specific original file license.
-2. Record and verify every source and license file's raw URL, size, SHA-256,
-   fetch date, creator attribution, and license before porting behavior.
-3. Translate only reviewed behavior into the strict native manifest and
-   declarative action kinds, or a pinned upstream bundle. Narrow capture hosts and matchers instead of
-   preserving broad client-specific patterns.
+2. Record and verify every source and license file's immutable raw URL, fetch
+   date, creator attribution, and license before porting behavior. For a
+   generated bundle available only as an official release asset, record the
+   direct asset URL, tag object, source commit, and mutable-release status.
+   Do not add a manually maintained byte-size or digest pin.
+3. Translate only reviewed behavior into the strict native manifest. Prefer a
+   declarative action when it is faithful; otherwise use a reviewed upstream
+   bundle through `entry: proxy-compat`, bound either to an immutable commit or
+   to a documented official release asset. Narrow capture hosts and matchers
+   instead of preserving broad client-specific patterns.
 4. Declare storage, the network permission, upstream mappings, and required egress
    only when used. Document what decrypted data a permitted network call could
    disclose.
 5. Add positive, no-op, malformed-input, and boundary fixtures. Preserve
    unrelated fields and fail closed where a partial transformation is unsafe.
-6. Run the catalog validators and the current core parser gate:
+6. Run the catalog validators and marketplace reproducibility gate:
 
    ```powershell
    npm ci
@@ -354,26 +382,31 @@ checked at all.
    if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
    ```
 
-   Then run the current core parser integration command in
-   [`MIGRATION.md`](MIGRATION.md).
+   Runtime-facing changes also require the external core-contract evidence
+   described in [`MIGRATION.md`](MIGRATION.md). The current core branches do
+   not expose a canonical repository-side parser gate. The playbook therefore
+   runs the last public parser contract as an immutable fallback; do not
+   represent either that fallback or the commands above as validation of the
+   current channels.
 
-7. Install the candidate disabled, inspect its snapshot digest and permission
+7. Install the candidate disabled, inspect its source revision and permission
    summary, configure required settings and egress, then enable it only on an
    authorized test device with the shared interception root trusted.
 
-An update must keep `metadata.id`, bump `metadata.version` when immutable
-runtime bytes change, refresh provenance and fixtures, and remain disabled
-after replacement. Do not introduce automatic updates, mutable runtime script
-fetches, or compatibility shims.
+An update must keep `metadata.id`, bump `metadata.version` when a runtime source
+or reviewed asset selection changes, refresh provenance and fixtures, and remain
+disabled after replacement. Do not introduce automatic updates, unreviewed
+mutable branch fetches, or extension-supplied compatibility shims.
 
 Upstream selection is deliberately manual. Every source migration, installed
 rollout, and rollback must follow the reusable
 [`MIGRATION.md`](MIGRATION.md) playbook. It requires a baseline/candidate
 record, a capability and license diff, an explicit state strategy, disabled
-application, focused and core verification, and a rehearsable revert-forward
-rollback managed by the installed source's publisher. It also documents the
-limited emergency options available to operators who do not control that URL.
-The playbook does not discover or automatically select upstream revisions.
+application, focused verification, explicit external core-contract evidence,
+and a rehearsable revert-forward rollback managed by the installed source's
+publisher. It also documents the limited emergency options available to
+operators who do not control that URL. The playbook does not discover or
+automatically select upstream revisions.
 
 ## Licenses
 
@@ -392,26 +425,36 @@ npm ci
 if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --output marketplace.json
-if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
-npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --check marketplace.json
-if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTEXITCODE" }
+$marketplacePath = Join-Path $env:TEMP ("5gpn-extensions-marketplace-" + [guid]::NewGuid().ToString('N') + '.json')
+try {
+  npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --output $marketplacePath
+  if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
+  npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --check $marketplacePath
+  if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTEXITCODE" }
+} finally {
+  [System.IO.File]::Delete($marketplacePath)
+}
 ```
 
 The validation gate checks manifest structure, local script references,
-capture-host ownership, JavaScript syntax, forbidden compatibility globals,
-upstream provenance documentation, and per-extension behavior fixtures.
+capture-host ownership, JavaScript syntax, forbidden extension-defined
+compatibility globals, upstream provenance documentation, and per-extension
+behavior fixtures.
 
 Marketplace generation reads only reviewed market metadata from
 `marketplace/metadata.json`; names, versions, descriptions, resources,
-digests, sizes, and capability summaries are derived from the strict extension
-manifests and local files. Generation is deterministic for a given revision.
-The generator creates a missing `--output` parent directory and `--check`
-requires an exact byte-for-byte match. The fixture suite compiles the published
-Draft 2020-12 schema and validates the real generated catalog against it.
-The Pages workflow reruns all validation and upstream checks, generates from
-the checked-out `GITHUB_SHA`, verifies the generated bytes, and deploys only the
-static marketplace and schema.
+resource SHA-256 digests, byte sizes, and capability summaries are derived from
+the strict extension manifests and the bytes read during the build. Those
+resource fields are build output, not hand-maintained upstream provenance pins.
+Generation is deterministic for a given revision. The generator creates a
+missing `--output` parent directory and `--check` requires an exact
+byte-for-byte match. The fixture suite compiles the published Draft 2020-12
+schema and validates the real generated catalog against it. The Pages workflow
+reruns all validation and upstream checks, generates from the checked-out
+`GITHUB_SHA`, verifies the generated bytes, and deploys only the static
+marketplace and schema. At installation, the gateway must still refetch and
+verify every advertised resource digest and size before accepting the strict
+manifest.
 
 That build emits one document describing one wire contract, published at
 `marketplace/v2/`. It was several: the core parses the index with
@@ -424,6 +467,13 @@ saying so. The contract version lives in the published path, which is where a
 reader can act on it; when it next changes, that is a new path and a deliberate
 decision rather than a build flag.
 
-The validation workflow hands the index to both core channels, `main` and
-`beta`. Checking only the channel a field lands on first is exactly what would
-let it through and then break every gateway on the other.
+As of 2026-08-05, the current `moooyo/5gpn` `main` and `beta` refs no longer
+contain `cmd/5gpn-dns` or the former external extension and marketplace parser
+tests. Until the core project publishes a new canonical external parser gate,
+validation pins the last publicly available parser contract at
+`moooyo/5gpn@dd8bc6014af5f6cbc308d2b02a34b13da3f7ccbc` and runs both former
+external tests there. This immutable fallback provides parser-regression
+evidence, but it is not evidence that the current `main` or `beta` runtime
+accepts the contract. Replace it with the new canonical gate when one is
+published, and never describe `npm test` or marketplace reproducibility alone
+as core validation.

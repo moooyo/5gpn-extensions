@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Enhancer
-  version: 7.0.0
+  version: 8.0.0
   description: Runs the reviewed NSRingo WeatherKit release bundles on the gateway, or sends the same three paths to the reviewed upstream cloud endpoint.
 
 permissions:
@@ -140,8 +140,8 @@ actions:
   # Gateway script mode: the three scripts the published release module declares
   # -- two response scripts and, since v3.2.0-beta5, one request script --
   # running the pinned bundles here. The three paths are disjoint, so upstream's
-  # declaration order carries no meaning and the new action is appended rather
-  # than interleaved.
+  # declaration order carries no meaning and the request action is appended
+  # rather than interleaved.
   - id: weather-availability
     phase: response
     enabledWhen:
@@ -157,7 +157,7 @@ actions:
       statusCodes:
         - 200
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/response.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0/response.bundle.js
       bodyMode: text
       entry: proxy-compat
       timeoutMs: 10000
@@ -179,7 +179,7 @@ actions:
       statusCodes:
         - 200
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/response.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0/response.bundle.js
       bodyMode: binary
       entry: proxy-compat
       timeoutMs: 25000
@@ -190,7 +190,9 @@ actions:
   # synthesized 200. The path regex is upstream's own matcher transcribed, and
   # the `&ids=<latitude>,<longitude>` constraint is the whole gate -- Apple's
   # native alerts carry UUIDs, and only the response bundle above rewrites an
-  # alert collection's detailsUrl to the coordinate form this matches. Upstream
+  # alert collection's detailsUrl to the coordinate form this matches. v3.2.0
+  # tightened it: a coordinate now needs a digit before any decimal point, so
+  # the bare `.5` form upstream once accepted is no longer selected. Upstream
   # declares no requires-body for it, so no request body is delivered.
   - id: weather-alerts
     phase: request
@@ -203,9 +205,9 @@ actions:
       schemes:
         - http
         - https
-      pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+),-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:&|$)'
+      pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=-?[0-9]+(?:\.[0-9]+)?,-?[0-9]+(?:\.[0-9]+)?(?:&|$)'
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/request.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0/request.bundle.js
       bodyMode: none
       entry: proxy-compat
       timeoutMs: 10000
@@ -260,6 +262,8 @@ actions:
   # the two modes still select the same exchanges; the rewrite pattern is
   # upstream's, which captures the whole query string and replays it after the
   # path, so the coordinates reach the endpoint exactly as the client sent them.
+  # v3.2.0 moved the `?` out of the capture group and onto the target, and
+  # tightened the coordinate form the same way the script matcher was tightened.
   - id: weather-alerts-cloud
     phase: request
     enabledWhen:
@@ -271,11 +275,11 @@ actions:
       schemes:
         - http
         - https
-      pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+),-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:&|$)'
+      pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=-?[0-9]+(?:\.[0-9]+)?,-?[0-9]+(?:\.[0-9]+)?(?:&|$)'
     script:
       rewrite:
-        pattern: '^https?://weatherkit\.apple\.com/api/v1/weatherAlerts(\?[^#]*&ids=-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+),-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:&[^#]*)?)$'
-        to: https://{{settings.Endpoint}}/api/v1/weatherAlerts$1
+        pattern: '^https?://weatherkit\.apple\.com/api/v1/weatherAlerts\?([^#]*&ids=-?[0-9]+(?:\.[0-9]+)?,-?[0-9]+(?:\.[0-9]+)?(?:&[^#]*)?)$'
+        to: https://{{settings.Endpoint}}/api/v1/weatherAlerts?$1
       bodyMode: none
       timeoutMs: 500
       maxBodyBytes: 65536

@@ -12,7 +12,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '7.0.0')
+assert.equal(manifest.metadata.version, '8.0.0')
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
 // Three of these are upstream's exact-name rejects, which revisions before
 // 3.2.0 simply omitted. The fourth approximates upstream's ASN-plus-QUIC rule;
@@ -30,15 +30,17 @@ assert.equal(manifest.permissions.persistentStorage, true)
 assert.equal(manifest.permissions.network, true)
 assert.equal(manifest.requirements, undefined, 'no operator egress binding is required')
 
-const RELEASE = 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5'
+const RELEASE = 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0'
 const RESPONSE_BUNDLE = `${RELEASE}/response.bundle.js`
 const REQUEST_BUNDLE = `${RELEASE}/request.bundle.js`
 const ENDPOINT = 'https://{{settings.Endpoint}}'
 // Upstream's own matcher for the alerts path, transcribed. The `&ids=` prefix is
 // deliberate and is upstream's: Apple's native alerts carry UUIDs, and the
 // coordinate form only exists because the response bundle wrote it into an alert
-// collection's detailsUrl.
-const ALERTS_PATH = '^/api/v1/weatherAlerts\\?[^#]*&ids=-?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+),-?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)(?:&|$)'
+// collection's detailsUrl. v3.2.0 dropped the bare `.5` coordinate form, so a
+// digit before the decimal point is now required on both halves.
+const ALERTS_PATH = '^/api/v1/weatherAlerts\\?[^#]*&ids=-?[0-9]+(?:\\.[0-9]+)?,-?[0-9]+(?:\\.[0-9]+)?(?:&|$)'
+const ALERTS_REWRITE = '^https?://weatherkit\\.apple\\.com/api/v1/weatherAlerts\\?([^#]*&ids=-?[0-9]+(?:\\.[0-9]+)?,-?[0-9]+(?:\\.[0-9]+)?(?:&[^#]*)?)$'
 assert.equal(manifest.actions.length, 6)
 
 // Gateway script mode: the three scripts the release module declares.
@@ -108,8 +110,9 @@ assert.equal(availabilityCloud.script.rewrite.to, `${ENDPOINT}/api/v1/availabili
 const weatherCloud = manifest.actions.find((action) => action.id === 'weather-data-cloud')
 assert.equal(weatherCloud.script.rewrite.to, `${ENDPOINT}/api/v2/weather/$1`)
 const alertsCloud = manifest.actions.find((action) => action.id === 'weather-alerts-cloud')
-assert.equal(alertsCloud.script.rewrite.to, `${ENDPOINT}/api/v1/weatherAlerts$1`)
+assert.equal(alertsCloud.script.rewrite.to, `${ENDPOINT}/api/v1/weatherAlerts?$1`)
 assert.equal(alertsCloud.match.pathRegex, ALERTS_PATH)
+assert.equal(alertsCloud.script.rewrite.pattern, ALERTS_REWRITE)
 
 // The `&ids=` constraint is the only thing keeping this action off Apple's own
 // alerts, so it is exercised rather than eyeballed. A UUID id is Apple's native
@@ -121,8 +124,13 @@ const alertsRewrite = new RegExp(alertsCloud.script.rewrite.pattern)
 for (const [query, selected] of [
   ['?lang=zh-CN&ids=39.9042,116.4074&timezone=Asia%2FShanghai', true],
   ['?lang=en-US&ids=-33.86,151.2', true],
+  ['?lang=en-US&ids=0,0', true],
   ['?country=CN&ids=6E9A1B2C-0000-4444-8888-AAAABBBBCCCC', false],
   ['?ids=39.9042,116.4074', false],
+  // v3.2.0 narrowed the coordinate form: a decimal point now needs a digit in
+  // front of it. Upstream's own matcher no longer selects this, so neither does
+  // the transcription.
+  ['?lang=zh-CN&ids=.5,.5', false],
 ]) {
   const path = `/api/v1/weatherAlerts${query}`
   assert.equal(alertsMatcher.test(path), selected, `${path} must ${selected ? '' : 'not '}be selected`)
@@ -179,8 +187,9 @@ assert.deepEqual(manifest.settings.map((setting) => setting.key), [
   'LogLevel',
 ])
 
-// Every provider default must be the non-replacing value, so a freshly enabled
-// extension makes no third-party request until an operator opts in.
+// Every exposed provider default must be the non-replacing value. The pinned
+// bundle still has ungated alert and air-quality lookups, which the README
+// records separately.
 const providerDefaults = manifest.settings.filter((setting) => setting.key.endsWith('.Provider'))
 assert.equal(providerDefaults.length, 2)
 for (const setting of providerDefaults) {
@@ -208,7 +217,7 @@ for (const key of ['API.ColorfulClouds.Token', 'API.QWeather.Token', 'API.WAQI.T
 // Not a token, and not optional in practice. $argument is merged over the
 // bundle's own database defaults, so leaving this blank overwrites upstream's
 // devapi.qweather.com with "" and every QWeather URL is built against a hostless
-// https://. The alerts action answers from that host.
+// https://. Both alert paths now fetch from that host.
 assert.equal(manifest.settings.find((entry) => entry.key === 'API.QWeather.Host').default, 'devapi.qweather.com')
 
 // The README is the record of what runs and where it goes. Byte-level pinning
@@ -221,7 +230,7 @@ assert(/exact coordinates/i.test(readme), 'README must state what an enabled pro
 
 // Cloud mode transcribes a second upstream artifact. Nothing pins the live
 // service behind those hostnames, which is the point the README has to make.
-const REWRITE_MODULE = 'https://raw.githubusercontent.com/NSRingo/WeatherKit/33ec3297387e7444fec65bb48a0a042969b97167/modules/iRingo.WeatherKit.Rewrite.lpx'
+const REWRITE_MODULE = 'https://raw.githubusercontent.com/NSRingo/WeatherKit/c66350d91457f9a1b8a6c5e6aba46370fa6da254/modules/iRingo.WeatherKit.Rewrite.lpx'
 assert(readme.includes(REWRITE_MODULE), 'README must record the cloud rewrite module it transcribes')
 for (const option of endpoint.options) {
   assert(readme.includes(option), `README must record the cloud endpoint ${option}`)

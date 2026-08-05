@@ -59,7 +59,7 @@ precedence = "override"
 SPDX-FileCopyrightText = "2026 moooyo"
 SPDX-License-Identifier = "Apache-2.0"
 
-# Exact immutable artifact provenance and source metadata credits are retained
+# Reviewed upstream provenance and source metadata credits are retained
 # in each extension README and in THIRD_PARTY_NOTICES.md. They are not promoted
 # to unverified copyright claims.
 [[annotations]]

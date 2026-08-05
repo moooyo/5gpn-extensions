@@ -27,8 +27,8 @@ re-derived from the bundles on every upstream release.
 
 The runtime now supports the upstream contract directly, so the extension loads
 the same two bundles upstream publishes and tracking a release means changing a
-pinned URL and its recorded digest. The behavior is upstream's, not an
-approximation of it.
+commit-pinned URL and its recorded fetch date. The behavior is upstream's, not
+an approximation of it.
 
 The trade is explicit and is the operator's to accept. The native port bounded
 what it would parse — 16 MiB responses, 64 levels of message nesting, 250,000
@@ -42,9 +42,9 @@ this manifest keeps the caps.
 ## Implemented behavior
 
 The extension captures only `*.googlevideo.com` and
-`youtubei.googleapis.com`, and declares the exact
-network permission the reviewed cross-origin request rewrite to
-`https://init-stream.maasea.workers.dev` needs.
+`youtubei.googleapis.com`, and declares the global network permission needed by
+the reviewed cross-origin request rewrite to
+`https://init-stream.maasea.workers.dev`.
 
 Three actions mirror the three `[Script]` entries in the pinned module:
 
@@ -62,6 +62,11 @@ bundles probe for a client and take their Loon branch.
 Settings reach the bundle as a decoded object, which is what Loon hands a
 script. Nothing is serialized into a string, so the declared types cross intact
 and there is no per-publisher encoding to get wrong.
+
+The `log_event` action deliberately narrows upstream's prefix matcher to the
+exact `/youtubei/v1/log_event` endpoint with an optional query string. It does
+not select lookalike paths such as `/youtubei/v1/log_event_extra`; this is a
+fail-closed porting boundary rather than an upstream behavior claim.
 
 Upstream passes only `captionLang` to the initplayback entry and nothing at all
 to `log_event`; this runtime passes the full settings object to every action.
@@ -106,20 +111,21 @@ parameters listed above.
 The Worker implementation, deployment revision, build inputs, and license are
 not present in the pinned `Maasea/sgmodule` tree. This repository does not copy
 or claim to reproduce that service. Its behavior can change independently of
-the immutable JavaScript pin, and its availability and privacy properties are
-an external trust decision. No fixture here covers any of it: the URL
-construction described above was read out of the pinned bundle rather than
-asserted by a test, and nothing in this repository proves the live Worker
-decrypts and cleans real YouTube Onesie streams.
+the immutable JavaScript pin: the Git commit pin covers the two bundles, not the
+Worker deployment. Its availability and privacy properties are an external
+trust decision. No fixture here covers any of it: the URL construction
+described above was read out of the pinned bundle rather than asserted by a
+test, and nothing in this repository proves the live Worker decrypts and cleans
+real YouTube Onesie streams.
 
-The manifest declares the Worker as an exact `permissions.network.origins`
-entry. The native runtime requires that reviewed origin before allowing this
-cross-origin request patch, and the single enable confirmation warns that all
-data visible to the scripts could be sent there. This permission also exposes
-the `context.network.request` and `context.network.requestAsync` capabilities
-for the Worker origin to every script in this extension, although the bundles
-never call them. That broader same-origin capability is part of the operator's trust
-decision and must not be interpreted as proof that the Worker is safe.
+The manifest sets the single global boolean `permissions.network: true`; the
+schema has no per-origin allowlist. This grant lets every script in the
+extension reach any public destination permitted by the gateway's outbound
+safety policy and rewrite a captured request across origins. The Worker above
+is the only destination used by the reviewed bundle behavior, but it is not a
+permission boundary. The enable review must therefore assume that every value
+visible to these scripts could be sent to any such destination, and it must not
+interpret the grant as proof that the Worker is safe.
 
 No operator egress group is required by the reviewed module behavior. An
 operator may still select an egress binding. The manifest declares no upstream
@@ -196,11 +202,11 @@ forces both platforms to relearn their keys.
 ## Pinned upstream
 
 The artifact set was fetched, and the reviewed branch head and immutable commit
-were independently rechecked, on `2026-07-22`. All distributed provenance is
+were independently rechecked, on `2026-08-05`. All distributed provenance is
 bound to immutable raw URLs:
 
 | Artifact | Immutable source |
-||
+| --- | --- |
 | YouTube module | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/YouTube.Enhance.sgmodule` |
 | YouTube request transformer | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.request.js` |
 | YouTube response transformer | `https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.response.js` |
@@ -218,8 +224,8 @@ Maasea attribution. The complete local license text is
 no `NOTICE` file.
 
 No upstream code is copied into this directory. The two transformers are
-fetched by the gateway from the immutable raw URLs recorded above and pinned by
-digest, so this repository references them rather than redistributing them.
+fetched by the gateway from the immutable, commit-bearing raw URLs recorded
+above, so this repository references them rather than redistributing them.
 They are generated bundles with no corresponding preferred source at that
 commit: `Script/Youtube` contains only the two `.js` files, with no
 TypeScript/protobuf source, package manifest, lockfile, build configuration, or
@@ -235,17 +241,17 @@ external service dependency rather than represented as rebuildable local source.
 1. Resolve and record a new immutable `Maasea/sgmodule` commit; do not trust the
    module's mutable `master` script URLs.
 2. Fetch `YouTube.Enhance.sgmodule`, both `Script/Youtube` bundles, `LICENSE`,
-   and any newly added `NOTICE` from commit-pinned raw URLs. Record raw byte
-   fetch date, and the complete YouTube source tree.
+   and any newly added `NOTICE` from commit-pinned raw URLs. Record every raw
+   URL, the fetch date, and the complete YouTube source tree.
 3. Re-audit endpoint matchers, settings, storage keys, protobuf paths, request
    rewrite destinations, routing rules, generated dependency licenses, and all
    data disclosed to external services.
 4. Do not copy generated dependency code or any artifact whose preferred
    source and license obligations cannot be satisfied. Keep every external
    service limitation explicit.
-5. Update the pinned URLs, sizes, and digests, increment `metadata.version`,
+5. Update the commit-pinned URLs and fetch date, increment `metadata.version`,
    and review all changed capabilities while the extension remains disabled.
-   The bundles are the runtime, so a new pin is a new implementation.
+   The bundles are the runtime, so a new commit is a new implementation.
 
 ## Migration and rollback
 
@@ -262,7 +268,7 @@ upstream revision. Upstream selection remains a manual review decision.
 | State class | Stateful. Keep `persistentStorage: true` during normal migration and rollback. |
 | Advertisement cache | `YouTubeAdvertiseInfo` is a non-authoritative version `1.0` cache. An incompatible schema may reset and relearn only when that behavior is documented and tested. |
 | Key configuration | `YouTubeConfig` contains sensitive YouTube and YouTube Music `clientKey`/`encryptKey` pairs. Never copy values into migration records or logs. An incompatible format requires an additive versioned key and dual-read strategy. |
-| Reviewed capability baseline | Two capture-host patterns, three proxy-compat actions, four settings, one exact Worker origin, no routing rules, and no required egress binding. |
+| Reviewed capability baseline | Two capture-host patterns, three proxy-compat actions, four settings, one global network grant used by one reviewed Worker destination, no routing rules, and no required egress binding. |
 | Operator state | A normal same-ID update retains valid settings, `capture_dns`, execution position, and the ID-scoped storage bucket while storage permission remains enabled. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. The baseline must remain able to read retained state or safely relearn it. |
 
@@ -282,9 +288,9 @@ upstream revision. Upstream selection remains a manual review decision.
 4. Re-audit the Worker origin, query data, forwarded headers, permission scope,
    failure response, and live-service limitation whenever request behavior
    changes. A JavaScript pin does not pin the external Worker deployment.
-5. Synchronize all raw artifacts, sizes, digests, fetch date, licenses, notices,
-   `REUSE.toml`, validator pins, storage documentation, fixtures, and version in
-   the same change.
+5. Synchronize all immutable raw URLs, fetch dates, licenses, notices,
+   `REUSE.toml`, validator pins, storage documentation, fixtures, and version
+   in the same change.
 6. Apply the candidate while disabled without uninstalling the extension or
    removing storage permission. Confirm retained settings and state behavior,
    review the Worker permission again, then exercise cache learning and both
@@ -297,14 +303,15 @@ response, settings, storage-reader, Worker, and permission behavior with a new
 version incremented above the failing candidate. Before rollout, prove that it
 can read the candidate's retained state
 or safely reset and relearn only the non-authoritative cache. Disable the
-failing candidate, apply the exact rollback digest, verify both platform slots,
-cache learning, mismatch failover, and Worker URL construction, then enable
-only after focused tests pass. Do not use uninstall/reinstall as routine
-rollback: it loses installed control-plane values and can make extension state
-unavailable or prune it. If state loss is ever intended, review and test that
-as a separate migration. A public-catalog operator has no immediate safe
-rollback when no publisher candidate is available; disable the extension and
-preserve its installation and storage permission until one is reviewed.
+failing candidate, apply the exact published rollback candidate, verify both
+platform slots, cache learning, mismatch failover, and Worker URL construction,
+then enable only after focused tests pass. Do not use uninstall/reinstall as
+routine rollback: it loses installed control-plane values and can make
+extension state unavailable or prune it. If state loss is ever intended,
+review and test that as a separate migration. A public-catalog operator has no
+immediate safe rollback when no publisher candidate is available; disable the
+extension and preserve its installation and storage permission until one is
+reviewed.
 
 ## Verification
 
@@ -316,17 +323,20 @@ if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" 
 ```
 
 Both transformer URLs name an immutable commit, which is what binds the bytes a
-gateway fetches. Nothing re-downloads them to compare against a recorded
-digest.
+gateway fetches. Nothing re-downloads them against a digest maintained in this
+README. During marketplace publication, the generator fetches the remote
+bundles and derives their size and SHA-256 for the catalog; the gateway verifies
+that generated integrity metadata at install. Those values are build output,
+not hand-maintained upstream provenance pins.
 
 What this repository can no longer assert is what the bundles do. The previous
 revision shipped synthetic protobuf fixtures over local code; that code is
 gone, and running upstream's own bundle against fabricated bodies would test
 upstream, not this manifest. What is tested here is the wiring: the manifest
-shape, the pinned digests, and the routing projection. Behavior is upstream's
-to test.
+shape, the exact immutable script URLs, and the routing projection. Behavior is
+upstream's to test.
 
 Before relying on the encrypted playback path, perform a device smoke test
-while reviewing sidecar logs, capture-host and network-origin review, cache
-regeneration, response-size failures, and the exact data sent to the Worker. A
-JavaScript pin does not pin the external Worker deployment.
+while reviewing sidecar logs, capture-host and global-network-permission review,
+cache regeneration, response-size failures, and the exact data sent to the
+Worker. A JavaScript pin does not pin the external Worker deployment.
