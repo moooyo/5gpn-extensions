@@ -12,7 +12,7 @@
 | `apple-wloc` | 将 Apple WLOC 响应改写为运营者选择的位置 | MIT |
 | `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
 | `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
-| `weatherkit` | 在网关上运行评审过的 WeatherKit bundle，或按 `Mode` 把三条捕获路径交给上游云端端点 | Apache-2.0 |
+| `weatherkit` | 在网关上运行经审查的 WeatherKit bundle，或将全部三条捕获路径发送到上游云端端点 | Apache-2.0 |
 | `youtube-cleaner` | 清理 YouTube 响应并准备经审查的外部 Onesie 播放链路 | Apache-2.0 |
 | `zhihu-cleaner` | 移除部分知乎传输配置、广告、推广内容和导航入口 | CC BY-NC-SA 4.0 |
 
@@ -30,7 +30,7 @@
 | `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
 | `zhihu-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/extension.yaml> |
 
-每次导入均从禁用状态开始。启用前，请审查不可变快照摘要、捕获主机、操作、设置、精确路由规则、联网权限、执行位置以及任何所需的运营者出口绑定。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
+每次导入均从禁用状态开始。启用前，请审查不可变快照、捕获主机、操作、设置、精确路由规则、联网权限、执行位置以及任何所需的运营者出口绑定。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
 
 ## Marketplace
 
@@ -44,7 +44,7 @@ https://moooyo.github.io/5gpn-extensions/marketplace/v2/index.json
 
 显式添加后，Console 即可浏览已审查的扩展。浏览不会安装或启用扩展。选择条目后会进入标准的原生 manifest 解析与快照流程；生成的不可变快照仍保持禁用，直到运营者审查其捕获主机、权限、设置、路由规则、执行位置和出口绑定。
 
-Marketplace 是发现元数据，不是可执行信任边界。每个条目指向常规的 `main` manifest 与本地脚本 URL，使现有显式更新检查仍能重新抓取已安装源。同时，列表记录其 40 位构建提交对应内容的精确 SHA-256 和字节数。网关必须核对下载到的 manifest 与脚本字节及其声明摘要，然后执行完整、严格的 `5gpn.io/v1` 解析；不能将列表中的描述或能力摘要当作运行时权威。脚本仍由常规不可变快照流程抓取、校验和保存。摘要不匹配时必须拒绝。
+Marketplace 是发现元数据，不是可执行信任边界。每个条目指向常规的 `main` manifest 与本地脚本 URL，使现有显式更新检查仍能重新抓取已安装源。生成器在构建时从其 40 位构建提交对应的内容派生精确 SHA-256 和字节数；这些字段不是维护者手工记录的上游溯源 pin。网关必须核对下载到的 manifest 与脚本字节及其声明摘要和大小，然后执行完整、严格的 `5gpn.io/v1` 解析；不能将列表中的描述或能力摘要当作运行时权威。脚本仍由常规不可变快照流程抓取、校验和保存。摘要或大小不匹配时必须拒绝。
 
 GitHub Pages 在上述稳定 URL 提供当前列表。公开 JSON Schema 位于
 <https://moooyo.github.io/5gpn-extensions/marketplace/v2/schema.json>。
@@ -53,7 +53,7 @@ GitHub Pages 在上述稳定 URL 提供当前列表。公开 JSON Schema 位于
 ## 开发扩展
 
 规范性运行时契约见核心项目的
-[`5gpn.io/v1` author guide](https://github.com/moooyo/5gpn/blob/beta/docs/native-extensions.md)。本节是本目录中扩展维护者可独立使用的检查清单。5gpn 仅接受此处说明的原生格式；请勿发布 Loon、Surge、Quantumult X、Stash 或其他兼容性全局对象或清单。
+[`5gpn.io/v1` author guide](https://github.com/moooyo/5gpn/blob/beta/docs/native-extensions.md)。本节是本目录中扩展维护者可独立使用的检查清单。5gpn 仅接受此处说明的原生清单格式；请勿发布 Loon、Surge、Quantumult X 或 Stash 清单。`proxy-compat` 仍是原生格式的一部分：它使用核心提供的沙箱，而不是由扩展携带兼容 runtime 或全局对象。
 
 ### 目录结构
 
@@ -66,7 +66,7 @@ example-cleaner/
   README.md
 ```
 
-`extension.yaml` 和运行时需要的每个脚本都必须是目录中的不可变本地文件。README 必须记录适用许可证、创作者署名、固定到提交的每个上游源、原始 URL、SHA-256 摘要、获取日期、移植决策、排除项、限制、更新流程和验证步骤。
+`extension.yaml` 和每个仓库本地脚本都必须是目录中的不可变文件。经审查的远程脚本源应使用不可变提交 URL；如果上游只通过官方 release asset 发布生成 bundle，也正式支持直接使用该 asset URL，但必须记录 tag 对象、源码提交及其可替换性。README 必须记录适用许可证、创作者署名、每个上游源绑定、URL、获取日期、移植决策、排除项、限制、更新流程和验证步骤。不要在 README 中另行维护字节大小或摘要 pin。
 
 ### 可用能力
 
@@ -148,9 +148,20 @@ actions:
 
 通过 URL 安装的清单可以使用相对 HTTPS 脚本源。本地粘贴或上传的清单必须使用内联脚本或绝对 HTTPS 脚本 URL。
 
+### 操作类型
+
+一个操作只使用一种执行形式。其中六种是永远不会进入 JavaScript 运行时的声明式形式：`reject`、`mock`、`jq`、`headers`、`rewrite` 和 `replaceBody`。脚本操作则必须在 `source` 与 `inline` 中恰好声明一个；其 `entry` 默认为 `native`，也可为经审查的上游代理客户端 bundle 显式声明 `proxy-compat`。`proxy-compat` 是正式支持的执行形式，不是历史例外；当声明式操作无法忠实表达已发布行为时可以使用它，能够等价表达时仍应优先选择声明式形式。本目录同时使用两者，不包含仓库本地 JavaScript，也不携带扩展自建的兼容 runtime。
+
+```yaml
+script: { reject: true, bodyMode: none, timeoutMs: 500, maxBodyBytes: 1024 }
+script: { mock: { status: 200, headers: { Content-Type: application/json }, body: '{}' }, bodyMode: none, ... }
+script: { jq: 'del(.data.ad_info)', bodyMode: text, ... }
+script: { source: https://…/pinned.js, entry: proxy-compat, bodyMode: text, ... }
+```
+
 ### 脚本契约
 
-每个脚本恰好定义一个全局入口点：
+原生脚本形式（`entry: native`，也是默认值）仍受支持并接受同等审查，但本仓库目前没有使用它。其源码只定义一个全局入口点：
 
 ```javascript
 function transform(context) {
@@ -186,7 +197,11 @@ true}`、`null` 或 `undefined`。响应操作只能返回响应补丁、中止�
 
 ### proxy-compat 契约
 
-`script.entry: proxy-compat` 原样运行一个已发布的代理客户端 bundle。运行时以 **Loon** 人格呈现：`$loon` 有定义，因此按 `$task`、`$loon`、`$rocket`、`Egern`、`$environment["surge-version"]` 这一固定顺序探测的 bundle 会走它们的 Loon 分支。运行时不定义任何 Surge、Quantumult X 或 Egern 全局，`$environment` 报告的是 `loon-version` 而不是 `surge-version`。
+`script.entry: proxy-compat` 是在原生清单中原样运行已发布代理客户端 bundle 的正式支持形式。兼容表面由核心拥有；扩展只提供经审查的源码、阶段、匹配器、设置、权限和执行边界，不得携带兼容垫片或定义额外的客户端全局对象。
+
+每次使用都必须接受与原生移植相同的审查：记录不可变源码溯源和权威模块，映射每个匹配器与设置，只在实际使用时声明存储和全局联网权限，记录数据披露和有意排除项，遵守上游许可证边界，并在 fixture 中固定动作到 bundle 的精确映射、`bodyMode`、超时和正文大小上限。
+
+运行时以 **Loon** 人格呈现：`$loon` 有定义，因此按 `$task`、`$loon`、`$rocket`、`Egern`、`$environment["surge-version"]` 这一固定顺序探测的 bundle 会走它们的 Loon 分支。运行时不定义任何 Surge、Quantumult X 或 Egern 全局，`$environment` 报告的是 `loon-version` 而不是 `surge-version`。
 
 bundle 可以拿到：
 
@@ -231,16 +246,16 @@ traffic:
       target: origin.example.net
 ```
 
-联网权限不列举地址，运行时仍会拒绝 IP 字面量、localhost 和私有名称。上游映射仅适用于已由同一扩展拥有的主机，且不得以私有、回环、链路本地或其他不安全地址为目标。
+网络源只包含规范化的 scheme、主机名和有效端口；通配符、路径、查询、片段、userinfo、IP 字面量、localhost 和私有名称均会被拒绝。上游映射仅适用于已由同一扩展拥有的主机，且不得以私有、回环、链路本地、运营商级 NAT 或其他不安全地址为目标。这一拒绝并不是纵深防御：网关渲染的私网段拒绝规则全部使用 `no-resolve`，只能阻止以 IP 形式出现的路由目标，而出口锚点会在规则列表之前完成解析。静态映射是流量发生前已知地址的唯一情形，因此也只有它能在此阶段接受检查。
 
 ### 开发和审查流程
 
 1. 选择权威上游仓库和不可变提交。不得将扩展商店或镜像的根许可证视为比更具体的原始文件许可证更有权威性。
-2. 移植行为前，记录并验证每个源文件和许可证文件的原始 URL、大小、SHA-256、获取日期、创作者署名和许可证。
-3. 仅将经审查的行为转换为严格的原生清单。优先使用声明式动作(`reject`/`mock`/`jq`/`headers`/`rewrite`/`replaceBody`)——本仓库的六个扩展全部由它们和 `proxy-compat` 构成,不含任何 JavaScript。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
+2. 移植行为前，记录并验证每个源文件和许可证文件的不可变原始 URL、获取日期、创作者署名和许可证。对于仅以官方 release asset 提供的生成 bundle，还要记录直接 asset URL、tag 对象、源码提交及 release 的可变状态。不要另加手工维护的字节大小或摘要 pin。
+3. 仅将经审查的行为转换为严格的原生清单。能够忠实表达时优先使用声明式操作；否则通过 `entry: proxy-compat` 使用绑定到不可变提交或有完整记录的官方 release asset 的经审查上游 bundle。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
 4. 仅在使用时声明存储、联网权限、上游映射和所需出口。记录获准的网络调用可能泄露哪些已解密数据。
 5. 添加正向、无操作、格式错误输入和边界测试样例。保留无关字段，并在部分转换不安全时以拒绝方式失败（fail closed）。
-6. 运行目录验证器和当前核心解析器门禁：
+6. 运行目录验证器和 marketplace 可复现性门禁：
 
    ```powershell
    npm ci
@@ -249,13 +264,13 @@ traffic:
    if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
    ```
 
-   随后运行 [`MIGRATION.md`](MIGRATION.md) 中的当前核心解析器集成命令。
+   涉及运行时的变更还必须提供 [`MIGRATION.md`](MIGRATION.md) 所述的外部核心契约证据。当前核心分支没有公开规范性的仓库侧解析器门禁，因此手册会运行最后一个公开解析器契约作为不可变 fallback；不得将这个 fallback 或上述命令描述为当前通道验证。
 
-7. 在禁用状态下安装候选项，检查其快照摘要和权限摘要，配置必需设置和出口，然后仅在已授权的测试设备上启用它，且该设备已信任共享拦截根证书。
+7. 在禁用状态下安装候选项，检查其源码 revision 和权限摘要，配置必需设置和出口，然后仅在已授权的测试设备上启用它，且该设备已信任共享拦截根证书。
 
-更新必须保持 `metadata.id`，当不可变运行时字节变更时提升 `metadata.version`，刷新溯源信息和测试样例，并在替换后保持禁用。请勿引入自动更新、可变的运行时脚本获取或兼容性垫片。
+更新必须保持 `metadata.id`，当运行时来源或经审查的 asset 选择变化时提升 `metadata.version`，刷新溯源信息和测试样例，并在替换后保持禁用。请勿引入自动更新、未经审查的可变分支获取或扩展自带的兼容性垫片。
 
-上游版本的选择刻意保持为人工流程。每次源码迁移、已安装版本发布和回滚都必须遵循可复用的 [`MIGRATION.md`](MIGRATION.md) 手册。该手册要求记录基线与候选版本、比较能力和许可证、明确状态策略、以禁用状态应用更新、完成聚焦测试与核心解析验证，并准备由安装源发布者管理、可演练的前滚式回退；同时说明不控制该 URL 的运营者仅有的有限应急选项。该手册不会发现或自动选择上游版本。
+上游版本的选择刻意保持为人工流程。每次源码迁移、已安装版本发布和回滚都必须遵循可复用的 [`MIGRATION.md`](MIGRATION.md) 手册。该手册要求记录基线与候选版本、比较能力和许可证、明确状态策略、以禁用状态应用更新、完成聚焦验证、明确记录外部核心契约证据，并准备由安装源发布者管理、可演练的前滚式回退；同时说明不控制该 URL 的运营者仅有的有限应急选项。该手册不会发现或自动选择上游版本。
 
 ## 许可证
 
@@ -271,16 +286,21 @@ npm ci
 if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --output marketplace.json
-if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
-npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --profile v1 --check marketplace.json
-if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTEXITCODE" }
+$marketplacePath = Join-Path $env:TEMP ("5gpn-extensions-marketplace-" + [guid]::NewGuid().ToString('N') + '.json')
+try {
+  npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --output $marketplacePath
+  if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
+  npm run marketplace:build -- --revision 0000000000000000000000000000000000000000 --check $marketplacePath
+  if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTEXITCODE" }
+} finally {
+  [System.IO.File]::Delete($marketplacePath)
+}
 ```
 
-验证门禁检查清单结构、本地脚本引用、捕获主机所有权、JavaScript 语法、禁止的兼容性全局对象、上游溯源文档及每个扩展的行为测试样例。
+验证门禁检查清单结构、本地脚本引用、捕获主机所有权、JavaScript 语法、禁止的扩展自定义兼容性全局对象、上游溯源文档及每个扩展的行为测试样例。
 
-Marketplace 生成器只读取 `marketplace/metadata.json` 中经审查的市场元数据；名称、版本、描述、资源、摘要、大小和能力摘要均从严格扩展 manifest 与本地文件派生。对于同一个 revision，输出是确定的。生成器会创建不存在的 `--output` 父目录，`--check` 则要求逐字节完全一致。fixture 测试会编译公开的 Draft 2020-12 schema，并使用它校验真实生成的目录。Pages 工作流会重新运行所有校验和上游检查，从已检出的 `GITHUB_SHA` 生成列表、复核生成字节，并且只部署静态 marketplace 与 schema。
+Marketplace 生成器只读取 `marketplace/metadata.json` 中经审查的市场元数据；名称、版本、描述、资源、资源 SHA-256 摘要、字节大小和能力摘要均从严格扩展 manifest 及构建时读取的字节派生。这些资源字段是构建产物，不是手工维护的上游溯源 pin。对于同一个 revision，输出是确定的。生成器会创建不存在的 `--output` 父目录，`--check` 则要求逐字节完全一致。fixture 测试会编译公开的 Draft 2020-12 schema，并使用它校验真实生成的目录。Pages 工作流会重新运行所有校验和上游检查，从已检出的 `GITHUB_SHA` 生成列表、复核生成字节，并且只部署静态 marketplace 与 schema。安装时，网关仍必须重新抓取并核对每项声明的资源摘要与大小，之后才能接受严格清单。
 
 该构建产出一份文档、描述一套 wire contract，发布在 `marketplace/v2/`。它曾经是多份：核心用 `DisallowUnknownFields` 解析索引，因此往里加字段并非向后兼容的增量——不认识该字段的核心会拒绝整个文档、连带丢掉整个扩展目录——冻结的那份 profile 就是为了继续向旧核心提供旧形态。那些核心已经不存在，所有扩展都需要当前契约，而冻结的 profile 已经退化成一个空目录：它的失败方式是什么都不产出，而不是明说。契约版本写在发布路径里，因为那是读取方能据以行动的地方；下次契约变更时，那是一条新路径和一个明确决定，而不是一个构建开关。
 
-验证工作流把这份索引同时交给 `main` 和 `beta` 两个核心通道。只验证字段先落地的那个通道，恰恰会让它通过、然后弄坏另一个通道上的每一个网关。
+截至 2026-08-05，当前 `moooyo/5gpn` 的 `main` 与 `beta` ref 已不再包含 `cmd/5gpn-dns`，也不再包含原来的外部扩展与 marketplace 解析器测试。在核心项目发布新的规范性外部解析器门禁之前，验证会固定最后一个公开解析器契约 `moooyo/5gpn@dd8bc6014af5f6cbc308d2b02a34b13da3f7ccbc`，并在其中运行原来的两个外部测试。这个不可变 fallback 能提供解析器回归证据，但不能证明当前 `main` 或 `beta` 运行时接受该契约。新的规范性门禁发布后必须替换它；不得把 `npm test` 或 marketplace 可复现性本身描述为核心验证。

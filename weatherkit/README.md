@@ -38,7 +38,8 @@ extension loads that bundle instead of reimplementing it. Every upstream
 feature — provider-backed weather replacement, next-hour precipitation,
 yesterday comparison, and the complete air-quality pipeline — comes from the
 same code upstream ships, and tracking a release means changing a URL and its
-recorded digest.
+reviewed source revision. The marketplace derives runtime resource integrity
+fields when it is built; this README does not maintain a second byte-level pin.
 
 The trade is explicit and is the operator's to accept: the bundle is a remote
 asset that reaches third-party provider APIs with the request's coordinates,
@@ -69,54 +70,95 @@ exchange rather than editing one, and a third-party lookup that no provider
 setting gates. [Permissions and data boundary](#permissions-and-data-boundary)
 states the consequence; the exclusions record what bounds it.
 
-## Pinned upstream
+Revision 8.0.0 tracks the stable `v3.2.0`. Three things in it are capability
+changes rather than a version bump:
 
-The runtime assets are the two `v3.2.0-beta5` release bundles:
+- **The response bundle's alert injection lost its gates.** At `v3.2.0-beta5` it
+  ran only when the request's country was in `Weather.Replace` *and*
+  `Weather.Provider` was `QWeather`, so this extension's `WeatherKit` default
+  meant it never fired. It now runs whenever the captured alert collection names
+  the National Early Warning Center — in Simplified Chinese, Traditional
+  Chinese, or English — and fetches from `WeatherAlerts.Provider`, a key
+  upstream added to its database defaults and exposes as no argument. So
+  `weather-data` reaches QWeather with the request's coordinates on a default
+  install. That is the third ungated third-party path on this page, after the
+  air-quality lookup and `weather-alerts`, and the first one this repository
+  gained by refreshing a pin rather than by declaring an action.
+- **Both alert matchers narrowed.** Upstream now requires a digit before any
+  decimal point in the `ids` coordinate pair, so the bare `.5,.5` form it used
+  to accept is no longer selected. Both the script matcher and the cloud rewrite
+  are transcribed again from upstream's own, and the cloud rewrite's `?` moved
+  out of the capture group and onto the target.
+- **The Loon release asset was renamed** from `iRingo.WeatherKit.plugin` to
+  `iRingo.WeatherKit.lpx`. That is the file this port reads to transcribe the
+  matchers and arguments, so the update procedure below names the new one.
 
-- `https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/response.bundle.js`
-  (267,124 bytes), loaded by the two response actions; and
-- `https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/request.bundle.js`
-  (236,646 bytes), loaded by the one request action.
+The refresh was also forced rather than optional. Upstream moved the
+`v3.2.0-beta5` tag a third time after revision 7.0.0 was recorded, so the URLs
+that revision pinned stopped serving the bytes it reviewed. See
+[Reviewed upstream and runtime assets](#reviewed-upstream-and-runtime-assets).
+
+## Reviewed upstream and runtime assets
+
+The runtime assets are the two `v3.2.0` release bundles:
+
+- `https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0/response.bundle.js`,
+  loaded by the two response actions; and
+- `https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0/request.bundle.js`,
+  loaded by the one request action.
 
 The tag resolves through annotated tag object
-`902d1646f9f8bbc7fddd6da7747f30aa897fe2fc` to commit
-[`33ec3297387e7444fec65bb48a0a042969b97167`](https://github.com/NSRingo/WeatherKit/tree/33ec3297387e7444fec65bb48a0a042969b97167),
-reviewed on `2026-08-03`.
+`8c80d9c52cf1f87d8d63660edcba0b788c8a1abf` to commit
+[`c66350d91457f9a1b8a6c5e6aba46370fa6da254`](https://github.com/NSRingo/WeatherKit/tree/c66350d91457f9a1b8a6c5e6aba46370fa6da254),
+fetched and reviewed on `2026-08-05`. The tag object is unsigned.
 
 | Artifact and purpose | Immutable raw URL |
 | --- | --- |
-| Upstream license | `https://raw.githubusercontent.com/NSRingo/WeatherKit/33ec3297387e7444fec65bb48a0a042969b97167/LICENSE` |
-| Package metadata and credits | `https://raw.githubusercontent.com/NSRingo/WeatherKit/33ec3297387e7444fec65bb48a0a042969b97167/package.json` |
-| Published module arguments | `https://raw.githubusercontent.com/NSRingo/WeatherKit/33ec3297387e7444fec65bb48a0a042969b97167/arguments-builder-full.config.ts` |
-| Cloud rewrite module, ported by cloud endpoint mode | `https://raw.githubusercontent.com/NSRingo/WeatherKit/33ec3297387e7444fec65bb48a0a042969b97167/modules/iRingo.WeatherKit.Rewrite.lpx` |
-| Request-script behavior, read to review the alerts action | `https://raw.githubusercontent.com/NSRingo/WeatherKit/33ec3297387e7444fec65bb48a0a042969b97167/src/process/Request.mjs` |
+| Upstream license | `https://raw.githubusercontent.com/NSRingo/WeatherKit/c66350d91457f9a1b8a6c5e6aba46370fa6da254/LICENSE` |
+| Package metadata and credits | `https://raw.githubusercontent.com/NSRingo/WeatherKit/c66350d91457f9a1b8a6c5e6aba46370fa6da254/package.json` |
+| Published module arguments | `https://raw.githubusercontent.com/NSRingo/WeatherKit/c66350d91457f9a1b8a6c5e6aba46370fa6da254/arguments-builder-full.config.ts` |
+| Cloud rewrite module, ported by cloud endpoint mode | `https://raw.githubusercontent.com/NSRingo/WeatherKit/c66350d91457f9a1b8a6c5e6aba46370fa6da254/modules/iRingo.WeatherKit.Rewrite.lpx` |
+| Cloud rewrite endpoint options | `https://raw.githubusercontent.com/NSRingo/WeatherKit/c66350d91457f9a1b8a6c5e6aba46370fa6da254/arguments-builder.rewrite.config.ts` |
+| Request-script behavior, read to review the alerts action | `https://raw.githubusercontent.com/NSRingo/WeatherKit/c66350d91457f9a1b8a6c5e6aba46370fa6da254/src/process/Request.mjs` |
+| Response-script behavior, read to review the alert injection | `https://raw.githubusercontent.com/NSRingo/WeatherKit/c66350d91457f9a1b8a6c5e6aba46370fa6da254/src/process/Response.mjs` |
+| Bundle defaults for keys no argument exposes | `https://raw.githubusercontent.com/NSRingo/WeatherKit/c66350d91457f9a1b8a6c5e6aba46370fa6da254/src/function/database.mjs` |
 
 The release module itself — the source of the three matchers and the nine
 arguments transcribed below — is the release asset
-`https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0-beta5/iRingo.WeatherKit.plugin`.
-It is read as the Loon plugin rather than as any of the four other client
+`https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0/iRingo.WeatherKit.lpx`.
+It is read as the Loon module rather than as any of the three other client
 formats published beside it, because `entry: proxy-compat` presents itself to a
 bundle as Loon, so Loon's argument encoding is the one that has to match.
+Upstream renamed this asset from `iRingo.WeatherKit.plugin` during the
+`v3.2.0-beta5` cycle; it is the same artifact under a new extension.
 
 GitHub release assets are publisher-replaceable rather than immutable; GitHub
-reports `immutable: false` for this release. Nothing in this repository re-checks
-those bytes, so upstream replacing an asset changes what runs here without a
-review. The marketplace index records the digest it computed at publish time,
-which is what a gateway compares at install; a replaced asset makes that install
-fail rather than silently adopting new bytes, and republishing the index adopts
-them deliberately.
+reports `immutable: false` for this release. No commit-pinned raw URL exists for
+either generated bundle in the upstream tree. Each marketplace build fetches
+the assets and derives their resource integrity fields, which a gateway compares
+at install; a replaced asset makes an existing index fail closed, while
+republishing the index would adopt the replacement deliberately. This protects
+an index after publication but does not turn the release URL into immutable
+provenance. This catalog deliberately accepts the direct official release asset
+as the runtime source because upstream does not publish the generated bundles in
+Git; the tag object, source commit, replaceability, and review date above are the
+corresponding provenance record.
 
-That is not a hypothetical here. During this review, on `2026-08-03`, upstream
-moved the `v3.2.0-beta5` tag and replaced both assets: tag object
-`7a3f5fbef111c873e2e4c306a5f003b83d17c2c7` at commit
-`428fc8e2c68a2513a5db41ddd466e58c917a98c3` became the tag object and commit
-recorded above, and both bundles grew by roughly 1.3 to 1.9 KB, about ten
-minutes apart. The three added commits complete alert fields on the response
-side; the published module's arguments, matchers, rules, and MITM host, the
-rewrite module, and `src/process/Request.mjs` are byte-identical across the two
-commits, so nothing this manifest transcribes changed. A candidate that only
-matched on the tag name would not have noticed either way, which is why the
-commit is what is recorded.
+That is not a hypothetical here, and it is the reason this revision is not
+optional. Upstream moved `v3.2.0-beta5` three times on `2026-08-03`:
+
+| Tag object | Commit | Bundles |
+| --- | --- | --- |
+| `7a3f5fbef111c873e2e4c306a5f003b83d17c2c7` | `428fc8e2c68a2513a5db41ddd466e58c917a98c3` | first pair |
+| `902d1646f9f8bbc7fddd6da7747f30aa897fe2fc` | `33ec3297387e7444fec65bb48a0a042969b97167` | recorded by revision 7.0.0 |
+| `5b5f6394eeb4d6b91e43ab348a12926444c1fa3d` | `d6d6870b9ee924edc1a946ea11cfcba782958cc0` | what those URLs serve now |
+
+The first move changed both generated bundles without changing anything this
+manifest transcribed. The second replaced the assets revision 7.0.0 had reviewed
+and renamed the Loon asset. So the beta URLs no longer serve that reviewed
+revision, and this repository's publish gate caught the changed generated
+resources. A review that looked only at the tag name would not have noticed any
+of the three moves, which is why the source commit is recorded separately.
 
 The upstream package metadata credits VirgilClyne, WordlessEcho, and
 001ProMax. Those are retained creator attributions, not additional copyright
@@ -125,12 +167,17 @@ or license assertions.
 ## Implemented behavior
 
 The extension owns only `weatherkit.apple.com` and declares six actions -- three
-per mode, over the same three paths -- plus one host-scoped transport rule:
+per mode, over the same three paths -- plus four host-scoped transport rules:
 
 1. `weather-availability` runs the response bundle against status-200 responses
    under `/api/v1/availability/` with a text body.
 2. `weather-data` runs the response bundle against status-200 GET responses
-   under `/api/v2/weather/` with a binary body.
+   under `/api/v2/weather/` with a binary body. When the response carries a
+   `weatherAlerts` dataset from the National Early Warning Center, the bundle
+   fetches that area's alerts from QWeather, merges the missing fields into
+   Apple's own alerts, and rewrites the collection's `detailsUrl`. Since
+   `v3.2.0` no setting on this page gates that lookup; see
+   [Permissions and data boundary](#permissions-and-data-boundary).
 3. `weather-alerts` runs the request bundle against requests for
    `/api/v1/weatherAlerts` whose query carries `&ids=<latitude>,<longitude>`.
    Upstream declares no body for it, so none is delivered. It does not edit the
@@ -168,21 +215,29 @@ per mode, over the same three paths -- plus one host-scoped transport rule:
 addressed there by UUID. The matcher this manifest transcribes selects only the
 coordinate form, `&ids=<latitude>,<longitude>`, which Apple never sends: it
 exists solely because the response bundle rewrote an alert collection's
-`detailsUrl` to point at `alertDetails/index.html?ids=<latitude>,<longitude>`,
+`detailsUrl` to point at
+`alertDetails/index.html?ids=<latitude>,<longitude>&lang=<language>&party=<provider>`,
 and the page Apple then loads asks for that identifier. So the request action
 answers only requests the response action caused, and a native UUID alert passes
 through to Apple untouched.
 
-Two consequences follow from transcribing upstream's matcher exactly rather than
-normalizing it:
+Three consequences follow from transcribing upstream's matcher exactly rather
+than normalizing it:
 
 - The constraint is `&ids=`, with a leading ampersand. A request whose `ids` is
   the *first* query parameter is not selected, in this port and in upstream's
-  own plugin alike. That is upstream's regex, kept as written.
+  own module alike. That is upstream's regex, kept as written, and `v3.2.0`
+  restates it as a deliberate requirement rather than an accident.
+- A coordinate must have a digit before any decimal point. `v3.2.0` dropped the
+  `.5` form its earlier regex accepted, so `&ids=.5,.5` is now selected by
+  neither this port nor upstream. Nothing Apple or the response bundle emits
+  uses that form; the narrowing is transcribed because the matcher is upstream's
+  to define.
 - Nothing about the coordinate form is gated on `Weather.Provider`. The response
-  bundle rewrites the `detailsUrl` whenever Apple's alert collection reports
-  `国家预警信息发布中心` as its provider, which is a property of Apple's data
-  and not of any setting on this page.
+  bundle rewrites the `detailsUrl` whenever Apple's alert collection reports the
+  National Early Warning Center as its provider — `国家预警信息发布中心`,
+  `國家預警信息發布中心`, or `National Early Warning Center` since `v3.2.0` —
+  which is a property of Apple's data and not of any setting on this page.
 
 ### Choosing a mode
 
@@ -279,13 +334,19 @@ string overwrites upstream's `devapi.qweather.com` with `""` and every QWeather
 URL is then built against a hostless `https://`. Revisions before 7.0.0 left it
 blank, which put the air-quality comparison lookups at the mercy of how the
 console renders an unset text setting; from 7.0.0 the alerts action answers from
-that host too, so a blank value would be the difference between an alert list
-and an empty one.
+that host too, and from 8.0.0 so does the alert injection in `weather-data`. A
+blank value is now the difference between an alert list and an empty one in both
+phases.
 
 Weather and next-hour replacement are provider-gated. `Weather.Provider` and
 `NextHour.Provider` both default to `WeatherKit`, and the bundle's switch on
 each takes an empty branch for that value, so neither path calls a third party
-until an operator selects one.
+until an operator selects one. Those two defaults are this port's, not
+upstream's: upstream's own argument config defaults both to `ColorfulClouds`,
+and `AirQuality.Calculate.Algorithm` to `EU_EAQI`. Declaring the non-replacing
+value instead means a freshly enabled extension does the least it can, and
+changing any of the three back would be a capability change rather than a
+preference.
 
 Air quality is not gated that way, and a freshly enabled extension can reach a
 third party on its own. When the captured response carries no `pollutants`
@@ -299,13 +360,24 @@ arrives without pollutants can reach ColorfulClouds, carrying the exact
 coordinates described below, and no setting this manifest declares turns that
 off. See the exclusions below for why declaring more of them would not.
 
-Severe weather alerts are not gated that way either, and from 7.0.0 that is a
-second ungated third-party path. `weather-alerts` reaches
-`API.QWeather.Host` on every request it selects, whatever `Weather.Provider`
-says, and an empty `API.QWeather.Token` does not prevent it: the bundle
-substitutes a built-in token exactly as the ColorfulClouds path does. What
-bounds it is the matcher, not a setting — see
-[The alerts path](#the-alerts-path-and-why-it-matches-so-narrowly).
+Severe weather alerts are not gated that way either, and from 8.0.0 that is true
+in both phases.
+
+- `weather-alerts` reaches `API.QWeather.Host` on every request it selects,
+  whatever `Weather.Provider` says, and an empty `API.QWeather.Token` does not
+  prevent it: the bundle substitutes a built-in token exactly as the
+  ColorfulClouds path does. What bounds it is the matcher, not a setting — see
+  [The alerts path](#the-alerts-path-and-why-it-matches-so-narrowly).
+- `weather-data` now does the same. Through `v3.2.0-beta5` the response bundle's
+  alert injection ran only when the request's country matched `Weather.Replace`
+  *and* `Weather.Provider` was `QWeather`, so this port's `WeatherKit` default
+  kept it off. `v3.2.0` replaced both gates with a check on the alert
+  collection's own provider name, then fetches from `WeatherAlerts.Provider` —
+  a key upstream added to its database defaults, defaulting to `QWeather`, and
+  exposed as no argument in either published module. So a default install
+  reaches QWeather from the response phase as soon as Apple returns an alert
+  collection from the National Early Warning Center, and no setting here can
+  stop it.
 
 ## Permissions and data boundary
 
@@ -321,11 +393,18 @@ bounds it is the matcher, not a setting — see
   enabled provider as having that data.
 - **`weather-alerts` discloses the exact coordinates to QWeather with no
   provider selected.** It builds
-  `https://{API.QWeather.Host}/weatheralert/v1/current/{latitude}/{longitude}`
+  `https://{API.QWeather.Host}/weatheralert/v1/current/{latitude}/{longitude}?lang={language}`
   and sends the API key as a header, using a built-in token when
   `API.QWeather.Token` is empty. No setting on this page turns that off; what
   bounds it is the matcher described above, which fires only for identifiers the
   response bundle itself wrote.
+- **`weather-data` discloses them to the same host, and nothing bounds that but
+  Apple's own data.** Since `v3.2.0` the response bundle's alert injection is
+  gated only on the captured alert collection naming the National Early Warning
+  Center, not on any setting, and it reaches the same QWeather endpoint with the
+  coordinates from the response's own metadata. Like the air-quality lookup, and
+  unlike `weather-alerts`, no matcher narrows it beyond the whole
+  `/api/v2/weather/` path.
 - **`weather-alerts` answers the client itself.** The alert list the Weather app
   shows for a matched request is built by this extension from QWeather's data,
   not returned by Apple, and Apple never sees the request. When the lookup fails
@@ -371,7 +450,7 @@ bounds it is the matcher, not a setting — see
   endpoint while disabled.
 - Upstream has *not* dropped that module's `endpoint` argument, and an earlier
   revision of this README said it had. What is true is narrower: at
-  `33ec3297387e7444fec65bb48a0a042969b97167` the Loon and Stash forms of the
+  `c66350d91457f9a1b8a6c5e6aba46370fa6da254` the Loon and Stash forms of the
   rewrite module hard-code `https://weatherkit.pages.dev`, while the Surge,
   Shadowrocket, and Egern forms still interpolate `{{{endpoint}}}` and
   `arguments-builder.rewrite.config.ts` still declares all three options. The
@@ -425,13 +504,25 @@ bounds it is the matcher, not a setting — see
 - The same is true of the alerts lookup, and more sharply: upstream declares no
   argument for it at all. Keeping it off means not declaring `weather-alerts`,
   which is a capability reduction against the published upstream module rather
-  than a setting.
+  than a setting. From `v3.2.0` that applies to the response phase too: the
+  injection in `weather-data` is reachable only by not declaring the action.
+- `WeatherAlerts.Provider` is upstream's twenty-second settings key and its
+  first that no published module exposes. `v3.2.0` added it to
+  `src/function/database.mjs` with the default `QWeather`, and neither the
+  release module nor the rewrite module declares it, so this port does not
+  either — declaring a key upstream's own module withholds would be this
+  repository inventing an argument rather than transcribing one. The consequence
+  is that its other branch, which fetches CAP alerts from
+  `singer.caiyunhub.com`, is present in the pinned response bundle and
+  unreachable through this extension. The request bundle does not contain that
+  code path at all.
 - No server-side entitlement is created. Apple can still refuse or omit a
   requested dataset.
 - The bundles are remote assets. Their behavior can change with a new release,
-  their internals are not reviewed line by line here, and nothing in this
-  repository re-checks their bytes: the release URLs name a tag, and GitHub lets
-  a publisher replace what a tag serves.
+  their internals are not reviewed line by line here, and the release URLs name
+  a replaceable tag asset. A marketplace rebuild exposes replacement bytes as
+  changed generated resource integrity fields; it cannot prove that a bundle
+  still corresponds to the recorded source commit.
 - Certificate pinning, independently provisioned ECH, unsupported protocols,
   and direct traffic that bypasses the gateway remain outside this extension's
   control.
@@ -443,15 +534,19 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 ```
 
-Runtime-facing changes must also pass the current 5gpn core parser/marketplace
-integration gate. Revision 7.0.0 adds the first request-phase `proxy-compat`
-action that terminates its exchange, so that gate is what establishes the
-sidecar honors `$done({ response })` from a request script; nothing in this
-repository exercises it.
+Runtime-facing changes must also pass the pinned external parser-contract
+fallback documented in [`MIGRATION.md`](../MIGRATION.md). That fallback checks
+the manifest and marketplace against the last publicly reviewable parser; it
+does not represent the current 5gpn channels and does not establish that the
+sidecar honors `$done({ response })` from a request script. Nothing in this
+repository exercises that runtime behavior.
 Finally, exercise authorized device traffic with the candidate enabled and
 confirm, from the plugin engine log stream:
 
-1. with the default gates, which provider requests are emitted;
+1. with the default gates, which provider requests are emitted. From `v3.2.0`
+   expect a QWeather `weatheralert/v1/current` lookup out of `weather-data`
+   whenever Apple returns an alert collection from the National Early Warning
+   Center, in addition to the air-quality lookup the exclusions describe;
 2. that a matched `/api/v1/weatherAlerts` request runs `weather-alerts`, emits
    the QWeather `weatheralert/v1/current` lookup, and is answered locally --
    Apple must show no corresponding upstream request -- while an alert addressed
@@ -464,25 +559,34 @@ confirm, from the plugin engine log stream:
 ## Updating
 
 1. Manually select a new upstream release and record both asset URLs, the
-   annotated tag object, and the commit before changing behavior.
+   annotated tag object, and the commit before changing behavior. Record the
+   commit, not the tag: upstream moved `v3.2.0-beta5` three times in one day,
+   and only the commit distinguishes the three.
 2. Re-read the upstream release notes for new settings, new endpoints, changed
    provider hosts, and new script lines. Argument keys are upstream's, so a
    renamed argument silently stops applying rather than failing. Read the
-   release module as the Loon plugin asset, `iRingo.WeatherKit.plugin`: it is
-   the form whose argument encoding `entry: proxy-compat` matches, and it is
-   where a new `http-request` or `http-response` line appears -- `v3.2.0-beta5`
-   added one, and a refresh that only bumped the URL would have shipped a
-   two-thirds port of the module. Re-read the cloud rewrite module
+   release module as the Loon asset, `iRingo.WeatherKit.lpx` -- named
+   `iRingo.WeatherKit.plugin` before `v3.2.0`: it is the form whose argument
+   encoding `entry: proxy-compat` matches, and it is where a new `http-request`
+   or `http-response` line appears -- `v3.2.0-beta5` added one, and a refresh
+   that only bumped the URL would have shipped a two-thirds port of the module.
+   Read its matchers as well as its script list; `v3.2.0` changed one without
+   adding a line. Re-read the cloud rewrite module
    for changed rewrite targets in the same pass; a moved endpoint would leave
    this port sending captured requests to a host upstream has abandoned. Read it
-   at `modules/iRingo.WeatherKit.Rewrite.lpx`: upstream renamed the original
-   `.plugin` file and now publishes four other client formats beside it, and
-   they do not agree on whether the endpoint is an argument, so read
-   `arguments-builder.rewrite.config.ts` for the authoritative option list.
-3. Update the manifest source URLs, settings, README record, `REUSE.toml`,
+   at `modules/iRingo.WeatherKit.Rewrite.lpx`: upstream publishes four other
+   client formats beside it, and they do not agree on whether the endpoint is an
+   argument, so read `arguments-builder.rewrite.config.ts` for the authoritative
+   option list.
+3. Diff `src/process/Response.mjs`, `src/process/Request.mjs`, and
+   `src/function/database.mjs` across the two commits. Neither the module nor
+   the argument config records which lookups are gated by a setting and which
+   are unconditional, and `v3.2.0` removed two gates from the response path
+   without touching either.
+4. Update the manifest source URLs, settings, README record, `REUSE.toml`,
    notices, validator counts, marketplace metadata, and `metadata.version` in
    one reviewed change.
-4. Run the gates above, then apply the candidate while disabled.
+5. Run the gates above, then apply the candidate while disabled.
 
 ## Migration and rollback
 
@@ -495,13 +599,13 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.weatherkit`; bump `metadata.version` for every manifest or pinned-bundle change. |
-| Current manifest | `version=7.0.0`; `persistentStorage=true`; `settings=11`; `captureHosts=1`; `actions=6`; `routingRules=4`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=8.0.0`; `persistentStorage=true`; `settings=11`; `captureHosts=1`; `actions=6`; `routingRules=4`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | State class | Stateful. `persistentStorage` is true and the bundles cache provider lookups in the extension-scoped store. |
 | Settings | Preserve the eight upstream argument keys, the `Storage` pin, and the two mode gates with their types. `API.QWeather.Host` must keep upstream's own default rather than being blanked, because `$argument` overrides the bundle's database default. A normal same-ID update retains only values that remain valid under the candidate; a candidate that drops a gate must state which mode an existing install lands in. |
-| Script contract | The two response actions and the one request action use `entry: proxy-compat`; the three cloud actions are declarative rewrites and run no code. The request action terminates its exchange with a synthesized response rather than editing and forwarding one, so a candidate that moves it to the response phase, or drops the `&ids=` constraint from its matcher, is a capability change. Changing an action back to the native contract requires a new reviewed script, not a manifest edit. |
+| Script contract | The two response actions and the one request action use `entry: proxy-compat`; the three cloud actions are declarative rewrites and run no code. The request action terminates its exchange with a synthesized response rather than editing and forwarding one, so a candidate that moves it to the response phase, or drops the `&ids=` constraint from its matcher, is a capability change. Both alert matchers are upstream's own, transcribed; widening either beyond what upstream selects is a capability change even when upstream narrows. Changing an action back to the native contract requires a new reviewed script, not a manifest edit. |
 | Third-party endpoint | `https://weatherkit.pages.dev` and `https://dev.weatherkit.pages.dev` are the reviewed set. Changing one, adding an endpoint, or moving the choice out from behind the setting is a capability change and needs a disabled replacement. Removing one, as 6.0.0 did, is a capability reduction and needs the same review. |
 | Permission review gate | The network capability and persistent storage are part of the reviewed baseline. Removing either is a capability reduction and still needs a disabled replacement. |
-| Reviewed capability baseline | One capture host, two proxy-compat response actions and one proxy-compat request action gated on `Mode: Script`, three request rewrites to one third-party endpoint gated on `Mode: Cloud`, eleven settings, four reject routing rules, the network capability, persistent storage, and no required egress. The request action reaches QWeather with the request's coordinates under no provider gate, and answers the client itself. |
+| Reviewed capability baseline | One capture host, two proxy-compat response actions and one proxy-compat request action gated on `Mode: Script`, three request rewrites to one third-party endpoint gated on `Mode: Cloud`, eleven settings, four reject routing rules, the network capability, persistent storage, and no required egress. The request action reaches QWeather with the request's coordinates under no provider gate, and answers the client itself. From 8.0.0 the `weather-data` response action reaches the same host under no gate at all. |
 | Operator state | A normal update retains valid settings, `capture_dns`, and execution order. Review all while disabled, and re-confirm which mode gate is on. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed URL. The extension-owned store is a cache, so discarding it costs only a refetch. |
 
@@ -510,12 +614,14 @@ decision.
 1. Complete every shared playbook row with both pinned bundles, the pinned
    rewrite module, all six actions, eleven settings, the network capability,
    persistent storage, routing, and exact capability diffs.
-2. Verify the recorded bundle and rewrite-module digests before review, and
-   again after applying.
+2. Confirm the release still resolves to the selected source revision, rebuild
+   the marketplace so its resource integrity fields are derived from the
+   candidate assets, and review that generated diff before applying.
 3. Exercise both response actions against authorized device traffic with the
    declared providers left at their defaults, then with one provider enabled,
    and confirm from the plugin engine log which external requests were made.
-   Expect the air-quality lookup the exclusions describe in both runs.
+   Expect the air-quality lookup the exclusions describe in both runs, and from
+   8.0.0 the alert-injection lookup in both runs as well.
 4. Exercise the alerts action separately. Confirm from the same log that a
    coordinate-form `/api/v1/weatherAlerts` request is answered locally after a
    QWeather lookup, that no request for it reaches Apple, and that a UUID-form

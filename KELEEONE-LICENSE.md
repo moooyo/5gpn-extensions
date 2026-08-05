@@ -17,16 +17,19 @@ The port is modified: Loon manifests, rules, and rewrites are translated into
 strict `5gpn.io/v1` manifests whose actions are declarative: typed routing
 rules, `reject`, `replaceBody`, and `jq` expressions rather than code.
 Each extension README identifies its exact upstream files, immutable URLs,
-digests, creator metadata, behavioral mapping, omitted features, and changes.
+pinned commits, fetch dates, creator metadata, behavioral mapping, omitted
+features, and changes.
 
 ## Separately authorized Zhihu port
 
-`zhihu-cleaner` adapts the 4,300-byte `Zhihu_remove_ads.lpx` snapshot with
-SHA-256
-`8bd1ee2062bc6a04bbbfa742c352e072b82c5cc061d9440cdfeab3fd82523e3d`.
-The immutable reviewed bytes are pinned to
-`ifflagged/Romeo@8d0e2791f531d4a02e1bd00d0f64427984bc999a`; that repository is a
-synchronized mirror and is not treated as the creator or licensing authority.
+`zhihu-cleaner` adapts the `Zhihu_remove_ads.lpx` revision reviewed on
+`2026-07-23` and represented by the synchronized mirror at immutable commit
+`ifflagged/Romeo@8d0e2791f531d4a02e1bd00d0f64427984bc999a`:
+
+`https://raw.githubusercontent.com/ifflagged/Romeo/8d0e2791f531d4a02e1bd00d0f64427984bc999a/Modules/Loon/Kelee/Official/Zhihu_remove_ads.lpx`
+
+That repository records the selected revision and is not treated as the
+creator or licensing authority.
 
 On 2026-07-23, the repository maintainer confirmed that explicit permission
 had been obtained from the upstream rights holder to modify that snapshot and

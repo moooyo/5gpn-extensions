@@ -35,9 +35,9 @@ Two costs were accepted rather than discovered later:
 1. **Upstream ships no `LICENSE` file.** The repository has none, so by default
    all rights are reserved. This extension does not redistribute the scripts:
    the gateway fetches them from the immutable URLs below, which is how their
-   author publishes them for proxy clients to load. That is an implicit grant to
-   fetch and run, not permission to vendor or relicense, and it is a weaker
-   position than the MIT provenance the previous revision had.
+   author publishes them for proxy clients to load. This repository asserts no
+   license grant, permission to vendor, or permission to relicense; that is a
+   weaker position than the MIT provenance the previous revision had.
 2. **`failClosed` is gone.** That was a local safety behavior with no upstream
    equivalent: an unexpected protocol change now returns the original location
    response instead of blocking it.
@@ -54,6 +54,8 @@ Reviewed at commit
 on `2026-07-28`. The published module points its `script-path` values at the
 mutable `main` branch; both entries below are re-pinned to that immutable
 commit, so the bytes a gateway fetches are the reviewed revision's.
+The pinned commit remained the `main` branch head when revalidated on
+`2026-08-05`.
 
 | Artifact | Immutable raw URL |
 | --- | --- |
@@ -64,9 +66,9 @@ commit, so the bytes a gateway fetches are the reviewed revision's.
 ## License and attribution
 
 Upstream publishes no license file. This repository distributes none of its
-bytes: `extension.yaml` records the URLs and digests above and the gateway
-fetches them. The manifest and this documentation are original works under MIT,
-and retain Yu9191 attribution.
+bytes: `extension.yaml` records the immutable script URLs above and the gateway
+fetches the scripts from those URLs. The manifest and this documentation are
+original works under MIT, and retain Yu9191 attribution.
 
 The previous revision's port derived from the MIT-licensed
 `FFF686868/proxypin-wloc-spoofer` at commit
@@ -123,8 +125,10 @@ A coordinate saved through upstream's own picker page at
 `https://wloc-pages.pages.dev/` is stored in extension-scoped persistent
 storage by the `save-wloc-settings` action and takes precedence over these
 settings, which is why this revision declares `persistentStorage: true` where
-the pre-`2.0.0` one declared none. That page remains available and is not
-required: the Console map covers the same job without leaving the gateway.
+the pre-`2.0.0` one declared none. That optional page is a mutable external tool
+opened by the operator in a browser. It is not an immutable upstream artifact,
+is not loaded by the extension runtime, and is not required: the Console map
+covers the same job without leaving the gateway.
 
 ## Algorithm and format boundary
 
@@ -138,8 +142,9 @@ What the transformer does inside those bounds is upstream's, and this
 repository does not re-specify it. Earlier revisions could: they shipped a
 local frame and protobuf parser, and the numbered steps that used to stand here
 described that parser, down to a typed `location` setting that no longer
-exists. Running the upstream bundle means the recorded digest is what binds the
-behavior. No line-by-line audit of `dist/wloc.js` is claimed here.
+exists. Running the upstream bundle means each immutable commit URL binds the
+reviewed script revision. No line-by-line audit of `dist/wloc.js` is claimed
+here.
 
 Treat a changed Apple response as incompatible until captured authorised test
 traffic validates a deliberate update. A protocol change does not fail loudly:
@@ -172,9 +177,9 @@ capture path, not through an outbound request from the script.
 1. Review the upstream repository and its license before taking any change.
    Use the pinned commit as the baseline; do not silently track its branch
    head.
-2. Re-pin both scripts to the new immutable commit and record their sizes and
-   digests in the table above. Nothing is vendored, so a candidate is adopted
-   by changing a URL and its recorded digest, not by porting code.
+2. Re-pin both scripts to the new immutable commit and record their exact raw
+   URLs and fetch date above. Nothing is vendored, so a candidate is adopted by
+   changing the immutable URLs, not by porting code.
 3. Re-read the upstream `[Argument]` block. A renamed key stops applying
    silently rather than failing. Two keys deviate from it on purpose -- the
    undefaulted coordinates and the `LogLevel` spelling -- so check whether
@@ -211,10 +216,11 @@ upstream revision. Upstream selection remains a manual review decision.
    two hosts, action matchers, and body limits.
 2. Diff the `[Argument]` block, the `[MITM]` hostname list, both `script-path`
    entries, and the picker's save path independently. Do not vendor the
-   upstream scripts or the picker page; both are fetched from immutable URLs.
-3. Refresh all three upstream artifacts, their recorded sizes and digests,
-   source attribution, `THIRD_PARTY_NOTICES.md`, `REUSE.toml`, validator pins,
-   fixtures, and `metadata.version` together.
+   upstream scripts. Treat the optional browser-opened picker page as a mutable
+   external tool, not as an immutable runtime dependency.
+3. Refresh the pinned commit, all three immutable raw artifact URLs, the fetch
+   date, source attribution, `THIRD_PARTY_NOTICES.md`, `REUSE.toml`, validator
+   pins, fixtures, and `metadata.version` together.
 4. If a setting key or type changes, or a retained value no longer passes the
    candidate validation boundary, document that the operator must re-enter the
    value before enable. A new install or emergency reinstall always requires

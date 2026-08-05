@@ -1,8 +1,11 @@
 # Third-party notices
 
 This repository contains independently maintained native extensions. Each
-extension README records immutable upstream files, SHA-256 digests, fetch
-dates, modifications, deliberate exclusions, and verification steps.
+extension README records commit-pinned raw URLs where upstream publishes them,
+fetch dates, mutable runtime dependencies, modifications, deliberate
+exclusions, and verification steps. Resource digests in a generated marketplace
+are derived installation-integrity fields; they are not manually maintained
+provenance records.
 
 ## KeleeOne-derived CC BY-NC-SA ports
 
@@ -16,22 +19,22 @@ CC BY-NC-SA 4.0:
 
 The distribution snapshot for `testflight-region-unlock` is
 `mihoyo-typ/KeleeOne@ab6c3182fb2b09bcc34456f496282ec0b8e9217b`.
-The `Loon` branch HEAD was revalidated on `2026-07-22`.
+The `Loon` branch HEAD was revalidated on `2026-08-05`.
 Its root license is CC BY-NC-SA 4.0. The local legal text is
 [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt), and the exact
 scope and attribution requirements are described in
 [`KELEEONE-LICENSE.md`](KELEEONE-LICENSE.md).
 
-`zhihu-cleaner` uses the byte-identical immutable snapshot
+`zhihu-cleaner` uses the immutable Git snapshot
 `ifflagged/Romeo@8d0e2791f531d4a02e1bd00d0f64427984bc999a`, path
-`Modules/Loon/Kelee/Official/Zhihu_remove_ads.lpx`. The selected source is
-4,300 bytes with SHA-256
-`8bd1ee2062bc6a04bbbfa742c352e072b82c5cc061d9440cdfeab3fd82523e3d`.
+`Modules/Loon/Kelee/Official/Zhihu_remove_ads.lpx`. At review time that snapshot
+matched the canonical distribution file; the commit-pinned raw URL is the
+stable provenance reference.
 The repository maintainer confirmed explicit authorization to adapt and
 publicly redistribute this snapshot; the extension's `AUTHORIZATION.md` and
 README record the authorization boundary and material changes. The mirror is
-used only as an immutable byte source and is not treated as the creator or
-licensing authority.
+used only to make the selected source addressable by an immutable commit and is
+not treated as the creator or licensing authority.
 
 ## Bilibili Cleaner
 
@@ -42,12 +45,20 @@ actions. Every artifact is pinned at commit
 `a26c3412a760fb8d7d4d1bcc124d126e19d630e5` in the extension README, which is the
 immutable revision a gateway fetches from.
 
-Because the scripts are fetched by the gateway rather than shipped here, this
-repository distributes none of their bytes and the corresponding-source
-obligation does not attach to it. `extension.yaml` and `README.md` are original
-works under GPL-3.0-only so the aggregate stays consistent with the module they
-accompany, and they retain Sparkle attribution. The two inlined jq programs are verbatim upstream text
-under the same license.
+Because the four generated JavaScript bundles are fetched by the gateway rather
+than shipped here, this repository does not distribute those bundles. It does
+distribute two jq programs verbatim inside `extension.yaml`; those programs are
+their own preferred source, retain Sparkle attribution, and remain
+GPL-3.0-only. `extension.yaml` and `README.md` are also distributed under
+GPL-3.0-only so the extension's license boundary is consistent.
+
+The pinned response bundle can direct supported clients to six archives under
+the mutable `kokoryh/chronos` `master` branch. Those names and the Chronos
+license were reviewed at commit
+`69a8996b1f1311b606021e3f194b0390280ab618` on `2026-08-05`; the extension
+README records every commit-pinned raw URL. The client still follows the
+mutable branch at runtime, and this repository neither copies the archives nor
+claims that Chronos contains their complete corresponding preferred source.
 
 The KeleeOne snapshot was used to discover a mirrored plugin version, but its
 CC BY-NC-SA root license does not override Sparkle's original GPL license.
@@ -64,10 +75,8 @@ that is present any more, and no file in this repository is BSD-3-Clause.
 `Maasea/sgmodule` YouTube transformers at runtime and executes them under the
 `5gpn.io/v1` proxy-compat script contract. The reviewed artifacts are pinned at
 commit `65075cdb388fc5e3094afd7e7314c67b243f3525`:
-`Script/Youtube/youtube.request.js`, 44,024 bytes, SHA-256
-`3ecca15e06e76a31720092c581180f648ef2c45e494644941ba985c878efbb26`, and
-`Script/Youtube/youtube.response.js`, 132,973 bytes, SHA-256
-`f98483d5f5017514f82502253c0db5ce2d4ffb7839887aa2cadc22666f5a7f12`. No upstream
+`Script/Youtube/youtube.request.js` and
+`Script/Youtube/youtube.response.js`. No upstream
 `NOTICE` file exists at that commit.
 
 Because the bundles are fetched rather than copied, this repository distributes
@@ -83,17 +92,18 @@ implementation.
 
 The external `init-stream.maasea.workers.dev` service is not distributed by this
 repository and its implementation is not present in the pinned upstream tree.
+The extension's `permissions.network: true` capability is not scoped to that
+origin: it permits the reviewed bundles to reach any allowed public destination
+and to rewrite a captured request across origins. The README discloses that
+boundary before enable.
 
 ## WeatherKit release bundles
 
 `weatherkit` does not vendor upstream source. It loads two Apache-2.0
 `NSRingo/WeatherKit` published release bundles at runtime and executes them under
 the `5gpn.io/v1` proxy-compat script contract. The reviewed assets are
-`v3.2.0-beta5/response.bundle.js`, 267,124 bytes, SHA-256
-`0c1f9d73ae82310073933be480f71f7eb7c142593159c0683d598ff2a8993482`, and
-`v3.2.0-beta5/request.bundle.js`, 236,646 bytes, SHA-256
-`250c7970861e365501b1b0586bf3e951ed9e24e01af26391758c3a87051a2613`, both built
-from commit `33ec3297387e7444fec65bb48a0a042969b97167`. The upstream tree
+`v3.2.0/response.bundle.js` and `v3.2.0/request.bundle.js`, both built from
+commit `c66350d91457f9a1b8a6c5e6aba46370fa6da254`. The upstream tree
 contains no `NOTICE` file.
 
 Because the bundles are fetched rather than copied, this repository distributes
@@ -103,17 +113,25 @@ metadata credits VirgilClyne, WordlessEcho, and 001ProMax; those are retained
 creator attributions, not copyright assertions by this repository.
 
 GitHub release assets are publisher-replaceable, and GitHub reports
-`immutable: false` for this release. Nothing here re-checks those bytes, so
-upstream replacing an asset changes what runs without a review. No statement
-in this file is a line-by-line review of the bundles' contents either, and they
-carry whatever third-party runtimes upstream chose to include.
+`immutable: false` for this release. No manually maintained provenance field
+re-checks those assets, and no statement in this file is a line-by-line review
+of the bundles' contents; they carry whatever third-party runtimes upstream
+chose to include. The marketplace generator derives resource digests when it
+publishes an index so an already reviewed index does not silently accept
+replacement bytes. Those generated digests do not make the release URL
+immutable provenance. The catalog deliberately accepts these direct official
+release assets because upstream does not publish the generated bundles in Git;
+the extension README records the tag object, source commit, replaceability, and
+review date.
 
 An enabled provider receives the request's exact coordinates and the operator's
 API token in the provider URL. Since `v3.2.0-beta5` the request bundle also
 reaches QWeather with those coordinates under no provider gate, and answers the
-client from what it returns rather than forwarding the request to Apple. The
-extension therefore declares the network capability and persistent storage, and
-its README states this boundary before enable.
+client from what it returns rather than forwarding the request to Apple. Since
+`v3.2.0` the response bundle does the same on `/api/v2/weather/` whenever the
+captured alert collection names the National Early Warning Center, which no
+setting gates either. The extension therefore declares the network capability
+and persistent storage, and its README states this boundary before enable.
 
 The same extension also ports upstream's cloud rewrite module,
 `modules/iRingo.WeatherKit.Rewrite.lpx` at the same commit. Its three rewrite
@@ -125,24 +143,23 @@ nothing here; the mode that uses them is off by default, and an operator who
 turns it on sends the captured request, including Apple's authorization header
 and the coordinates in its path, to the selected third party.
 
-Upstream moved the `v3.2.0-beta5` tag and replaced both assets during the
-`2026-08-03` review. The commit and digests above are the ones current at the
-end of it; the extension README records the pair they superseded and why nothing
-transcribed here changed.
+Upstream moved the `v3.2.0-beta5` tag three times on `2026-08-03` and replaced
+both assets each time, so the assets an earlier revision reviewed are no longer
+what that tag serves. The stable `v3.2.0` tag above superseded it the same day;
+the extension README records all three beta commits and what each changed.
 
 ## Apple WLOC response transformer
 
 `apple-wloc` does not vendor upstream source. It loads two scripts from
 `Yu9191/wloc` at runtime under the `5gpn.io/v1` proxy-compat contract, pinned at
-commit `eec07a8dc8de6dbaee8eac1fb376e4d03020154a`: `dist/wloc.js`, 40,414 bytes,
-SHA-256 `d385c624efd59bdd2cff56bf819a770b40c4abf0f970818877f1dca4174f256a`, and
-`dist/wloc-settings.js`, 12,892 bytes, SHA-256
-`b4e9d69e69c703b3fab485a559825aaedc9e3a1fd9c06e81cb35d10bbdcd13d2`.
+commit `eec07a8dc8de6dbaee8eac1fb376e4d03020154a`: `dist/wloc.js` and
+`dist/wloc-settings.js`. Their commit-pinned raw URLs are recorded in the
+extension README.
 
 That repository publishes no `LICENSE` file, so no license grant is asserted
 here. This repository distributes none of its bytes; the gateway fetches them
-from the immutable URLs above, which is how their author publishes them for
-proxy clients to load.
+from the immutable commit URLs recorded in the extension README, which is how
+their author publishes them for proxy clients to load.
 
 Revisions through 1.1.1 shipped a bounded JavaScript port derived from the
 MIT-licensed `FFF686868/proxypin-wloc-spoofer` project at commit

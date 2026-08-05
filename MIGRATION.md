@@ -96,34 +96,27 @@ git -C $extensionsRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'git rev-parse failed' }
 ```
 
-Record the installed version and snapshot digest when the change will be
-rolled out to an existing installation. Also record current setting keys,
-whether each required setting is complete, the egress binding, `capture_dns`,
-and execution-order position. Do not copy secret or sensitive setting values
-into an issue, log, or migration record.
+Record the installed version when the change will be rolled out to an existing
+installation. Also record current setting keys, whether each required setting
+is complete, the egress binding, `capture_dns`, and execution-order position.
+Do not copy secret or sensitive setting values into an issue, log, or migration
+record.
 
 ### 2. Select and bind one candidate
 
 Choose one authoritative upstream commit or published component release. Do
 not use a mutable branch URL as provenance. Fetch every behavior, schema,
-license, notice, and build input required by the extension from immutable
-URLs. Record the UTC review date for each.
+license, notice, and build input required by the extension from immutable URLs
+when upstream publishes them there. A generated bundle available only as an
+official release asset may use that direct asset URL; record its tag object,
+source commit, release mutability, and UTC review date.
 
-For a manually downloaded file, PowerShell can record the bytes without
-changing the repository:
-
-```powershell
-$candidateUrl = 'https://raw.githubusercontent.com/OWNER/REPOSITORY/COMMIT/path/to/file'
-$candidatePath = Join-Path $env:TEMP ("5gpn-upstream-candidate-" + [guid]::NewGuid().ToString('N') + '.bin')
-try {
-  Invoke-WebRequest -UseBasicParsing -ErrorAction Stop -Uri $candidateUrl -OutFile $candidatePath
-  if (-not (Test-Path -LiteralPath $candidatePath)) { throw 'candidate download did not create a file' }
-  Get-Item -LiteralPath $candidatePath | Select-Object Length
-  Get-FileHash -LiteralPath $candidatePath -Algorithm SHA256
-} finally {
-  [System.IO.File]::Delete($candidatePath)
-}
-```
+The commit embedded in an immutable raw URL, or the documented official release
+record for a release-only bundle, is the provenance binding. Record the URL and
+review date; do not add a manually maintained byte size, SHA-256, or other
+digest as a second pin. Marketplace resource digests and sizes are derived from
+the bytes read during a catalog build and are verified by the installer. They
+are generated transport-integrity fields, not upstream provenance records.
 
 Confirm that the chosen commit is the intended authority. This confirmation is
 manual and review-driven; it is not an instruction to add automatic upstream
@@ -137,10 +130,12 @@ egress, order, licenses, generated code, and deliberate exclusions
 independently. Treat a removed capability as a migration decision, not as an
 implicit consequence of updating a bundle.
 
-Stop when a changed upstream behavior cannot be represented faithfully inside
-the native sandbox or its license obligations cannot be satisfied. Document
-the exclusion instead of adding compatibility globals or mutable runtime
-downloads.
+If declarative actions cannot represent a published upstream bundle faithfully,
+`entry: proxy-compat` is a supported implementation choice. Use only the
+core-provided compatibility surface: do not add a shim or extension-defined
+client globals. Stop when the core contract cannot represent the behavior or
+the license obligations cannot be satisfied, and document that exclusion
+instead of introducing unreviewed branch or ad-hoc mutable runtime downloads.
 
 ### 4. Choose the state strategy
 
@@ -163,17 +158,23 @@ extension as part of a routine migration. A permission removal, key deletion,
 or irreversible conversion requires a separately reviewed release and a
 documented rollback boundary.
 
-### 5. Implement the native port
+### 5. Implement the candidate
 
 Keep `metadata.id` unchanged. Bump `metadata.version` whenever immutable
-manifest or runtime-script bytes change. Update the extension README,
-provenance, raw URLs, hashes, fetch dates, port mapping, limitations, fixtures,
-license texts, notices, `REUSE.toml`, generators, and every hard-coded pin in
-the same change.
+manifest bytes, runtime source URLs, or reviewed release-asset selections
+change. Update the extension README, provenance, immutable raw URLs or official
+release records, fetch dates, port mapping, limitations, fixtures, license
+texts, notices, `REUSE.toml`, generators, and every source binding in the same
+change.
 
 A declarative action carries no runtime code at all. A native script, if one
-is ever added, must continue to expose only `transform(context)`. Keep action
-hosts within `captureHosts` and declare storage, the network permission, mappings,
+is ever added, must continue to expose only `transform(context)`. A
+`proxy-compat` action instead runs the reviewed upstream bundle through the
+core-provided Loon persona; it must not ship a compatibility runtime or extra
+globals. Record its authoritative module, exact source URL, action mapping,
+settings, permissions, disclosed data, license boundary, `bodyMode`, timeout,
+and body limit, and fix those decisions in focused fixtures. Keep action hosts
+within `captureHosts` and declare storage, the network permission, mappings,
 routing, and egress only when the candidate needs them.
 
 ### 6. Verify the repository
@@ -181,40 +182,62 @@ routing, and egress only when the candidate needs them.
 Run the common gates from the repository root:
 
 ```powershell
+npm ci
+if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
 npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
-if ($LASTEXITCODE -ne 0) { throw "upstream verification failed with exit code $LASTEXITCODE" }
+$marketplacePath = Join-Path $env:TEMP ("5gpn-extensions-migration-" + [guid]::NewGuid().ToString('N') + '.json')
+$testRevision = '0000000000000000000000000000000000000000'
+try {
+  npm run marketplace:build -- --revision $testRevision --output $marketplacePath
+  if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
+  npm run marketplace:build -- --revision $testRevision --check $marketplacePath
+  if ($LASTEXITCODE -ne 0) { throw "marketplace check failed with exit code $LASTEXITCODE" }
+} finally {
+  [System.IO.File]::Delete($marketplacePath)
+}
 ```
 
-Run the extension-specific commands in its README. For a runtime-facing
-change, generate a temporary marketplace and run the current 5gpn core parser
-integration gate. Set `$coreRoot` to a current reviewed 5gpn checkout:
+Run the extension-specific commands in its README. A runtime-facing change
+also requires external parser-contract evidence. As of 2026-08-05,
+`moooyo/5gpn` `main` and `beta` both resolve to
+`3ef751662154cb1df597d0f1292d6843c22694cd`, and neither tree contains the
+former `cmd/5gpn-dns` package or
+`TestExternalMaintainedExtensionsAreInstallableFromURL` and
+`TestExternalMaintainedMarketplaceMatchesCoreContract`. The last publicly
+available source for that parser contract is the immutable commit
+`dd8bc6014af5f6cbc308d2b02a34b13da3f7ccbc`.
+
+Prepare a clean `moooyo/5gpn` checkout at that exact fallback commit, set
+`$coreRoot` below to it, and run the compatibility gate. This is a real parser
+regression test, but it is not validation of the current `main` or `beta`
+runtime:
 
 ```powershell
 $extensionsRoot = (Resolve-Path '.').Path
-$coreRoot = (Resolve-Path '..\5gpn').Path
-$marketplacePath = Join-Path $env:TEMP ("5gpn-extensions-migration-" + [guid]::NewGuid().ToString('N') + '.json')
-$testRevision = '0000000000000000000000000000000000000000'
+$coreRoot = (Resolve-Path '..\5gpn-parser-contract').Path
+$fallbackCoreRevision = 'dd8bc6014af5f6cbc308d2b02a34b13da3f7ccbc'
 $coreStatus = @(git -C $coreRoot status --short)
-if ($LASTEXITCODE -ne 0) { throw 'cannot inspect the 5gpn core worktree' }
+if ($LASTEXITCODE -ne 0) { throw 'cannot inspect the fallback parser worktree' }
 $coreStatusText = $coreStatus -join [Environment]::NewLine
-if ($coreStatus.Count -ne 0) { throw "5gpn core worktree is not clean:`n$coreStatusText" }
+if ($coreStatus.Count -ne 0) { throw "fallback parser worktree is not clean:`n$coreStatusText" }
 $coreRevision = git -C $coreRoot rev-parse HEAD
-if ($LASTEXITCODE -ne 0) { throw 'cannot resolve the 5gpn core revision' }
+if ($LASTEXITCODE -ne 0) { throw 'cannot resolve the fallback parser revision' }
+if ($coreRevision -ne $fallbackCoreRevision) { throw "fallback parser revision is $coreRevision, expected $fallbackCoreRevision" }
+$marketplacePath = Join-Path $env:TEMP ("5gpn-extensions-core-contract-" + [guid]::NewGuid().ToString('N') + '.json')
+$testRevision = '0000000000000000000000000000000000000000'
 $previousExtensionsRoot = $env:FIVEGPN_EXTENSIONS_ROOT
 $previousMarketplaceIndex = $env:FIVEGPN_MARKETPLACE_INDEX
-Write-Output "5gpn core revision: $coreRevision"
 
 try {
-  npm run marketplace:build -- --revision $testRevision --profile v1 --output $marketplacePath
+  npm run marketplace:build -- --revision $testRevision --output $marketplacePath
   if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
-
   $env:FIVEGPN_EXTENSIONS_ROOT = $extensionsRoot
   $env:FIVEGPN_MARKETPLACE_INDEX = $marketplacePath
   Push-Location (Join-Path $coreRoot 'cmd\5gpn-dns')
   try {
     go test ./... -count=1 -run '^(TestExternalMaintainedExtensionsAreInstallableFromURL|TestExternalMaintainedMarketplaceMatchesCoreContract)$'
-    if ($LASTEXITCODE -ne 0) { throw "core parser gate failed with exit code $LASTEXITCODE" }
+    if ($LASTEXITCODE -ne 0) { throw "fallback parser contract failed with exit code $LASTEXITCODE" }
   } finally {
     Pop-Location
   }
@@ -224,6 +247,14 @@ try {
   [System.IO.File]::Delete($marketplacePath)
 }
 ```
+
+Record the fallback revision, command, and CI result in the migration record.
+The repository CI must pin this exact commit rather than a mutable branch.
+When the core project publishes a new canonical external gate for the parser
+that will ship, replace the fallback, run the supported gate for every required
+channel, and record those revisions. Never present the fallback as current
+channel coverage or treat the repository-local Node.js gates as core-parser
+validation.
 
 The all-zero marketplace revision identifies an uncommitted local integration
 test and is not provenance. Record the candidate's real repository revision
@@ -239,12 +270,12 @@ that unrelated worktree changes are untouched.
    URL used by the installed extension. An operator can perform this step only
    for an operator-controlled fork. An install from a permanently immutable
    commit URL cannot use the normal update path.
-2. Run an update check and compare the displayed candidate version, snapshot
-   digest, settings, capture hosts, actions, routing, and permissions
-   with the completed migration record.
+2. Run an update check and compare the displayed candidate version, settings,
+   capture hosts, actions, routing, and permissions with the completed
+   migration record.
 3. Disable the baseline extension. Do not uninstall it.
-4. Apply only the exact reviewed candidate digest. Confirm that the replacement
-   remains disabled.
+4. Apply only the candidate from the reviewed source revision. Confirm that the
+   replacement remains disabled.
 5. Confirm which setting values were retained. Re-enter any value whose key,
    type, option set, or validation changed. Recheck the egress binding,
    `capture_dns`, and execution-order position.
@@ -258,7 +289,7 @@ that unrelated worktree changes are untouched.
 Prepare rollback before enabling the candidate:
 
 - retain the baseline extension-repository commit, manifest, scripts, source,
-  provenance, and expected snapshot digest;
+  and provenance;
 - prepare and verify a revert-forward candidate on a separate review branch or
   commit without publishing it at the installed URL unless rollback is needed;
 - confirm that the state strategy remains readable by the baseline; and
@@ -273,8 +304,8 @@ operator installed an operator-controlled fork:
    incremented `metadata.version` higher than the failing candidate.
 2. Run the complete migration and verification gates on that rollback
    candidate.
-3. Disable the failing candidate, check the rollback candidate, bind its exact
-   digest, and apply it through the normal update path.
+3. Disable the failing candidate, review the rollback candidate from its
+   immutable source revision, and apply it through the normal update path.
 4. Confirm retained settings and operator state, then enable only after the
    baseline-focused smoke tests pass.
 
@@ -295,9 +326,13 @@ moving through a separately reviewed operator-controlled source transition.
 A migration is complete only when all of the following are true:
 
 - the migration record has no blank rows;
-- every upstream byte is immutable and independently verifiable;
+- every upstream source is bound to an immutable commit URL or a deliberately
+  selected official release asset, and its license boundary is verified;
 - behavior, capability, state, license, and rollback decisions are explicit;
-- repository, focused, reproducibility, and current core parser gates pass;
+- repository, focused, and reproducibility gates pass, and the pinned external
+  parser-contract fallback passes with its current-channel limitation recorded;
+- any newly published canonical parser gate replaces the fallback and passes
+  for every required channel;
 - fresh-instance imports and installed update applications of both the
   candidate and rollback candidate finish disabled; and
 - the extension README accurately describes the resulting behavior and the

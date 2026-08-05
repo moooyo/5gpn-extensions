@@ -25,11 +25,11 @@ jobs:
         run: |
           npm run marketplace:build -- --revision "$GITHUB_SHA" --output "$RUNNER_TEMP/marketplace.json"
 
-      # The index is checked against both core channels because it is a wire
-      # contract with each: the core parses it with DisallowUnknownFields, so a
-      # field either channel does not know costs those gateways their whole
-      # catalogue rather than one entry. Checking only the channel a field lands
-      # on first is what would let that through.
+      # The public 5gpn main and beta branches stopped carrying the parser source
+      # in 3ef751662154cb1df597d0f1292d6843c22694cd. Until a new canonical parser
+      # source is published, keep the last publicly reviewable contract pinned
+      # by commit. This is a compatibility floor, not a claim that it represents
+      # either current release channel.
       # jq is this catalogue's main action kind and nothing here can compile
       # one: gojq lives in the sidecar. Without this step a manifest carrying an
       # unbalanced expression passes every gate and fails at an operator's
@@ -43,17 +43,12 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           repository: moooyo/5gpn
-          ref: main
-          path: 5gpn-core-stable
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-        with:
-          repository: moooyo/5gpn
-          ref: beta
-          path: 5gpn-core-beta
+          ref: dd8bc6014af5f6cbc308d2b02a34b13da3f7ccbc
+          path: 5gpn-core-contract
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
-          go-version-file: 5gpn-core-stable/cmd/5gpn-dns/go.mod
-          cache-dependency-path: 5gpn-core-stable/cmd/*/go.sum
+          go-version-file: 5gpn-core-contract/cmd/5gpn-dns/go.mod
+          cache-dependency-path: 5gpn-core-contract/cmd/*/go.sum
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version-file: 5gpn-sidecar/go.mod
@@ -64,21 +59,8 @@ jobs:
           cd 5gpn-sidecar
           grep -Fq 'func TestExternalMaintainedJQProgramsCompile' module_jq_test.go
           FIVEGPN_JQ_PROGRAMS="${{ runner.temp }}/jq-programs.json"             go test ./... -count=1 -run '^TestExternalMaintainedJQProgramsCompile$'
-      - name: Validate with the stable core parser
-        working-directory: 5gpn-core-stable/cmd/5gpn-dns
-        env:
-          FIVEGPN_EXTENSIONS_ROOT: ${{ github.workspace }}
-          FIVEGPN_MARKETPLACE_INDEX: ${{ runner.temp }}/marketplace.json
-        run: |
-          grep -Fq 'func TestExternalMaintainedExtensionsAreInstallableFromURL' intercept_module_parser_test.go
-          grep -Fq 'func TestExternalMaintainedMarketplaceMatchesCoreContract' extension_marketplace_test.go
-          go test ./... -count=1 -run '^(TestExternalMaintainedExtensionsAreInstallableFromURL|TestExternalMaintainedMarketplaceMatchesCoreContract)$'
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
-        with:
-          go-version-file: 5gpn-core-beta/cmd/5gpn-dns/go.mod
-          cache-dependency-path: 5gpn-core-beta/cmd/*/go.sum
-      - name: Validate with the beta core parser
-        working-directory: 5gpn-core-beta/cmd/5gpn-dns
+      - name: Validate with the last published core parser contract
+        working-directory: 5gpn-core-contract/cmd/5gpn-dns
         env:
           FIVEGPN_EXTENSIONS_ROOT: ${{ github.workspace }}
           FIVEGPN_MARKETPLACE_INDEX: ${{ runner.temp }}/marketplace.json

@@ -30,16 +30,18 @@ corresponding preferred source. Every upstream revision meant re-deriving that
 tree.
 
 The runtime now hosts the contract these scripts are written against, and it
-runs jq, so this extension carries the upstream module rather than a
-reimplementation of it. Five actions load the pinned scripts; eleven carry the
-pinned rewrite expressions verbatim; eight keep local synthetic responses,
-because a `mock-response-body` directive has no script and no input document to
+runs jq, so this extension projects the upstream module rather than maintaining
+a reimplementation of it. Five actions load the pinned scripts; eleven carry
+the pinned rewrite expressions; eight keep local synthetic responses, because
+a `mock-response-body` directive has no script and no input document to
 transform.
 
-Nothing GPL is redistributed any more. The scripts are fetched by the gateway
-from immutable raw URLs, so this repository references them instead of shipping
-their bytes, and the corresponding-source obligation that required the build
-tree no longer applies. `bilibili-cleaner/source/` is gone.
+The four GPL JavaScript bundles are no longer redistributed. Five actions fetch
+them from immutable raw URLs, with the request bundle shared by two actions. The
+two upstream GPL jq programs remain redistributed inside
+`extension.yaml`, because a jq action carries its expression in the manifest;
+those programs are already their own preferred source form and do not require
+the former generated-bundle build tree. `bilibili-cleaner/source/` is gone.
 
 ## Pinned upstream artifacts
 
@@ -64,7 +66,7 @@ is not: the fake-response path it now dispatches through
 used, so no runtime capability is newly required.
 
 | Artifact | Immutable raw URL |
-||
+| --- | --- |
 | Sparkle GPL license | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/LICENSE` |
 | Loon plugin (rule and directive source) | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/release/loon/plugin/bilibili.lpx` |
 | Protobuf request transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/bilibili.protobuf.request.js` |
@@ -90,21 +92,20 @@ the bundle from source and could rewrite its revision component; this revision
 loads upstream's bundle verbatim, so nothing here pins it, and a client gets
 whatever `kokoryh/chronos` serves on `master` at request time.
 
-The six archives the bundle can select are below. They were reviewed at commit
-`69a8996b1f1311b606021e3f194b0390280ab618`, committed on `2026-07-04` and
-verified on `2026-07-22`. That commit records what these names resolved to at
-review time — it is not what a client will fetch later. To read the reviewed
-bytes, substitute it for `refs/heads/master` in the URL above; `LICENSE` at the
-same commit covers them.
+The six archives and their license were fetched and reviewed on `2026-08-05`
+at commit `69a8996b1f1311b606021e3f194b0390280ab618`, committed on
+`2026-07-04`. These immutable URLs record the reviewed bytes; they do not alter
+the bundle's runtime behavior, which still sends clients to mutable `master`.
 
-| Archive the bundle can select |
-| --- |
-| `e5a968f1a5055bbe5c12e67b100a6dcb.zip` |
-| `ecca73e42e160074e0caf4b3ddb54a52.zip` |
-| `f993a054969a4f6ae6b20a65f1292e47.zip` |
-| `feaca416bbc1174b8e935cf87ff8f0b5.zip` |
-| `932002070dc1b51241198a074d2279fc.zip` |
-| `8c3feda2e92bf60e8a7aeade1a231586.zip` |
+| Reviewed artifact | Immutable raw URL |
+| --- | --- |
+| GPL license | `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/LICENSE` |
+| `e5a968f1a5055bbe5c12e67b100a6dcb.zip` | `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/e5a968f1a5055bbe5c12e67b100a6dcb.zip` |
+| `ecca73e42e160074e0caf4b3ddb54a52.zip` | `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/ecca73e42e160074e0caf4b3ddb54a52.zip` |
+| `f993a054969a4f6ae6b20a65f1292e47.zip` | `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/f993a054969a4f6ae6b20a65f1292e47.zip` |
+| `feaca416bbc1174b8e935cf87ff8f0b5.zip` | `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/feaca416bbc1174b8e935cf87ff8f0b5.zip` |
+| `932002070dc1b51241198a074d2279fc.zip` | `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/932002070dc1b51241198a074d2279fc.zip` |
+| `8c3feda2e92bf60e8a7aeade1a231586.zip` | `https://raw.githubusercontent.com/kokoryh/chronos/69a8996b1f1311b606021e3f194b0390280ab618/8c3feda2e92bf60e8a7aeade1a231586.zip` |
 
 The archives are fetched by the Bilibili client, not by
 `context.network.request`. This repository does not copy or redistribute them
@@ -113,14 +114,15 @@ preferred source.
 
 ## License and attribution
 
-The upstream module is GPL-3.0-only. This repository does not redistribute it:
-`extension.yaml` records immutable URLs, and the gateway fetches the bytes
-itself. The manifest and this documentation are original works
-distributed under GPL-3.0-only so the aggregate stays consistent with the
-module they accompany, and they retain kokoryh/Sparkle attribution.
+The four upstream JavaScript bundles are GPL-3.0-only. This repository does not
+copy or redistribute their bytes: `extension.yaml` records immutable URLs, and
+the gateway fetches them itself. The manifest and this documentation are
+original works distributed under GPL-3.0-only so the aggregate stays consistent
+with the module they accompany, and they retain kokoryh/Sparkle attribution.
 
-The two inlined jq programs are copied verbatim from the pinned commit and are
-GPL-3.0-only upstream text; their provenance is the table above.
+This repository does redistribute source text from the two jq programs inlined
+into `extension.yaml`. That text is GPL-3.0-only, and its commit-pinned
+provenance is recorded in the table above.
 
 Earlier revisions vendored a generated protobuf runtime, a Google BSD-3-Clause
 varint implementation, and an MIT fflate archive to satisfy the
@@ -246,17 +248,18 @@ is the extension-scoped store the pinned scripts read and write.
 
 1. Select one new `kokoryh/Sparkle` commit intentionally and keep the Loon LPX
    as the orchestration authority.
-2. Fetch the LPX, JQ programs, audited dist files, schemas, preferred-source
-   closure, package metadata, and license from commit-pinned raw URLs.
+2. Fetch and review the LPX, four `dist/` JavaScript files, two jq programs, and
+   license from raw URLs at that exact commit. Do not add the JavaScript bytes
+   to this repository.
 3. Re-review the Chronos archives the bundle selects, record the `master` commit
    they were reviewed at, and do not redistribute an archive that lacks
    corresponding preferred source.
 4. Diff settings, matchers, rules, mocks, JSON/JQ behavior, Protobuf handlers,
    webpage behavior, outbound requests, and URLs independently.
-5. Re-pin every script and jq program to the new commit, re-inline the two
-   `jq-path` programs, and update the fixtures, provenance, notices, and
-   `metadata.version` together. Nothing is vendored, so adoption is a URL
-   rather than a rebuild.
+5. Re-pin all five script actions to the four exact JavaScript raw URLs, re-inline
+   the two `jq-path` programs, and update the fixtures, provenance, notices, and
+   `metadata.version` together. The JavaScript bundles stay remote, so adoption
+   changes immutable URLs rather than rebuilding or vendoring their bytes.
 6. Keep actions inside capture hosts, name every reachable host in this README, and require
    fresh review for network, egress, routing, and execution-order changes.
 
@@ -276,46 +279,47 @@ manual review decision.
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |
 | Operator state | A normal same-ID update retains valid settings, egress binding, `capture_dns`, and execution position. Review all of them before enable. |
-| Source boundary | A changed GPL bundle must ship with complete corresponding preferred source and deterministic build inputs in the same revision. |
+| Source boundary | Keep the four JavaScript bundles remote at exact commit-pinned raw URLs. Redistribute only the two jq programs in their preferred source form, and keep their inline text and provenance synchronized. |
 | External artifacts | The bundle builds Chronos URLs on `kokoryh/chronos` `master` and this manifest cannot pin them; re-review what that branch serves whenever the Sparkle pin moves. Archives without corresponding preferred source remain referenced rather than redistributed. |
-| License review gate | Before any candidate or rollback publication, independently reconcile the aggregate SPDX expression and standalone-install notices with every Apache, MIT, BSD, and GPL bundle input; do not carry the existing expression forward by assumption. |
+| License review gate | Before any candidate or rollback publication, reconcile the GPL mapping, license text, notices, and README provenance with the two redistributed jq programs and four referenced JavaScript bundles. |
 | Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
 
 ### Repeatable migration
 
-1. Complete the playbook record separately for the LPX orchestration, JQ and
-   dist behavior, all schemas and preferred source, Chronos artifacts, embedded
-   npm components, settings, mocks, routes, reachable hosts, and outbound disclosure.
-2. Update every immutable pin and inventory together, and reject a pin that
-   names a mutable ref before the candidate is accepted.
-3. Before publishing either a forward candidate or rollback, reconcile the
-   bundle's aggregate SPDX expression and retained component notices with the
-   actual inputs, even when the input set appears unchanged. A reproducible
-   build does not by itself prove that Apache, MIT, BSD, and GPL boundaries are
-   synchronized.
+1. Complete the playbook record separately for the LPX orchestration, four
+   JavaScript bundles, two jq programs, Chronos artifacts, settings, mocks,
+   routes, reachable hosts, and outbound disclosure.
+2. Update the five action-to-script mappings and every immutable raw URL
+   together. Reject any JavaScript or jq provenance URL that names a mutable
+   ref before the candidate is accepted.
+3. Before publishing either a forward candidate or rollback, reconcile the GPL
+   mapping, license text, notices, and README provenance with the actual remote
+   bundles and redistributed jq programs, even when the input set appears
+   unchanged.
 4. Preserve setting keys and types when behavior allows. If an option or
    validation rule changes, list the affected value and required operator
    action in the migration record.
 5. Compare every capture host, routing rule, action, reachable host, egress
    requirement, and execution-order effect. Any reachable-host or disclosure change
    requires a fresh permission review.
-6. Run the common gates and the complete source rebuild below. Apply the exact
-   candidate digest while disabled, confirm the five settings and egress
-   binding, then exercise every request, response, mock, webpage, and network
-   failure branch before enable.
+6. Run the common gates, including the fixture that checks each action against
+   its exact raw URL and execution bounds. Apply the candidate while disabled,
+   confirm persistent storage, the five settings, and egress binding, then
+   exercise every request, response, mock, webpage, and network failure branch
+   before enable.
 
 ### Rollback
 
-The publisher prepares a same-ID revert-forward candidate containing the complete baseline
-manifest, runtime behavior, corresponding preferred source, lockfile, vendored
-archives, license mapping, and notices under a new version. Rebuild it from
-source with that version incremented above the failing candidate and run every
-Bilibili and core gate before publication. Disable the
-failing candidate, apply the exact rollback digest, confirm all retained
-settings and the egress binding, and test remote replay and SponsorBlock failure
-paths before enable. Emergency reinstall from an old immutable manifest is
-data-safe because the extension is stateless, but it loses settings, egress,
-`capture_dns`, execution position, and installed source identity.
+The publisher prepares a same-ID revert-forward candidate under a new version,
+restoring the baseline manifest's exact commit-pinned JavaScript URLs and
+inlined jq programs together with their license mapping, notices, and
+provenance. Run every Bilibili and core gate before publication. Disable the
+failing candidate, apply the rollback candidate, confirm retained persistent
+storage, settings, and egress binding, and test remote replay and SponsorBlock
+failure paths before enable. Prefer this update path because the extension is
+stateful: removing it and reinstalling an old immutable manifest can lose its
+extension-scoped storage as well as settings, egress, `capture_dns`, execution
+position, and installed source identity.
 
 ## Verification
 

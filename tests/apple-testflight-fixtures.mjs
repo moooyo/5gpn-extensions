@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parse } from 'yaml'
@@ -16,10 +15,6 @@ const root = path.resolve(import.meta.dirname, '..')
 
 async function readManifest(relativePath) {
   return parse(await readFile(path.join(root, relativePath), 'utf8'))
-}
-
-function sha256(bytes) {
-  return createHash('sha256').update(bytes).digest('hex')
 }
 
 const appleManifest = await readManifest('apple-wloc/extension.yaml')
@@ -83,13 +78,27 @@ assert(
 
 assert.equal(appleManifest.actions.length, 2)
 const [wlocAction, settingsAction] = appleManifest.actions
+assert.equal(wlocAction.id, 'rewrite-wloc-response')
 assert.equal(wlocAction.phase, 'response')
+assert.deepEqual(wlocAction.script, {
+  source: 'https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc.js',
+  entry: 'proxy-compat',
+  bodyMode: 'binary',
+  timeoutMs: 30000,
+  maxBodyBytes: 8388608,
+})
+assert.equal(settingsAction.id, 'save-wloc-settings')
 assert.equal(settingsAction.phase, 'request')
+assert.deepEqual(settingsAction.script, {
+  source: 'https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc-settings.js',
+  entry: 'proxy-compat',
+  bodyMode: 'none',
+  timeoutMs: 10000,
+  maxBodyBytes: 1024,
+})
 for (const action of appleManifest.actions) {
   assert.deepEqual(action.match.hosts, appleManifest.traffic.captureHosts)
   assert.deepEqual(action.match.schemes, ['https'])
-  assert.equal(action.script.entry, 'proxy-compat')
-  assert(action.script.source.startsWith('https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/'), `${action.id} must load the reviewed immutable commit`)
 }
 assert(new RegExp(wlocAction.match.pathRegex).test('/clls/wloc'))
 assert(new RegExp(wlocAction.match.pathRegex).test('/clls/wloc?source=test'))
@@ -147,8 +156,7 @@ assert.match(appleReadme, /failClosed/)
 assert.match(testflightReadme, /License: \[`CC-BY-NC-SA-4\.0`\]/)
 assert.match(testflightReadme, /ab6c3182fb2b09bcc34456f496282ec0b8e9217b/)
 assert.match(testflightReadme, /c8112507802d0690d8b94d4110945e9c782df40e/)
-// Manifest digests are no longer transcribed by hand: the marketplace generator
-// computes them at publish time, which is the copy a gateway actually checks.
+// Keep the focused verification command visible in both extension READMEs.
 for (const readme of [appleReadme, testflightReadme]) {
   assert(readme.includes('node tests/apple-testflight-fixtures.mjs'))
 }
