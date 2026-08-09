@@ -31,13 +31,14 @@ nothing. The extension cannot name or change the selected group.
 | Upstream name | `TestFlightRegionUnlock.lpx` (`TestFlight Region Unlock`) |
 | Pinned commit | `ab6c3182fb2b09bcc34456f496282ec0b8e9217b` |
 | Source file last changed | `c8112507802d0690d8b94d4110945e9c782df40e` |
-| Latest branch audit | The pinned commit remained the latest `Loon` head on `2026-07-22`; all later commits after the file-level commit left this LPX unchanged. |
+| Latest branch audit | The pinned commit remained the latest `Loon` head on `2026-08-05`; all later commits after the file-level commit left this LPX unchanged. |
 | Original file | `Plugin/TestFlightRegionUnlock.lpx` |
 | Pinned source URL | `https://raw.githubusercontent.com/mihoyo-typ/KeleeOne/ab6c3182fb2b09bcc34456f496282ec0b8e9217b/Plugin/TestFlightRegionUnlock.lpx` |
 | Upstream-declared reference URL | `https://kelee.one/Tool/Loon/Lpx/TestFlightRegionUnlock.lpx` |
+| Reference URL recheck | Cloudflare returned HTTP 403 on `2026-08-05`, so the current mutable `kelee.one` contents could not be compared with the pinned source. |
 | Fetched on | `2026-07-22` |
 
-The pinned source is 778 bytes. Its upstream metadata reports version date
+The pinned source's upstream metadata reports version date
 `2025-09-02 23:42:06` and Loon version `3.2.1(749)`.
 
 The reviewed native snapshot is:
@@ -52,7 +53,7 @@ This native port is adapted material based on `mihoyo-typ/KeleeOne` and is
 provided under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0
 International license (`CC BY-NC-SA 4.0`). It has been modified from the
 pinned Loon plugin to use the strict 5gpn manifest, typed settings, an
-operator-owned egress binding, and a declarative `script.jq` rewrite.
+operator-owned egress choice, and a declarative `script.replaceBody` action.
 
 The source file's `#!author` metadata credits 可莉🅥 (`iKeLee`) and links to
 <https://github.com/luestr/ProxyResource/blob/main/README.md>. That supplied
@@ -70,7 +71,7 @@ The pinned license was reviewed on `2026-07-22`.
 | --- | --- |
 | `DOMAIN, testflight.apple.com, PROXY` | `traffic.captureHosts` contains only `testflight.apple.com`. The native manifest cannot name `PROXY`, and as of revision 2.2.0 it no longer forces a binding either: the operator routes the host to a compatible region by binding a group or by their own rules. An unrouted install rewrites the storefront and exits from the real region, which is a silent no-op rather than a blocked one. |
 | Rewrite URL `^https?://testflight.apple.com/v\d/accounts/.+?/install$` | One request action matches only `testflight.apple.com`, HTTP or HTTPS, exactly one version digit, a non-empty account path, and no query string. Host and scheme are native matcher fields while the path expression preserves the pinned URL boundary. |
-| Exact `request-body-replace-regex` for `"storefrontId" : "dddddd-dd,dd",` | A `script.replaceBody` action applies the same kind of regular expression upstream does, so everything it does not match survives byte for byte, including key order and whitespace. The replacement reads the `storefront` setting through `{{settings.storefront}}` and resolves it through the action's `valueMap`, which is how a module that hard-codes one storefront becomes an extension whose operator chooses among ten. A body with no `storefrontId`, or a region absent from the map, is left untouched rather than having a value invented. Revision 2.0.0 substituted a jq program here, which parsed and re-serialized the body and normalized key order as a side effect. |
+| Exact `request-body-replace-regex` for `"storefrontId" : "dddddd-dd,dd",` | A `script.replaceBody` action applies the same kind of regular expression upstream does, so everything it does not match survives byte for byte, including key order and whitespace. The replacement reads the `storefront` setting through `{{settings.storefront}}` and resolves it through the action's `valueMap`, which is how a module that hard-codes one storefront becomes an extension whose operator chooses among ten. A body with no `storefrontId`, or a region absent from the map, is left untouched rather than having a value invented. Revision 2.0.0 instead used a JSON-parsing body rewrite, which re-serialized the body and normalized key order as a side effect. |
 | Hard-coded `143441-19,29` | The required typed `storefront` select defaults to `US`, preserving upstream behavior, and exposes a finite reviewed region map. |
 | `[MitM] hostname=testflight.apple.com` | The exact host is the sole capture permission and therefore the sole interception certificate and traffic-rule host. |
 | Loon metadata | Name and purpose become native metadata; attribution and update provenance remain in this README. |
@@ -137,12 +138,12 @@ The following native extensions are deliberate:
   and 443 is acquired. The extension does not alter DNS policy for other Apple
   hosts.
 - The action changes EVERY recognized `storefrontId` in the body, not only the
-  first: the sidecar substitutes with Go's `ReplaceAll`
+  first: the monolith substitutes with Go's `ReplaceAll`
   (`module_rewrite.go:229`), which replaces all matches. An absent or changed
   field is left untouched, and a missing field is never synthesized.
 - Storefront selection and network exit selection are independent operator
   choices. A mismatched, unavailable, or Apple-rejected egress can still make
-  installation fail.
+  the unlock fail even though the extension installed successfully.
 - The additional non-US storefront values do not come from the pinned upstream
   file. Apple can change or reject storefront identifiers independently of
   this extension, so maintainers must verify them against live behavior.
@@ -163,14 +164,14 @@ so there is no script with a view of the request at all.
    commit URL and record its fetch date.
 3. Diff the new file against the pinned source. Review metadata, `[Rule]`,
    `[Rewrite]`, and `[MitM]` independently.
-4. Map every behavioral change to strict native fields or to the jq program.
+4. Map every behavioral change to strict native fields or to the declarative
+   body replacement.
    Keep every action host within `captureHosts`, keep the egress choice
    operator-owned, and document anything intentionally omitted.
 5. Recheck the storefront table if the replacement value or format changed.
    Bump `metadata.version` for any immutable manifest or script change.
-6. Update this
-   section's commit, URL, digest, date, mapping, limitations, and validation
-   evidence in the same change.
+6. Update this section's commit, immutable raw URL, fetch date, mapping,
+   limitations, and validation evidence in the same change.
 
 
 
@@ -185,12 +186,13 @@ upstream revision. Upstream selection remains a manual review decision.
 | --- | --- |
 | Identity | Keep `io.5gpn.testflight-region-unlock`; bump `metadata.version` for every immutable manifest or script change. |
 | Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
+| Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | Preserve `storefront` as a `select` setting. A same-ID update retains its value only while the selected option remains valid. |
 | Reviewed capability baseline | One capture host, one request action, no network permission, upstream mappings, or routing rules, and no required operator egress binding. |
 | Operator state | A normal update retains the valid storefront, egress binding, `capture_dns`, and execution position; all must still be reviewed before enable. |
 | Ordering | Review every other extension that captures `testflight.apple.com`; the first bound extension owns egress and request actions execute in configured order. |
-| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
+| Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. No extension data conversion is required. |
 
 ### Repeatable migration
 
@@ -202,18 +204,19 @@ upstream revision. Upstream selection remains a manual review decision.
 3. Keep the `storefront` key and type stable when possible. If an option is
    removed or renamed, record that the old value will not be retained, verify
    the candidate default, and require explicit reselection when needed.
-4. Synchronize the upstream and local digests, provenance, fixtures, notices,
-   `REUSE.toml`, limitations, and `metadata.version` in the same change.
-5. Apply the candidate while disabled, confirm the retained setting and egress
-   binding, review the exact matcher, and exercise every storefront before
-   enabling on an authorized test device.
+4. Synchronize the pinned commit, immutable raw URL, fetch date, provenance,
+   fixtures, notices, `REUSE.toml`, limitations, and `metadata.version` in the
+   same change.
+5. Apply the reviewed Marketplace candidate without a disable-first step,
+   confirm prior authorization, the retained setting and egress binding, review
+   the exact matcher, and exercise every storefront on an authorized test device.
 
 ### Rollback
 
 The publisher prepares a same-ID revert-forward candidate that restores the baseline matcher,
 replacement syntax, storefront options, and egress requirement with a new
-version incremented above the failing candidate. Apply it while disabled,
-confirm that the selected storefront is still
+version incremented above the failing candidate. Review and apply its
+Marketplace entry, confirm prior authorization and that the selected storefront is still
 valid, verify the egress binding and execution position, and rerun the exact and
 fallback body fixtures before enable. Emergency reinstall from an old
 immutable manifest is data-safe because this extension is stateless, but it
@@ -225,8 +228,9 @@ and installed source identity.
 For each update:
 
 1. For a fresh installation, import `extension.yaml` through **Install from
-   URL**. For an installed extension, use update check/apply with the exact
-   reviewed digest. Confirm that either path finishes disabled.
+   URL** and confirm it finishes disabled. For an installed extension, select
+   its Marketplace entry and use the reviewed manifest URL and snapshot digest;
+   confirm the prior enabled authorization is preserved.
 2. Confirm the normalized capture-host list contains exactly
    `testflight.apple.com`, the network-origin list is empty, and the extension
    enables without an egress binding while producing a real unlock only when

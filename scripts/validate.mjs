@@ -5,9 +5,14 @@ import { isIP } from 'node:net'
 import path from 'node:path'
 import vm from 'node:vm'
 import { parseDocument } from 'yaml'
+import {
+  parseHostMappingServerDialAddresses,
+  validHostMappingAddress,
+} from './host-mapping.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const maxCaptureHosts = 512
+const maxSettings = 64
 const rootReadme = await readFile(path.join(root, 'README.md'), 'utf8')
 const rootReadmeZh = await readFile(path.join(root, 'README.zh-CN.md'), 'utf8')
 const migrationPlaybook = await readFile(path.join(root, 'MIGRATION.md'), 'utf8')
@@ -35,7 +40,7 @@ const expectedExtensions = new Map([
   ['apple-wloc', { license: 'MIT', pin: 'eec07a8dc8de6dbaee8eac1fb376e4d03020154a', unlicensed: true }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: 'a26c3412a760fb8d7d4d1bcc124d126e19d630e5' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
-  ['weatherkit', { license: 'Apache-2.0', pin: '33ec3297387e7444fec65bb48a0a042969b97167' }],
+  ['weatherkit', { license: 'Apache-2.0', pin: 'c66350d91457f9a1b8a6c5e6aba46370fa6da254' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525' }],
   ['zhihu-cleaner', { license: 'CC-BY-NC-SA-4.0', pin: '8d0e2791f531d4a02e1bd00d0f64427984bc999a' }],
 ])
@@ -64,15 +69,10 @@ function hasOwn(object, key) {
   return Object.prototype.hasOwnProperty.call(object, key)
 }
 
-// canonicalIPv4CIDR requires the exact spelling the gateway stores.
-//
-// The gateway parses ipCIDR with net.ParseCIDR and stores network.String(),
-// while typed-policy.mjs digests the manifest text. A non-canonical spelling
-// therefore produces two different digests for one policy, and the gateway
-// refuses the install with a message accusing itself of enforcing something
-// other than what was reviewed -- when both sides compiled the same rule.
-// Requiring the canonical spelling here removes the possibility instead of
-// reimplementing Go's renderer.
+// canonicalIPv4CIDR requires the exact spelling the gateway stores. The
+// gateway parses ipCIDR with net.ParseCIDR and stores network.String(); a
+// non-canonical spelling would make the reviewed text differ from the rule the
+// runtime later displays and enforces.
 //
 // IPv4 only, and deliberately: both resolver boundaries answer AAAA with
 // synthetic NODATA and the data plane dials IPv4, so an IPv6 rule cannot match
@@ -147,27 +147,10 @@ function validHost(value) {
 // target and nothing else, and the egress anchor resolves ahead of the rule
 // list entirely. The core refuses the same set; this is the copy that fails in
 // CI instead of at import.
-function validHostMappingAddress(value) {
-  const octets = value.split('.')
-  if (octets.length !== 4) return false
-  const parts = octets.map((octet) => Number(octet))
-  if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false
-  if (!/^\d+\.\d+\.\d+\.\d+$/.test(value)) return false
-  const [a, b] = parts
-  if (a === 0 || a === 127 || a === 10) return false
-  if (a === 172 && b >= 16 && b <= 31) return false
-  if (a === 192 && b === 168) return false
-  if (a === 169 && b === 254) return false
-  if (a === 100 && b >= 64 && b <= 127) return false // carrier-grade NAT
-  if (a >= 224) return false // multicast and reserved
-  return true
-}
-
 function validHostMappingTarget(value) {
   if (typeof value !== 'string' || value !== value.trim()) return false
   if (value.startsWith('server:')) {
-    const specs = value.slice('server:'.length).split(',').map((spec) => spec.trim()).filter(Boolean)
-    return specs.length > 0 && specs.length <= 4
+    return parseHostMappingServerDialAddresses(value.slice('server:'.length)) !== null
   }
   if (/^\d/.test(value)) return validHostMappingAddress(value)
   return validHost(value) && !value.startsWith('*.')
@@ -222,6 +205,11 @@ for (const entry of entries) {
 
   const actions = manifest.actions ?? []
   const mappings = manifest.traffic.upstreamMappings ?? []
+  const settings = manifest.settings ?? []
+  assert(
+    Array.isArray(settings) && settings.length <= maxSettings,
+    `${entry.name}: settings must be an array with at most ${maxSettings} entries`,
+  )
   for (const [index, mapping] of mappings.entries()) {
     assert(validHostMappingTarget(mapping.target), `${entry.name}: upstreamMappings[${index}].target is invalid`)
   }
@@ -289,7 +277,7 @@ for (const entry of entries) {
     // decidable state, and the core refuses anything else at import.
     if (action.enabledWhen !== undefined) {
       assertKeys(action.enabledWhen, new Set(['key', 'equals']), `${entry.name}: ${action.id}.enabledWhen`)
-      const gate = (manifest.settings ?? []).find((setting) => setting.key === action.enabledWhen.key)
+      const gate = settings.find((setting) => setting.key === action.enabledWhen.key)
       assert(gate !== undefined, `${entry.name}: ${action.id} enabledWhen names an undeclared setting ${action.enabledWhen.key}`)
       assert(gate.required === true, `${entry.name}: ${action.id} enabledWhen must name a required setting`)
       assert(typeof action.enabledWhen.equals === 'string' && action.enabledWhen.equals !== '', `${entry.name}: ${action.id} enabledWhen needs a value to compare against`)
@@ -337,7 +325,7 @@ for (const entry of entries) {
     // of the seven kinds took, so nothing anywhere bounded them. What that
     // allowed: `maxBodyBytes: 1024` beside a 2 KiB mock body failed every
     // matching request with a 502, `maxBodyBytes: -1` failed every one of them
-    // unconditionally, and `bodyMode: banana` reached the sidecar and defeated
+    // unconditionally, and `bodyMode: banana` reached the runtime and defeated
     // the streaming fast path, which requires every matched rule to be exactly
     // `none`.
     const bodyMode = action.script.bodyMode ?? 'none'
@@ -451,10 +439,12 @@ for (const entry of entries) {
     const hasSource = typeof action.script.source === 'string'
     assert(hasSource, `${entry.name}: ${action.id} must declare a script source`)
     if (scriptEntry === 'proxy-compat') {
-      // A published bundle is fetched by URL and is not ours to lint: it is
-      // async, it defines no transform(context), and it uses the proxy-client
-      // globals on purpose. Its provenance is bound by the README record and by
-      // the immutable revision in the URL itself.
+      // proxy-compat is a supported core execution form for a reviewed
+      // published bundle. The extension does not supply a compatibility
+      // runtime or globals, and the bundle is not ours to lint: it is async,
+      // defines no transform(context), and intentionally uses the documented
+      // core-provided proxy-client surface. Per-extension checks below bind its
+      // exact source and wiring to the reviewed provenance record.
       const parsed = new URL(action.script.source)
       assert(parsed.protocol === 'https:', `${entry.name}: ${action.id} bundle source must be HTTPS`)
       assert(readme.includes(action.script.source), `${entry.name}: ${action.id} bundle is not recorded in the README`)
@@ -491,7 +481,8 @@ for (const entry of entries) {
   assert(migrationSection.includes(`| State class | ${stateClass}.`), `${entry.name}: migration state class differs from extension.yaml`)
   assert(/publisher-managed revert-forward/i.test(migrationSection), `${entry.name}: migration contract does not define the publisher rollback boundary`)
   assert(/manual review/i.test(migrationSection), `${entry.name}: migration contract does not require manual upstream selection`)
-  assert(/disabled/i.test(migrationSection), `${entry.name}: migration contract does not require disabled replacement`)
+  const enablementContract = '| Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |'
+  assert(migrationSection.includes(enablementContract), `${entry.name}: migration contract does not define fresh-install and replacement authorization`)
   const manifestContract = [
     `version=${manifest.metadata.version}`,
     `persistentStorage=${manifest.permissions.persistentStorage}`,
@@ -564,7 +555,7 @@ for (const entry of entries) {
   }
   if (entry.name === 'weatherkit') {
     assert(
-      actions.length === 6 && manifest.settings?.length === 11 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 4,
+      actions.length === 6 && manifest.settings?.length === 11 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 3,
       'weatherkit: reviewed two-mode capability set is incomplete',
     )
     // Upstream publishes the same three paths twice: a release module that runs
@@ -630,6 +621,10 @@ for (const entry of entries) {
       assert(/^https:\/\/github\.com\/NSRingo\/WeatherKit\/releases\/download\//.test(bundleSource), 'weatherkit: bundle must come from the reviewed upstream release')
       assert(readme.includes(bundleSource), `weatherkit: README does not record the bundle URL ${bundleSource}`)
     }
+    assert(
+      readme.includes('immutable: false') && readme.includes('direct official release asset'),
+      'weatherkit: README must disclose and justify the reviewed mutable release-asset source',
+    )
     assert(reuseParagraphFor('weatherkit/extension.yaml', 'Apache-2.0'), 'weatherkit: manifest license mapping is missing')
   }
   if (entry.name === 'zhihu-cleaner') {
@@ -637,8 +632,7 @@ for (const entry of entries) {
     assert(actions.length === 18 && actions.filter((action) => action.phase === 'request').length === 5 && actions.filter((action) => action.phase === 'response').length === 13, 'zhihu-cleaner: reviewed action set is incomplete')
     assert((await relativeFiles(directory)).filter((name) => name.endsWith('.js')).length === 0, 'zhihu-cleaner: this extension ships no JavaScript')
     assert(actions.filter((action) => action.phase === 'response').every((action) => typeof action.script.jq === 'string'), 'zhihu-cleaner: every response action must be a jq expression, not a script')
-    assert((manifest.settings?.length ?? 0) === 0 && !manifest.permissions.persistentStorage && manifest.permissions.network === undefined && routingRules.length === 5 && mappings.length === 0 && manifest.requirements?.egressGroup?.required !== true, 'zhihu-cleaner: unexpected permission or routing expansion')
-    assert(routingRules.every((rule) => rule.action === 'reject' && rule.network === 'udp' && rule.destinationPort === 443 && captureSet.has(rule.domain)), 'zhihu-cleaner: UDP/443 fallback rules are incomplete')
+    assert((manifest.settings?.length ?? 0) === 0 && !manifest.permissions.persistentStorage && manifest.permissions.network === undefined && routingRules.length === 0 && mappings.length === 0 && manifest.requirements?.egressGroup?.required !== true, 'zhihu-cleaner: unexpected permission or routing expansion')
   }
   assert(rootReadme.includes(`\`${entry.name}\``), `${entry.name}: missing from root catalog table`)
 }
@@ -656,7 +650,7 @@ assert(rootReadmeZh.includes('MIGRATION.md'), 'Chinese root README does not refe
 assert(migrationPlaybook.includes('| Candidate selection | `manual-only` |'), 'migration playbook does not require manual-only selection')
 assert(migrationPlaybook.includes('| Automatic discovery | `forbidden` |'), 'migration playbook does not forbid automatic discovery')
 assert(migrationPlaybook.includes('| Installed update | `explicit-only` |'), 'migration playbook does not require explicit updates')
-assert(migrationPlaybook.includes('| Post-update state | `disabled` |'), 'migration playbook does not require disabled replacements')
+assert(migrationPlaybook.includes('| Post-update state | `preserve-existing-authorization` |'), 'migration playbook does not preserve installed authorization')
 assert(migrationPlaybook.includes('## Required migration record'), 'migration playbook has no required record template')
 assert(migrationPlaybook.includes('| Surface | Baseline | Candidate | Decision and evidence |'), 'migration playbook has no migration record table')
 for (const surface of [

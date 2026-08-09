@@ -2,11 +2,12 @@ name: publish-marketplace
 
 # Publishing waits for validate. Both used to fire on the same push to main
 # independently, so `npm test` was the only gate this job ran -- and validate
-# does strictly more: it also parses every manifest with the stable and beta
-# core parsers, checked out from the gateway repository. A manifest the Node
-# validator accepts and the Go parser refuses could therefore reach the
-# published index, where the only thing left to catch it is an operator's
-# install failing.
+# does strictly more: it sends every generated entry through the exact monolith
+# source shipped by the installer. This job repeats that non-hermetic review so
+# a manual dispatch cannot bypass it and publication fails when a live
+# third-party dependency no longer passes review at publication time. External
+# resources remain live dependencies and are intentionally not pinned by the
+# Marketplace index after publication.
 on:
   workflow_run:
     workflows: [validate]
@@ -15,7 +16,8 @@ on:
 
 concurrency:
   group: github-pages
-  cancel-in-progress: false
+  # Only the newest main revision may publish the stable marketplace URL.
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -42,8 +44,12 @@ jobs:
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    outputs:
+      revision: ${{ steps.revision.outputs.revision }}
     permissions:
       contents: read
+    env:
+      MIHOMO_SOURCE_COMMIT: 5798f177fbe0ef209d50e39204c16b21e53194ee
     steps:
       # workflow_run checks out the default branch's tip by default, not the
       # commit that was validated, and GITHUB_SHA follows it. Both are pinned to
@@ -52,8 +58,18 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-      - name: Resolve the published revision
-        run: echo "PUBLISH_REVISION=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_ENV"
+      - name: Resolve and fence the published revision
+        id: revision
+        run: |
+          revision='${{ github.event.workflow_run.head_sha || github.sha }}'
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          current_main="$(git rev-parse refs/remotes/origin/main)"
+          test "$revision" = "$current_main" || {
+            echo "refusing to publish stale revision $revision; current main is $current_main" >&2
+            exit 1
+          }
+          echo "PUBLISH_REVISION=$revision" >> "$GITHUB_ENV"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
@@ -74,6 +90,33 @@ jobs:
           cp marketplace/schema.json _site/marketplace/v2/schema.json
           npm run marketplace:build -- \
             --revision "$PUBLISH_REVISION" --check _site/marketplace/v2/index.json
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          repository: moooyo/mihomo
+          ref: ${{ env.MIHOMO_SOURCE_COMMIT }}
+          path: 5gpn-mihomo
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: 5gpn-mihomo/go.mod
+          cache-dependency-path: 5gpn-mihomo/go.sum
+      - name: Repeat the shipped-monolith full review before publishing
+        working-directory: 5gpn-mihomo
+        env:
+          FIVEGPN_EXTENSIONS_ROOT: ${{ github.workspace }}
+          FIVEGPN_MARKETPLACE_INDEX: ${{ github.workspace }}/_site/marketplace/v2/index.json
+        run: |
+          cp "$FIVEGPN_EXTENSIONS_ROOT/tests/mihomo-external-review_test.go" \
+            5gpn/engine/external_extensions_test.go
+          go test ./5gpn/engine -count=1 \
+            -run '^TestExternalOfficialMarketplaceFullReviewCorpus$'
+      - name: Recheck current main before publication
+        run: |
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          current_main="$(git rev-parse refs/remotes/origin/main)"
+          test "$PUBLISH_REVISION" = "$current_main" || {
+            echo "main advanced to $current_main while building $PUBLISH_REVISION" >&2
+            exit 1
+          }
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: _site
@@ -88,6 +131,16 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Refuse an obsolete Pages artifact
+        env:
+          PUBLISH_REVISION: ${{ needs.build.outputs.revision }}
+        run: |
+          current_main="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | awk '{print $1}')"
+          test -n "$current_main"
+          test "$PUBLISH_REVISION" = "$current_main" || {
+            echo "refusing to deploy stale revision $PUBLISH_REVISION; current main is $current_main" >&2
+            exit 1
+          }
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
         with:
           enablement: true

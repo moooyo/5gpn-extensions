@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.zhihu-cleaner
   name: Zhihu Cleaner
-  version: 2.1.0
+  version: 2.2.0
   description: Removes selected Zhihu transport overrides, advertisements, promotions,
     and navigation entries.
 
@@ -18,27 +18,6 @@ traffic:
     - page-info.zhihu.com
     - www.zhihu.com
     - zhida.zhihu.com
-  routingRules:
-    - action: reject
-      domain: api.zhihu.com
-      network: udp
-      destinationPort: 443
-    - action: reject
-      domain: m-cloud.zhihu.com
-      network: udp
-      destinationPort: 443
-    - action: reject
-      domain: page-info.zhihu.com
-      network: udp
-      destinationPort: 443
-    - action: reject
-      domain: www.zhihu.com
-      network: udp
-      destinationPort: 443
-    - action: reject
-      domain: zhida.zhihu.com
-      network: udp
-      destinationPort: 443
 
 actions:
   - id: mock-api-json

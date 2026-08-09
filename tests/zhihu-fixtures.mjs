@@ -31,16 +31,12 @@ const blockedConfigKeys = [
 ]
 
 assert.equal(manifest.metadata.id, 'io.5gpn.zhihu-cleaner')
-assert.equal(manifest.metadata.version, '2.1.0')
+assert.equal(manifest.metadata.version, '2.2.0')
 assert.deepEqual(manifest.permissions, { persistentStorage: false })
 assert.equal(manifest.settings, undefined)
 assert.equal(manifest.requirements, undefined)
-assert.deepEqual(manifest.traffic.routingRules, manifest.traffic.captureHosts.map((domain) => ({
-  action: 'reject',
-  domain,
-  network: 'udp',
-  destinationPort: 443,
-})))
+assert.equal(manifest.traffic.routingRules, undefined,
+  'the fixed global UDP/443 guard makes per-extension QUIC rejects redundant')
 assert.equal(manifest.traffic.upstreamMappings, undefined)
 assert.deepEqual(manifest.traffic.captureHosts, [
   'api.zhihu.com',
@@ -66,11 +62,10 @@ for (const action of manifest.actions) {
     assert.equal(action.script.bodyMode, 'none')
   } else {
     // Every response action carries an expression, not code. Node has no jq, so
-    // behaviour is checked out of band against gojq at the sidecar's pinned
-    // version -- the sidecar's own jq suite holds a snapshot that currently lags
-    // these programs. What is checked here is that nothing reintroduces a
-    // script, and validate.mjs enforces the guard rules that keep a transform
-    // from answering 502 or inventing a key.
+    // the installer-pinned monolith full-review corpus compiles the programs
+    // with the runtime's gojq integration. This focused fixture checks that
+    // nothing reintroduces a script, while validate.mjs enforces the guards
+    // that keep a transform from answering 502 or inventing a key.
     assert.equal(typeof action.script.jq, 'string')
     assert.equal(action.script.source, undefined)
     assert.equal(action.script.inline, undefined)
