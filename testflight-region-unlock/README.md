@@ -138,7 +138,7 @@ The following native extensions are deliberate:
   and 443 is acquired. The extension does not alter DNS policy for other Apple
   hosts.
 - The action changes EVERY recognized `storefrontId` in the body, not only the
-  first: the sidecar substitutes with Go's `ReplaceAll`
+  first: the monolith substitutes with Go's `ReplaceAll`
   (`module_rewrite.go:229`), which replaces all matches. An absent or changed
   field is left untouched, and a missing field is never synthesized.
 - Storefront selection and network exit selection are independent operator
@@ -186,12 +186,13 @@ upstream revision. Upstream selection remains a manual review decision.
 | --- | --- |
 | Identity | Keep `io.5gpn.testflight-region-unlock`; bump `metadata.version` for every immutable manifest or script change. |
 | Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=1`; `captureHosts=1`; `actions=1`; `routingRules=0`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
+| Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | Preserve `storefront` as a `select` setting. A same-ID update retains its value only while the selected option remains valid. |
 | Reviewed capability baseline | One capture host, one request action, no network permission, upstream mappings, or routing rules, and no required operator egress binding. |
 | Operator state | A normal update retains the valid storefront, egress binding, `capture_dns`, and execution position; all must still be reviewed before enable. |
 | Ordering | Review every other extension that captures `testflight.apple.com`; the first bound extension owns egress and request actions execute in configured order. |
-| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
+| Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. No extension data conversion is required. |
 
 ### Repeatable migration
 
@@ -206,16 +207,16 @@ upstream revision. Upstream selection remains a manual review decision.
 4. Synchronize the pinned commit, immutable raw URL, fetch date, provenance,
    fixtures, notices, `REUSE.toml`, limitations, and `metadata.version` in the
    same change.
-5. Apply the candidate while disabled, confirm the retained setting and egress
-   binding, review the exact matcher, and exercise every storefront before
-   enabling on an authorized test device.
+5. Apply the reviewed Marketplace candidate without a disable-first step,
+   confirm prior authorization, the retained setting and egress binding, review
+   the exact matcher, and exercise every storefront on an authorized test device.
 
 ### Rollback
 
 The publisher prepares a same-ID revert-forward candidate that restores the baseline matcher,
 replacement syntax, storefront options, and egress requirement with a new
-version incremented above the failing candidate. Apply it while disabled,
-confirm that the selected storefront is still
+version incremented above the failing candidate. Review and apply its
+Marketplace entry, confirm prior authorization and that the selected storefront is still
 valid, verify the egress binding and execution position, and rerun the exact and
 fallback body fixtures before enable. Emergency reinstall from an old
 immutable manifest is data-safe because this extension is stateless, but it
@@ -227,8 +228,9 @@ and installed source identity.
 For each update:
 
 1. For a fresh installation, import `extension.yaml` through **Install from
-   URL**. For an installed extension, use update check/apply with the reviewed
-   candidate. Confirm that either path finishes disabled.
+   URL** and confirm it finishes disabled. For an installed extension, select
+   its Marketplace entry and use the reviewed manifest URL and snapshot digest;
+   confirm the prior enabled authorization is preserved.
 2. Confirm the normalized capture-host list contains exactly
    `testflight.apple.com`, the network-origin list is empty, and the extension
    enables without an egress binding while producing a real unlock only when

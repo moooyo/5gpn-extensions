@@ -35,10 +35,10 @@
       "format": "uri",
       "pattern": "^https://"
     },
-    "httpUrl": {
+    "repositoryRawUrl": {
       "type": "string",
       "format": "uri",
-      "pattern": "^https?://"
+      "pattern": "^https://raw\\.githubusercontent\\.com/moooyo/5gpn-extensions/[0-9a-f]{40}/"
     },
     "sha256": {
       "type": "string",
@@ -102,9 +102,7 @@
         "license",
         "documentationUrl",
         "manifest",
-        "resources",
-        "capabilities",
-        "policy"
+        "capabilities"
       ],
       "properties": {
         "id": {
@@ -148,28 +146,20 @@
               "pattern": "^[A-Za-z0-9][A-Za-z0-9.+-]*$"
             },
             "url": {
-              "$ref": "#/$defs/httpsUrl"
+              "$ref": "#/$defs/repositoryRawUrl"
             }
           }
         },
         "documentationUrl": {
-          "$ref": "#/$defs/httpsUrl"
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://github\\.com/moooyo/5gpn-extensions/blob/[0-9a-f]{40}/"
         },
         "manifest": {
           "$ref": "#/$defs/artifact"
         },
-        "resources": {
-          "type": "array",
-          "maxItems": 256,
-          "items": {
-            "$ref": "#/$defs/resource"
-          }
-        },
         "capabilities": {
           "$ref": "#/$defs/capabilities"
-        },
-        "policy": {
-          "$ref": "#/$defs/policy"
         }
       }
     },
@@ -183,40 +173,7 @@
       ],
       "properties": {
         "url": {
-          "type": "string",
-          "format": "uri",
-          "pattern": "^https://raw\\.githubusercontent\\.com/moooyo/5gpn-extensions/main/"
-        },
-        "sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "size": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 67108864
-        }
-      }
-    },
-    "resource": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "path",
-        "url",
-        "sha256",
-        "size"
-      ],
-      "properties": {
-        "path": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 1024,
-          "pattern": "^[A-Za-z0-9._/-]+$"
-        },
-        "url": {
-          "type": "string",
-          "format": "uri",
-          "pattern": "^https://"
+          "$ref": "#/$defs/repositoryRawUrl"
         },
         "sha256": {
           "$ref": "#/$defs/sha256"
@@ -255,7 +212,7 @@
         "settingCount": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 256
+          "maximum": 64
         },
         "network": {
           "description": "The network grant. It names no origins: an extension holding it may reach any host it can resolve, and may rewrite a captured request there.",
@@ -276,38 +233,6 @@
         },
         "egressGroupRequired": {
           "type": "boolean"
-        }
-      }
-    },
-    "policy": {
-      "description": "The typed runtime-overlay projection this extension compiles to. Required: the gateway compares its own compilation against this digest before installing, and an absent digest is treated as \"not verified\" rather than \"does not match\", so omitting it would buy an install with no policy verification at all.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "clientRules",
-        "policyRules",
-        "captureRules",
-        "digest"
-      ],
-      "properties": {
-        "clientRules": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 4096
-        },
-        "policyRules": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 256
-        },
-        "captureRules": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 4096
-        },
-        "digest": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
         }
       }
     }

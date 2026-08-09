@@ -3,9 +3,9 @@
 This repository contains independently maintained native extensions. Each
 extension README records commit-pinned raw URLs where upstream publishes them,
 fetch dates, mutable runtime dependencies, modifications, deliberate
-exclusions, and verification steps. Resource digests in a generated marketplace
-are derived installation-integrity fields; they are not manually maintained
-provenance records.
+exclusions, and verification steps. The Marketplace records only the manifest
+digest; live script bytes enter the runtime's immutable review snapshot and are
+not manually maintained provenance records.
 
 ## KeleeOne-derived CC BY-NC-SA ports
 
@@ -116,13 +116,13 @@ GitHub release assets are publisher-replaceable, and GitHub reports
 `immutable: false` for this release. No manually maintained provenance field
 re-checks those assets, and no statement in this file is a line-by-line review
 of the bundles' contents; they carry whatever third-party runtimes upstream
-chose to include. The marketplace generator derives resource digests when it
-publishes an index so an already reviewed index does not silently accept
-replacement bytes. Those generated digests do not make the release URL
-immutable provenance. The catalog deliberately accepts these direct official
-release assets because upstream does not publish the generated bundles in Git;
-the extension README records the tag object, source commit, replaceability, and
-review date.
+chose to include. Runtime review fetches these assets into the immutable
+snapshot digest and apply refetches them, so changed bytes require a fresh
+confirmation. That review/apply fence does not make the release URL immutable
+provenance or audit the bytes against the recorded source commit. The catalog
+deliberately accepts these direct official release assets because upstream does
+not publish the generated bundles in Git; the extension README records the tag
+object, source commit, replaceability, and review date.
 
 An enabled provider receives the request's exact coordinates and the operator's
 API token in the provider URL. Since `v3.2.0-beta5` the request bundle also

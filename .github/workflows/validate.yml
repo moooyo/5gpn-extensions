@@ -11,6 +11,11 @@ permissions:
 jobs:
   extensions:
     runs-on: ubuntu-latest
+    env:
+      # Source commit behind install.sh's v1.19.28-monolith.29 pin. Keep this
+      # exact commit synchronized with the installer; a mutable tag or branch
+      # would let CI validate a runtime other than the one operators receive.
+      MIHOMO_SOURCE_COMMIT: 5798f177fbe0ef209d50e39204c16b21e53194ee
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - name: Validate REUSE licensing metadata
@@ -25,46 +30,30 @@ jobs:
         run: |
           npm run marketplace:build -- --revision "$GITHUB_SHA" --output "$RUNNER_TEMP/marketplace.json"
 
-      # The public 5gpn main and beta branches stopped carrying the parser source
-      # in 3ef751662154cb1df597d0f1292d6843c22694cd. Until a new canonical parser
-      # source is published, keep the last publicly reviewable contract pinned
-      # by commit. This is a compatibility floor, not a claim that it represents
-      # either current release channel.
-      # jq is this catalogue's main action kind and nothing here can compile
-      # one: gojq lives in the sidecar. Without this step a manifest carrying an
-      # unbalanced expression passes every gate and fails at an operator's
-      # install. The expressions are handed over as JSON because the sidecar's
-      # module has a fixed dependency list that does not include yaml.
+      # The publication gate uses the exact monolith source shipped by the
+      # installer. The external test drives every generated Marketplace entry
+      # through review, immutable snapshot construction, complete document
+      # validation, and the real goja/gojq compilers. Absolute upstream script
+      # URLs are fetched deliberately; a publisher or network failure blocks
+      # publication rather than being hidden behind fixture script bytes.
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
-          repository: moooyo/mihomo-extension-sidecar
-          ref: main
-          path: 5gpn-sidecar
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-        with:
-          repository: moooyo/5gpn
-          ref: dd8bc6014af5f6cbc308d2b02a34b13da3f7ccbc
-          path: 5gpn-core-contract
+          repository: moooyo/mihomo
+          ref: ${{ env.MIHOMO_SOURCE_COMMIT }}
+          path: 5gpn-mihomo
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
-          go-version-file: 5gpn-core-contract/cmd/5gpn-dns/go.mod
-          cache-dependency-path: 5gpn-core-contract/cmd/*/go.sum
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
-        with:
-          go-version-file: 5gpn-sidecar/go.mod
-          cache-dependency-path: 5gpn-sidecar/go.sum
-      - name: Compile every jq expression with the engine that runs them
-        run: |
-          node scripts/extract-jq.mjs "${{ runner.temp }}/jq-programs.json"
-          cd 5gpn-sidecar
-          grep -Fq 'func TestExternalMaintainedJQProgramsCompile' module_jq_test.go
-          FIVEGPN_JQ_PROGRAMS="${{ runner.temp }}/jq-programs.json"             go test ./... -count=1 -run '^TestExternalMaintainedJQProgramsCompile$'
-      - name: Validate with the last published core parser contract
-        working-directory: 5gpn-core-contract/cmd/5gpn-dns
+          go-version-file: 5gpn-mihomo/go.mod
+          cache-dependency-path: 5gpn-mihomo/go.sum
+      - name: Review and compile the complete corpus with the shipped monolith
+        working-directory: 5gpn-mihomo
         env:
           FIVEGPN_EXTENSIONS_ROOT: ${{ github.workspace }}
           FIVEGPN_MARKETPLACE_INDEX: ${{ runner.temp }}/marketplace.json
         run: |
-          grep -Fq 'func TestExternalMaintainedExtensionsAreInstallableFromURL' intercept_module_parser_test.go
-          grep -Fq 'func TestExternalMaintainedMarketplaceMatchesCoreContract' extension_marketplace_test.go
-          go test ./... -count=1 -run '^(TestExternalMaintainedExtensionsAreInstallableFromURL|TestExternalMaintainedMarketplaceMatchesCoreContract)$'
+          cp "$FIVEGPN_EXTENSIONS_ROOT/tests/mihomo-external-review_test.go" \
+            5gpn/engine/external_extensions_test.go
+          grep -Fq 'func TestExternalOfficialMarketplaceFullReviewCorpus' \
+            5gpn/engine/external_extensions_test.go
+          go test ./5gpn/engine -count=1 \
+            -run '^TestExternalOfficialMarketplaceFullReviewCorpus$'

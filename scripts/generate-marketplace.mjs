@@ -3,26 +3,25 @@ import { mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/pro
 import { isIP } from 'node:net'
 import path from 'node:path'
 import { isAlias, isMap, isSeq, parseDocument } from 'yaml'
-import { compileManifestPolicy, policyDigest } from './typed-policy.mjs'
+import { compileManifestPolicy } from './typed-policy.mjs'
 
 const repositoryRoot = path.resolve(import.meta.dirname, '..')
-const rawBase = 'https://raw.githubusercontent.com/moooyo/5gpn-extensions/main'
-const githubBase = 'https://github.com/moooyo/5gpn-extensions/blob/main'
+const repositoryRawBase = 'https://raw.githubusercontent.com/moooyo/5gpn-extensions'
+const repositoryBlobBase = 'https://github.com/moooyo/5gpn-extensions/blob'
 const revisionPattern = /^[0-9a-f]{40}$/
 const directoryPattern = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/
 const tagPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const spdxPattern = /^[A-Za-z0-9][A-Za-z0-9.+-]*$/
 const maxCaptureHosts = 512
+const maxSettings = 64
 
 // The published index is one document describing one wire contract.
 //
-// It used to be several. The core parses the index with DisallowUnknownFields,
-// so a field added to it is not additive -- a core that does not know the field
-// refuses the whole document and loses its extension catalogue -- and the split
-// existed to keep serving a frozen shape to cores that predated the typed
-// policy projection. Those cores are gone, every extension needs the current
-// contract, and the frozen profile had become an empty catalogue that failed by
-// producing nothing rather than by saying so.
+// It used to be several. The core now decodes unknown discovery metadata
+// leniently, while this publisher deliberately emits only the fields the
+// runtime consumes. The retired resource list and typed-policy projection were
+// parallel, non-authoritative contracts; keeping frozen output profiles for
+// them produced empty or misleading catalogues rather than useful compatibility.
 //
 // The contract version lives in the published path (marketplace/v2/), which is
 // where a reader can act on it. When it next changes, that is a new path and a
@@ -55,8 +54,8 @@ function validHost(value) {
   return host.split('.').length >= 2 && host.split('.').every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
 }
 
-// See validate.mjs: the canonical spelling is required so the manifest text this
-// digests and the network.String() the gateway compiles are the same bytes.
+// See validate.mjs: the canonical spelling keeps the reviewed text identical
+// to the normalized rule the gateway displays and enforces.
 function validCIDR(value) {
   if (typeof value !== 'string' || value !== value.trim() || value === '') return false
   const slash = value.indexOf('/')
@@ -186,7 +185,10 @@ function parseStrictManifest(body, directory) {
   validateRoutingRules(routingRules, directory)
 
   const settings = manifest.settings ?? []
-  assert(Array.isArray(settings), `${directory}: settings must be an array`)
+  assert(
+    Array.isArray(settings) && settings.length <= maxSettings,
+    `${directory}: settings must be an array with at most ${maxSettings} entries`,
+  )
   const settingKeys = new Set()
   for (const [index, setting] of settings.entries()) {
     assertKeys(setting, new Set(['key', 'type', 'label', 'description', 'required', 'options', 'min', 'max', 'default']), `${directory}: settings[${index}]`)
@@ -207,7 +209,7 @@ function parseStrictManifest(body, directory) {
     assertKeys(action.script, new Set(['source', 'inline', 'bodyMode', 'entry', 'jq', 'reject', 'mock', 'headers', 'rewrite', 'replaceBody', 'timeoutMs', 'maxBodyBytes']), `${directory}: action ${action.id}.script`)
     assert(action.script.inline === undefined, `${directory}: published actions must use immutable local script sources`)
     // Bounded for the two kinds that run with a timeout and a body, matching the
-    // gateway parser and the sidecar. See validate.mjs.
+    // monolith parser and runtime. See validate.mjs.
     if (action.script.jq !== undefined || action.script.source !== undefined) {
       for (const [key, min, max] of [['timeoutMs', 50, 30000], ['maxBodyBytes', 1024, 67108864]]) {
         if (action.script[key] === undefined) continue
@@ -295,20 +297,11 @@ async function extensionDirectories(root) {
   return directories.sort()
 }
 
-async function buildResources(root, directory, actions) {
+async function validateLocalScriptSources(root, directory, actions) {
   const extensionRoot = await realpath(path.join(root, directory))
-  // The core derives this list from every action that names a script source,
-  // absolute URLs included, and refuses an install whose entry does not match.
-  // A remote bundle therefore belongs here with the digest the gateway will
-  // compute: omitting it because this repository does not ship the bytes makes
-  // the entry uninstallable rather than more honest.
-  // A jq action names no script, so it contributes no resource: there is
-  // nothing for the gateway to fetch or for a digest to pin.
-  const scripted = actions.filter((action) => action.script.source !== undefined)
-  const local = scripted.filter((action) => !isAbsoluteScriptSource(action.script.source))
-  const remote = scripted.filter((action) => isAbsoluteScriptSource(action.script.source))
+  const local = actions.filter((action) =>
+    action.script.source !== undefined && !isAbsoluteScriptSource(action.script.source))
   const paths = [...new Set(local.map((action) => safeResourcePath(action.script.source, directory)))].sort()
-  const resources = []
   for (const relative of paths) {
     const filename = path.join(extensionRoot, ...relative.split('/'))
     const resolved = await realpath(filename)
@@ -316,30 +309,7 @@ async function buildResources(root, directory, actions) {
     assert(escape !== '..' && !escape.startsWith(`..${path.sep}`) && !path.isAbsolute(escape), `${directory}: script source resolves outside its extension directory`)
     const info = await stat(resolved)
     assert(info.isFile(), `${directory}: script source ${relative} is not a regular file`)
-    const body = await readFile(resolved)
-    resources.push({
-      path: relative,
-      url: `${rawBase}/${urlPath(directory, relative)}`,
-      sha256: sha256(body),
-      size: body.length,
-    })
   }
-  // Deduplicate by URL the way the core does: two actions may run one bundle.
-  const seenRemote = new Map()
-  for (const source of [...new Set(remote.map((action) => action.script.source))].sort()) {
-    const body = await fetchRemoteScript(source, directory)
-    const resource = {
-      path: remoteResourcePath(source),
-      url: source,
-      sha256: sha256(body),
-      size: body.length,
-    }
-    const previous = seenRemote.get(resource.url)
-    assert(previous === undefined || previous.sha256 === resource.sha256, `${directory}: remote script ${source} changed between reads`)
-    seenRemote.set(resource.url, resource)
-    resources.push(resource)
-  }
-  return resources
 }
 
 function isAbsoluteScriptSource(source) {
@@ -351,39 +321,15 @@ function isAbsoluteScriptSource(source) {
   }
 }
 
-// Mirrors the core's derivation: the URL path without its leading slash.
-function remoteResourcePath(source) {
-  return new URL(source).pathname.replace(/^\/+/, '')
-}
-
-async function fetchRemoteScript(source, directory) {
-  const response = await fetch(source, { redirect: 'follow' })
-  assert(response.ok, `${directory}: remote script ${source} returned HTTP ${response.status}`)
-  const body = Buffer.from(await response.arrayBuffer())
-  assert(body.length > 0 && body.length <= 1 << 20, `${directory}: remote script ${source} must contain 1 to 1048576 bytes`)
-  return body
-}
-
-// The typed runtime-overlay projection this extension compiles to.
-//
-// Published rather than merely checked because the gateway compiles the same
-// manifest independently, in Go. Carrying the digest here turns that second
-// implementation into something verifiable: the gateway compares what it is
-// about to enforce against what was reviewed and published, and a divergence
-// is caught before a generation is committed instead of showing up as traffic
-// behaving differently from the reviewed policy.
-function policyProjection(manifest, directory) {
-  let projection
+// This duplicate compiler is only a fast repository-local lint. The pinned
+// mihomo full-review corpus is authoritative for the runtime contract. Its
+// result is deliberately not published: the monolith ignores the retired
+// policy projection and compiles the manifest itself during review.
+function lintManifestPolicy(manifest, directory) {
   try {
-    projection = compileManifestPolicy(manifest)
+    compileManifestPolicy(manifest)
   } catch (error) {
     throw new Error(`${directory}: ${error.message}`)
-  }
-  return {
-    clientRules: projection.rules.length,
-    policyRules: projection.policyRules,
-    captureRules: projection.captureRules,
-    digest: policyDigest(projection, createHash),
   }
 }
 
@@ -399,6 +345,8 @@ export async function generateMarketplace({ root = repositoryRoot, revision }) {
 
   const entries = []
   const ids = new Set()
+  const rawBase = `${repositoryRawBase}/${revision}`
+  const githubBase = `${repositoryBlobBase}/${revision}`
   for (const definition of [...metadata.entries].sort((left, right) => compareText(left.directory, right.directory))) {
     const directory = definition.directory
     const manifestPath = path.join(root, directory, 'extension.yaml')
@@ -411,11 +359,8 @@ export async function generateMarketplace({ root = repositoryRoot, revision }) {
     assert(licenseInfo.isFile(), `${directory}: license text ${definition.licenseSpdx}.txt is missing`)
     const documentationInfo = await stat(path.join(root, directory, 'README.md'))
     assert(documentationInfo.isFile(), `${directory}: README.md is missing`)
-    const resources = await buildResources(root, directory, manifest.actions ?? [])
-    // The compile is the review-time gate that refuses a rule the typed overlay
-    // cannot carry, so it runs for every extension whether or not the result is
-    // interesting to read.
-    const policy = policyProjection(manifest, directory)
+    await validateLocalScriptSources(root, directory, manifest.actions ?? [])
+    lintManifestPolicy(manifest, directory)
     entries.push({
       id: manifest.metadata.id,
       name: manifest.metadata.name.trim(),
@@ -432,7 +377,6 @@ export async function generateMarketplace({ root = repositoryRoot, revision }) {
         sha256: sha256(manifestBody),
         size: manifestBody.length,
       },
-      resources,
       capabilities: {
         captureHostCount: manifest.traffic.captureHosts.length,
         actionCount: (manifest.actions ?? []).length,
@@ -445,7 +389,6 @@ export async function generateMarketplace({ root = repositoryRoot, revision }) {
         routingRuleCount: (manifest.traffic.routingRules ?? []).length,
         egressGroupRequired: manifest.requirements?.egressGroup?.required ?? false,
       },
-      policy,
     })
   }
   entries.sort((left, right) => compareText(left.id, right.id))

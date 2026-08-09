@@ -16,8 +16,9 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/exte
 This public raw URL is directly installable. For a private fork, use the
 Console's local-add/upload flow or an operator-controlled public HTTPS mirror;
 never embed repository credentials in an extension URL. Review the immutable
-source revision, five capture hosts, 18 actions, five UDP/443 fallback rules,
-and interception boundary before enabling it.
+source revision, five capture hosts, 18 actions, zero extension routing rules,
+and interception boundary before enabling it. UDP/443 fallback is owned by the
+core seed's fixed global guard rather than by this extension.
 
 ## Pinned upstream
 
@@ -89,7 +90,7 @@ dispatch table. Nothing here expands the capture boundary.
 
 | Upstream behavior | Native 5gpn mapping |
 | --- | --- |
-| `[MitM]` hosts `api.zhihu.com`, `m-cloud.zhihu.com`, `page-info.zhihu.com`, `www.zhihu.com`, and `zhida.zhihu.com` | The same five exact names are the complete `traffic.captureHosts` list. No wildcard or accidental `api.com`/`page-info.com` alternative is acquired. Five host-scoped UDP/443 reject rules additionally force QUIC fallback on preserved/custom gateway configurations. |
+| `[MitM]` hosts `api.zhihu.com`, `m-cloud.zhihu.com`, `page-info.zhihu.com`, `www.zhihu.com`, and `zhida.zhihu.com` | The same five exact names are the complete `traffic.captureHosts` list. No wildcard or accidental `api.com`/`page-info.com` alternative is acquired. The core seed owns one fixed global UDP/443 guard, so the extension declares no duplicate routing rules. |
 | Eleven upstream `reject-dict` directives plus the current `/root/window` navigation entry | Five request actions declare a status 200, `Content-Type: application/json`, `{}` reply. Three group the API, web, and Zhida path sets by host and path. The two that upstream conditions on query values -- `next-render`, which needs `id` and `type=answer`, and Zhida's `feeds`, which needs `categoryId=1` -- are their own actions with the condition in the pattern, because a declared mock cannot decline after matching. RE2 has no lookahead, so both parameter orders are enumerated and the percent-encoded brace is matched explicitly. The duplicated token on the upstream `commercial_api` line is normalized to one synthetic response; `/root/window` is an explicit compatibility addition requested to remove the Kanshan entry. |
 | `m-cloud` configuration `drop_keys` JQ program | `clean-transport-config` removes the same 17 HTTPDNS/QUIC config keys and removes `delayHttpdns`, `dnsParser`, and `HTTPDNS` only from retained object-valued configs. Arrays, scalars, and unrelated fields remain unchanged. |
 | Root-tab whitelist | The pinned upstream whitelist retained `ring_tab`. As a deliberate compatibility change, `clean-root-tab` handles both current `/root/tab` and versioned `/root/tab/vN` paths, keeps only `follow`, `recommend`, and `hot`, clears `ring_list`, and sets an existing `tab_ext.is_show_ring` flag to `false`. This removes the top Rings entry while preserving tab order and unrelated response fields. |
@@ -107,14 +108,12 @@ This directory ships no JavaScript at all: every synthetic reply is declared and
 every response transform is a jq expression, and neither enters the JavaScript
 runtime.
 
-This repository checks their structure and their path patterns; it cannot
-execute them, because Node has no jq. The sidecar carries a jq suite of its own,
-but its copies of these expressions are a snapshot and currently lag the ones
-shipped here, so do not read a green sidecar suite as covering this manifest.
-Behavioural checks are run out of band against gojq at the sidecar's pinned
-version; the `2.1.0` guards were verified that way -- every program against
-every degenerate envelope, plus an old-versus-new comparison on valid documents
-to prove no guard turned a program into a silent no-op.
+This repository checks their structure and path patterns; Node cannot execute
+gojq programs. Publication therefore also sends the complete marketplace
+through the installer-pinned mihomo review path, where every expression is
+compiled by the same gojq integration that runs it. Focused behavioral fixtures
+still exercise every program against degenerate envelopes and compare valid
+documents so a guard cannot turn a transform into a silent no-op.
 
 ## Current API compatibility hardening
 
@@ -139,9 +138,9 @@ Version `1.2.0` accepts unversioned or multi-digit current paths, optional and
 reordered query parameters, lowercase encoded braces, and queryless variants
 where the script can still verify semantics. Topstory cleanup is deliberately
 conservative: it removes only explicit ad/commercial fields and type markers,
-preserving unknown feed structures. Five UDP/443 rules address the bootstrap
-case where cached QUIC configuration can bypass the response action that would
-otherwise disable QUIC/HTTPDNS.
+preserving unknown feed structures. Version `2.2.0` removes the five redundant
+host-scoped UDP/443 rules: the core's fixed global guard owns QUIC fallback and
+interception readiness already fails closed when that guard is absent.
 
 These observations are compatibility evidence, not an authenticated iOS app
 capture. A future change must still record actual device host/path/body shapes
@@ -169,10 +168,10 @@ before adding a new destructive response filter.
 - Synthetic responses always return an empty JSON object. Clients that require
   a different status or response schema may behave differently after an API
   change.
-- The extension requests no storage, origin-scoped network access, upstream
-  mapping, setting, or operator egress binding. Its only routing effects are
-  five exact-domain UDP/443 rejects. They cannot acquire a direct connection
-  to a hard-coded HTTPDNS address that never carries a domain association.
+- The extension requests no storage, network access, upstream mapping, setting,
+  operator egress binding, or routing rule. The core-wide UDP/443 guard cannot
+  acquire a direct connection to a hard-coded HTTPDNS address that never
+  carries a domain association.
 - Interception still requires the global MITM master and an authorized test
   device that trusts the interception root. Certificate pinning, encrypted
   application payloads, protocol changes, or traffic outside ports 80 and 443
@@ -212,37 +211,39 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.zhihu-cleaner`; bump `metadata.version` for every immutable manifest or script change. |
-| Current manifest | `version=2.1.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=5`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=2.2.0`; `persistentStorage=false`; `settings=0`; `captureHosts=5`; `actions=18`; `routingRules=0`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
+| Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | None. A same-ID update has no extension setting values to migrate. |
-| Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, five host-scoped UDP/443 reject rules, no JavaScript, and no network permission, mappings, settings, or egress requirement. |
-| Operator state | A normal update retains `capture_dns` and execution position; both still require review before enable. |
+| Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, no extension routing rules, no JavaScript, and no network permission, mappings, settings, or egress requirement. The core seed independently owns the global UDP/443 guard. |
+| Operator state | A normal update retains `capture_dns`, execution position, and the prior enabled authorization; all still require review before apply. |
 | Ordering | Review every other extension that captures a listed Zhihu host. Request and response actions execute in configured extension order. |
 | Authorization gate | Confirm the retained upstream permission covers the candidate revision and documented public redistribution terms before implementation or publication. |
-| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
+| Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. No extension data conversion is required. |
 
 ### Repeatable migration
 
 1. Complete the shared playbook record with the pinned LPX commit, immutable raw
    URL, fetch date, authorization, rewrite counts, five capture hosts, 18
-   actions, five routing rules, and stateless contract.
+   actions, zero routing rules, and stateless contract.
 2. Diff every synthetic response, matcher, JQ expression, deletion path, and
    MITM hostname. Treat removals as explicit decisions.
 3. Synchronize the immutable source URL and fetch date, authorization scope,
    attribution, license mapping, notices, fixtures, limitations, marketplace
    metadata, and `metadata.version` in one change.
 4. Run the focused fixtures, full repository gates, upstream verification, and
-   the pinned external parser-contract fallback documented in `MIGRATION.md`.
-5. Apply the candidate while disabled, inspect the complete host and action
-   summary, review extension ordering, and enable only on an authorized test
-   device.
+   installer-pinned mihomo full-review corpus documented in `MIGRATION.md`.
+5. Select and apply the reviewed Marketplace entry without a disable-first step,
+   confirm prior authorization, inspect the complete host and action summary,
+   review extension ordering, and test only on an authorized device.
 
 ### Rollback
 
 The publisher prepares a same-ID revert-forward candidate that restores the
-reviewed five-host, 18-action, five-routing-rule baseline with a version incremented above the
-failing candidate. Apply it while disabled, review ordering and `capture_dns`,
-then rerun every synthetic-response and JSON fixture before enable. Emergency
+reviewed five-host, 18-action, zero-routing-rule baseline with a version incremented above the
+failing candidate. Select and review the rollback Marketplace entry, apply its
+snapshot digest, confirm prior authorization, review ordering and `capture_dns`,
+then rerun every synthetic-response and JSON fixture. Emergency
 reinstall from an old immutable manifest is data-safe because the extension is
 stateless, but it loses execution position, `capture_dns`, and installed source
 identity.
@@ -253,9 +254,9 @@ For each update:
 
 1. Re-read both upstream raw artifacts at their pinned commits and diff them
    against what this port declares.
-2. Import the candidate through **Install from URL** or the explicit update
-   flow and confirm it remains disabled.
-3. Confirm exactly five capture hosts, 18 actions, five routing rules, zero
+2. Select the candidate's commit-addressed Marketplace entry and confirm the
+   reviewed manifest URL and complete snapshot digest before apply.
+3. Confirm exactly five capture hosts, 18 actions, zero routing rules, zero
    settings, no network permission, zero mappings, and no egress requirement.
 4. Exercise all 11 upstream synthetic-response directives, the additional
    `/root/window` response, and all 15 upstream JSON directives, including
@@ -268,10 +269,10 @@ For each update:
 6. On the authorized device, request
    `https://api.zhihu.com/commercial_api/5gpn-probe`; a working interception
    chain returns the synthetic body `{}` from `mock-api-json`.
-7. Confirm the five UDP/443 rules are active, clear cached Zhihu HTTPDNS/QUIC
-   state, and verify at least one real `action completed` log.
-8. Run the repository gates and pinned external parser-contract fallback before
-   publication. The fallback is not current-channel validation.
+7. Confirm the core's fixed global UDP/443 guard is active, clear cached Zhihu
+   HTTPDNS/QUIC state, and verify at least one real `action completed` log.
+8. Run the repository gates and installer-pinned mihomo full-review corpus
+   before publication.
 
 The repository-local gates are:
 
@@ -282,6 +283,6 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 ```
 
-Run the immutable external parser-contract fallback from
-[`MIGRATION.md`](../MIGRATION.md) after the local gates pass, and retain its
-documented current-channel limitation in the review record.
+Run the installer-pinned mihomo full-review corpus from
+[`MIGRATION.md`](../MIGRATION.md) after the local gates pass and retain the exact
+mihomo source commit in the review record.

@@ -201,13 +201,14 @@ upstream revision. Upstream selection remains a manual review decision.
 | --- | --- |
 | Identity | Keep `io.5gpn.apple-wloc`; bump `metadata.version` for every immutable manifest or script change. |
 | Current manifest | `version=2.1.0`; `persistentStorage=true`; `settings=4`; `captureHosts=2`; `actions=2`; `routingRules=0`; `network=false`; `upstreamMappings=0`; `egressRequired=false`. |
+| Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateful. `persistentStorage` is true: the picker page's saved coordinate lives in extension-scoped storage. |
 | Settings | Keep `longitude`, `latitude`, and `accuracy` as required numbers with their `min`/`max` bounds, and `LogLevel` as a required select. The three coordinate keys are also what the Console binds its map picker to, so renaming one removes the picker silently. `longitude` and `latitude` carry no default on purpose. Valid same-key, same-type values survive a normal update; changing a type deliberately does not. |
 | Sensitive values | Record whether each coordinate setting is complete, but never copy its value into a migration record, issue, or log. The same applies to a coordinate saved through the picker. |
 | Reviewed capability baseline | Two capture hosts, two proxy-compat actions (one response rewrite and one request settings-save), four settings, persistent storage, and no network permission, routing rules, upstream mappings, or required egress binding. |
 | Current migration baseline | Version `2.0.0` replaced the `FFF686868/proxypin-wloc-spoofer` port with the `Yu9191/wloc` proxy-client modules, removing the typed `location` setting and the local `failClosed` behavior with the parser that backed them. Version `2.1.0` restored a Console map picker over the flat coordinate trio without changing what the scripts receive, retyped the coordinates to bounded `number`s so every existing install drops upstream's passthrough sentinel instead of carrying it forward, and re-keyed the log level to the `LogLevel` spelling both scripts actually read. |
 | Operator state | A normal same-ID update retains valid settings, stored picker coordinates, `capture_dns`, and execution position. There is no egress binding. Record presence, not sensitive coordinates. |
-| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. Reverting to `2.0.x` changes the coordinate type back to `text`, so the numeric point set under `2.1.0` is dropped rather than retained and both coordinates fall back to upstream's `113.94114`/`22.544577` passthrough sentinel: the extension will report ready and patch nothing until a point is re-entered. It also restores the `logLevel` key, which the settings-save script does not read. Reverting below `2.0.0` reintroduces the `location`/`failClosed` settings contract, which is a different settings shape again. |
+| Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. Reverting to the `2.0.x` behavior changes the coordinate type back to `text`, so the numeric point set under `2.1.0` is dropped rather than retained and both coordinates fall back to upstream's `113.94114`/`22.544577` passthrough sentinel: the extension will report ready and patch nothing until a point is re-entered. It also restores the `logLevel` key, which the settings-save script does not read. Reverting below the `2.0.0` behavior reintroduces the `location`/`failClosed` settings contract, which is a different settings shape again. |
 
 ### Repeatable migration
 
@@ -235,18 +236,18 @@ upstream revision. Upstream selection remains a manual review decision.
    starts at upstream's `info` -- so an operator who had chosen `off` or `debug`
    loses that choice and has to re-select it, and it now also reaches the
    settings-save script, which under the old key never received it.
-6. Apply the candidate while disabled, confirm the retained setting presence,
-   review the exact two-host boundary, and test authorized WLOC traffic before
-   enabling it more broadly. Use a disposable non-sensitive test location and
+6. Apply the reviewed Marketplace candidate without a disable-first step,
+   confirm the prior authorization and retained setting presence, review the
+   exact two-host boundary, and test authorized WLOC traffic. Use a disposable non-sensitive test location and
    redact coordinates from response excerpts, screenshots, and packet captures.
 
 ### Rollback
 
 The publisher prepares a same-ID revert-forward candidate that restores the baseline
 settings contract, host boundary, and action matchers with a
-new incremented version higher than the failing candidate. Apply it while
-disabled and confirm that all four settings remain
-valid before re-testing authorized WLOC traffic. Emergency reinstall from an old
+new incremented version higher than the failing candidate. Review and apply its
+Marketplace entry, confirm the prior authorization and all four settings remain
+valid, then re-test authorized WLOC traffic. Emergency reinstall from an old
 immutable manifest loses the coordinate saved through the picker along with the
 configured settings, `capture_dns`, execution position, and source identity;
 reconfigure them before enable.

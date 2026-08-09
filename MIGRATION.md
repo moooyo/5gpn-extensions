@@ -15,7 +15,7 @@ focused verification commands. This document supplies the shared procedure.
 | Candidate selection | `manual-only` |
 | Automatic discovery | `forbidden` |
 | Installed update | `explicit-only` |
-| Post-update state | `disabled` |
+| Post-update state | `preserve-existing-authorization` |
 
 ## Terms
 
@@ -26,21 +26,26 @@ focused verification commands. This document supplies the shared procedure.
   the strict `5gpn.io/v1` contract.
 - **Rollout** is the operator action that replaces an installed immutable
   snapshot.
-- **Publisher-managed revert-forward rollback** is a new reviewed update at the
-  installed source URL that restores the previous behavior while retaining the
-  same extension identity. It is available only to that URL's publisher or an
-  operator using an operator-controlled fork.
+- **Publisher-managed revert-forward rollback** is a new reviewed Marketplace
+  entry that restores the previous behavior with a higher version while
+  retaining the same extension identity.
 
 The current 5gpn update contract has these relevant guarantees:
 
-- an update check refetches only the installed manifest URL;
+- pasted-URL and local review are install-only and refuse an installed ID;
+- an installed extension changes version only after the operator selects and
+  reviews a Marketplace entry;
 - the candidate must keep the same `metadata.id`;
-- replacement requires the installed extension to be disabled;
+- review identifies the exact commit-addressed manifest URL and complete
+  immutable snapshot digest, and apply refetches both;
+- a selected entry, manifest URL, manifest digest, or snapshot change requires
+  a new review;
 - a setting value is retained only when its key and type are unchanged and the
   value remains valid under the candidate definition;
 - the egress binding, `capture_dns` choice, and execution-order position are
   retained;
-- replacement is atomic and leaves the candidate disabled; and
+- replacement is atomic, needs no disable-first step, and preserves the prior
+  enabled authorization; and
 - extension storage is keyed by `metadata.id` while the installed candidate
   continues to declare `persistentStorage: true`.
 
@@ -114,9 +119,10 @@ source commit, release mutability, and UTC review date.
 The commit embedded in an immutable raw URL, or the documented official release
 record for a release-only bundle, is the provenance binding. Record the URL and
 review date; do not add a manually maintained byte size, SHA-256, or other
-digest as a second pin. Marketplace resource digests and sizes are derived from
-the bytes read during a catalog build and are verified by the installer. They
-are generated transport-integrity fields, not upstream provenance records.
+digest as a second pin. The Marketplace publishes the locally derived manifest
+digest and a commit-addressed manifest URL. External script resources remain
+live snapshot dependencies and are covered by the runtime's review digest, not
+by a duplicate catalog resource list.
 
 Confirm that the chosen commit is the intended authority. This confirmation is
 manual and review-driven; it is not an instruction to add automatic upstream
@@ -198,63 +204,64 @@ try {
 }
 ```
 
-Run the extension-specific commands in its README. A runtime-facing change
-also requires external parser-contract evidence. As of 2026-08-05,
-`moooyo/5gpn` `main` and `beta` both resolve to
-`3ef751662154cb1df597d0f1292d6843c22694cd`, and neither tree contains the
-former `cmd/5gpn-dns` package or
-`TestExternalMaintainedExtensionsAreInstallableFromURL` and
-`TestExternalMaintainedMarketplaceMatchesCoreContract`. The last publicly
-available source for that parser contract is the immutable commit
-`dd8bc6014af5f6cbc308d2b02a34b13da3f7ccbc`.
-
-Prepare a clean `moooyo/5gpn` checkout at that exact fallback commit, set
-`$coreRoot` below to it, and run the compatibility gate. This is a real parser
-regression test, but it is not validation of the current `main` or `beta`
-runtime:
+Run the extension-specific commands in its README. A runtime-facing change also
+requires a complete review with the exact mihomo source operators receive. The
+current installer pins `v1.19.28-monolith.29`, whose source commit is
+`5798f177fbe0ef209d50e39204c16b21e53194ee`. Prepare a clean
+`moooyo/mihomo` checkout at that commit on the isolated test environment and run
+the full corpus gate:
 
 ```powershell
 $extensionsRoot = (Resolve-Path '.').Path
-$coreRoot = (Resolve-Path '..\5gpn-parser-contract').Path
-$fallbackCoreRevision = 'dd8bc6014af5f6cbc308d2b02a34b13da3f7ccbc'
-$coreStatus = @(git -C $coreRoot status --short)
-if ($LASTEXITCODE -ne 0) { throw 'cannot inspect the fallback parser worktree' }
-$coreStatusText = $coreStatus -join [Environment]::NewLine
-if ($coreStatus.Count -ne 0) { throw "fallback parser worktree is not clean:`n$coreStatusText" }
-$coreRevision = git -C $coreRoot rev-parse HEAD
-if ($LASTEXITCODE -ne 0) { throw 'cannot resolve the fallback parser revision' }
-if ($coreRevision -ne $fallbackCoreRevision) { throw "fallback parser revision is $coreRevision, expected $fallbackCoreRevision" }
-$marketplacePath = Join-Path $env:TEMP ("5gpn-extensions-core-contract-" + [guid]::NewGuid().ToString('N') + '.json')
+$mihomoRoot = (Resolve-Path '..\mihomo-installer-pin').Path
+$mihomoSourceCommit = '5798f177fbe0ef209d50e39204c16b21e53194ee'
+$mihomoStatus = @(git -C $mihomoRoot status --short)
+if ($LASTEXITCODE -ne 0) { throw 'cannot inspect the pinned mihomo worktree' }
+$mihomoStatusText = $mihomoStatus -join [Environment]::NewLine
+if ($mihomoStatus.Count -ne 0) { throw "pinned mihomo worktree is not clean:`n$mihomoStatusText" }
+$actualCommit = git -C $mihomoRoot rev-parse HEAD
+if ($LASTEXITCODE -ne 0) { throw 'cannot resolve the pinned mihomo revision' }
+if ($actualCommit -ne $mihomoSourceCommit) { throw "mihomo revision is $actualCommit, expected $mihomoSourceCommit" }
+$marketplacePath = Join-Path $env:TEMP ("5gpn-extensions-full-review-" + [guid]::NewGuid().ToString('N') + '.json')
 $testRevision = '0000000000000000000000000000000000000000'
 $previousExtensionsRoot = $env:FIVEGPN_EXTENSIONS_ROOT
 $previousMarketplaceIndex = $env:FIVEGPN_MARKETPLACE_INDEX
+$externalTest = Join-Path $extensionsRoot 'tests\mihomo-external-review_test.go'
+$installedTest = Join-Path $mihomoRoot '5gpn\engine\external_extensions_corpus_test.go'
+if (Test-Path -LiteralPath $installedTest) { throw "temporary test path already exists: $installedTest" }
 
 try {
   npm run marketplace:build -- --revision $testRevision --output $marketplacePath
   if ($LASTEXITCODE -ne 0) { throw "marketplace build failed with exit code $LASTEXITCODE" }
   $env:FIVEGPN_EXTENSIONS_ROOT = $extensionsRoot
   $env:FIVEGPN_MARKETPLACE_INDEX = $marketplacePath
-  Push-Location (Join-Path $coreRoot 'cmd\5gpn-dns')
+  Copy-Item -LiteralPath $externalTest -Destination $installedTest -Force
+  Push-Location $mihomoRoot
   try {
-    go test ./... -count=1 -run '^(TestExternalMaintainedExtensionsAreInstallableFromURL|TestExternalMaintainedMarketplaceMatchesCoreContract)$'
-    if ($LASTEXITCODE -ne 0) { throw "fallback parser contract failed with exit code $LASTEXITCODE" }
+    go test ./5gpn/engine -count=1 -run '^TestExternalOfficialMarketplaceFullReviewCorpus$'
+    if ($LASTEXITCODE -ne 0) { throw "mihomo full-review corpus failed with exit code $LASTEXITCODE" }
   } finally {
     Pop-Location
   }
 } finally {
+  Remove-Item -LiteralPath $installedTest -Force -ErrorAction SilentlyContinue
   $env:FIVEGPN_EXTENSIONS_ROOT = $previousExtensionsRoot
   $env:FIVEGPN_MARKETPLACE_INDEX = $previousMarketplaceIndex
   [System.IO.File]::Delete($marketplacePath)
 }
 ```
 
-Record the fallback revision, command, and CI result in the migration record.
-The repository CI must pin this exact commit rather than a mutable branch.
-When the core project publishes a new canonical external gate for the parser
-that will ship, replace the fallback, run the supported gate for every required
-channel, and record those revisions. Never present the fallback as current
-channel coverage or treat the repository-local Node.js gates as core-parser
-validation.
+The test locally serves repository-owned commit URLs from the candidate checkout
+and then uses the monolith's real Marketplace review, immutable snapshot,
+complete configuration validation, goja compilation, and gojq compilation.
+Absolute third-party script URLs are fetched for real. This is intentionally a
+non-hermetic network integration gate: a missing or changed live dependency
+must block publication instead of being replaced by a stub.
+
+Record the exact mihomo source commit, command, and CI result in the migration
+record. When the installer advances its mihomo artifact, update this pin and the
+workflow together. Never use a branch or movable tag, and never present the
+repository-local Node.js gates alone as runtime validation.
 
 The all-zero marketplace revision identifies an uncommitted local integration
 test and is not provenance. Record the candidate's real repository revision
@@ -266,22 +273,22 @@ that unrelated worktree changes are untouched.
 
 ## Repeatable installed rollout
 
-1. The source publisher publishes the reviewed candidate at the same manifest
-   URL used by the installed extension. An operator can perform this step only
-   for an operator-controlled fork. An install from a permanently immutable
-   commit URL cannot use the normal update path.
-2. Run an update check and compare the displayed candidate version, settings,
-   capture hosts, actions, routing, and permissions with the completed
-   migration record.
-3. Disable the baseline extension. Do not uninstall it.
-4. Apply only the candidate from the reviewed source revision. Confirm that the
-   replacement remains disabled.
-5. Confirm which setting values were retained. Re-enter any value whose key,
+1. Publish the reviewed candidate and regenerate the Marketplace from its exact
+   repository commit. The entry's manifest, documentation, and license URLs
+   must name that commit rather than `main`.
+2. Select that Marketplace entry and compare the displayed candidate version,
+   settings, capture hosts, actions, routing, permissions, reviewed manifest
+   URL, and snapshot digest with the completed migration record.
+3. Apply only the reviewed entry and digest. A review conflict means the source
+   changed and requires a complete new review; never retry with the old digest.
+   No disable-first step is required: confirm an enabled baseline remains
+   enabled and a disabled baseline remains disabled.
+4. Confirm which setting values were retained. Re-enter any value whose key,
    type, option set, or validation changed. Recheck the egress binding,
    `capture_dns`, and execution-order position.
-6. Review the complete permission and routing summary, then enable the
-   candidate on an authorized test device.
-7. Run the focused smoke tests from the extension README. Record the observed
+5. Review the complete permission and routing summary, then test the candidate
+   only on an authorized device.
+6. Run the focused smoke tests from the extension README. Record the observed
    result and the rollback decision point before wider rollout.
 
 ## Repeatable rollback
@@ -291,7 +298,7 @@ Prepare rollback before enabling the candidate:
 - retain the baseline extension-repository commit, manifest, scripts, source,
   and provenance;
 - prepare and verify a revert-forward candidate on a separate review branch or
-  commit without publishing it at the installed URL unless rollback is needed;
+  commit without adding it to the Marketplace unless rollback is needed;
 - confirm that the state strategy remains readable by the baseline; and
 - define the smoke-test failure that triggers rollback.
 
@@ -299,14 +306,15 @@ The preferred rollback is publisher-managed revert-forward. A public-catalog
 operator cannot publish it and must wait for the catalog publisher unless the
 operator installed an operator-controlled fork:
 
-1. Revert the behavior at the same installed manifest URL in a new reviewed
-   repository change while keeping `metadata.id` stable and using a new
-   incremented `metadata.version` higher than the failing candidate.
+1. Revert the behavior in a new reviewed repository change while keeping
+   `metadata.id` stable and using a `metadata.version` higher than the failing
+   candidate.
 2. Run the complete migration and verification gates on that rollback
    candidate.
-3. Disable the failing candidate, review the rollback candidate from its
-   immutable source revision, and apply it through the normal update path.
-4. Confirm retained settings and operator state, then enable only after the
+3. Select the rollback Marketplace entry, review its commit-addressed manifest
+   and snapshot digest, and apply it through the normal review/apply path. The
+   replacement preserves the authorization in force immediately before apply.
+4. Confirm retained settings and operator state, then proceed only after the
    baseline-focused smoke tests pass.
 
 For a stateless extension, uninstalling and reinstalling an old immutable
@@ -329,11 +337,9 @@ A migration is complete only when all of the following are true:
 - every upstream source is bound to an immutable commit URL or a deliberately
   selected official release asset, and its license boundary is verified;
 - behavior, capability, state, license, and rollback decisions are explicit;
-- repository, focused, and reproducibility gates pass, and the pinned external
-  parser-contract fallback passes with its current-channel limitation recorded;
-- any newly published canonical parser gate replaces the fallback and passes
-  for every required channel;
-- fresh-instance imports and installed update applications of both the
-  candidate and rollback candidate finish disabled; and
+- repository, focused, and reproducibility gates pass, and the installer-pinned
+  mihomo full-review corpus passes with its exact source commit recorded;
+- fresh installs finish disabled, while installed candidate and rollback
+  applications preserve the prior enabled authorization; and
 - the extension README accurately describes the resulting behavior and the
   next maintainer can repeat the process without relying on chat history.

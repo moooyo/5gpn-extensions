@@ -7,21 +7,20 @@ const root = path.resolve(import.meta.dirname, '..')
 
 // This extension runs published upstream bundles rather than local scripts, so
 // there is nothing here to execute: the runtime behavior is covered by the
-// sidecar's proxy-compat tests. What this repository still owns is the manifest
+// monolith's proxy-compat tests. What this repository still owns is the manifest
 // it publishes, and that is what these fixtures pin.
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '8.0.0')
+assert.equal(manifest.metadata.version, '8.1.0')
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
-// Three of these are upstream's exact-name rejects, which revisions before
-// 3.2.0 simply omitted. The fourth approximates upstream's ASN-plus-QUIC rule;
-// the README records why the ASN form is declined rather than adopted.
+// These are upstream's three exact-name rejects, which revisions before 3.2.0
+// simply omitted. The core seed owns the global UDP/443 guard, so this
+// extension does not duplicate it with a host-scoped QUIC rule.
 assert.deepEqual(manifest.traffic.routingRules, [
   { action: 'reject', domain: 'weather-analytics-events.apple.com' },
   { action: 'reject', domainSuffix: 'tthr.apple.com' },
   { action: 'reject', domain: 'tether.edge.apple' },
-  { action: 'reject', domain: 'weatherkit.apple.com', network: 'udp', destinationPort: 443 },
 ])
 
 // The broader grants are the whole point of this revision, so they are asserted

@@ -18,7 +18,7 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/weatherkit/extensi
 ```
 
 Keep the extension disabled until its snapshot, settings, capture host,
-actions, network permission, and routing rule have been reviewed. Cloud endpoint
+actions, network permission, and three routing rules have been reviewed. Cloud endpoint
 mode is off by default and sends captured requests to a third party; read
 [Permissions and data boundary](#permissions-and-data-boundary) before enabling
 it.
@@ -38,8 +38,10 @@ extension loads that bundle instead of reimplementing it. Every upstream
 feature — provider-backed weather replacement, next-hour precipitation,
 yesterday comparison, and the complete air-quality pipeline — comes from the
 same code upstream ships, and tracking a release means changing a URL and its
-reviewed source revision. The marketplace derives runtime resource integrity
-fields when it is built; this README does not maintain a second byte-level pin.
+reviewed source revision. The runtime fetches the bundles during review and
+includes their bytes in the immutable snapshot digest; the marketplace does not
+publish a second resource contract and this README does not maintain a manual
+byte-level pin.
 
 The trade is explicit and is the operator's to accept: the bundle is a remote
 asset that reaches third-party provider APIs with the request's coordinates,
@@ -70,8 +72,9 @@ exchange rather than editing one, and a third-party lookup that no provider
 setting gates. [Permissions and data boundary](#permissions-and-data-boundary)
 states the consequence; the exclusions record what bounds it.
 
-Revision 8.0.0 tracks the stable `v3.2.0`. Three things in it are capability
-changes rather than a version bump:
+Revision 8.1.0 retains the stable `v3.2.0` behavior reviewed in 8.0.0 and removes
+the redundant host-scoped UDP/443 rule. Three upstream changes introduced in
+8.0.0 remain capability changes rather than a version bump:
 
 - **The response bundle's alert injection lost its gates.** At `v3.2.0-beta5` it
   ran only when the request's country was in `Weather.Replace` *and*
@@ -134,15 +137,14 @@ Upstream renamed this asset from `iRingo.WeatherKit.plugin` during the
 
 GitHub release assets are publisher-replaceable rather than immutable; GitHub
 reports `immutable: false` for this release. No commit-pinned raw URL exists for
-either generated bundle in the upstream tree. Each marketplace build fetches
-the assets and derives their resource integrity fields, which a gateway compares
-at install; a replaced asset makes an existing index fail closed, while
-republishing the index would adopt the replacement deliberately. This protects
-an index after publication but does not turn the release URL into immutable
-provenance. This catalog deliberately accepts the direct official release asset
-as the runtime source because upstream does not publish the generated bundles in
-Git; the tag object, source commit, replaceability, and review date above are the
-corresponding provenance record.
+either generated bundle in the upstream tree. The Marketplace does not fetch or
+digest them. Instead, each operator review fetches the live assets and includes
+their bytes in the complete snapshot digest; apply refetches and fails on any
+review/apply change. This prevents an unreviewed apply but does not audit a live
+asset against the recorded source commit or make its URL immutable. This catalog
+accepts the direct official release asset because upstream does not publish the
+generated bundles in Git; the tag object, source commit, replaceability, and
+review date above are the corresponding provenance record.
 
 That is not a hypothetical here, and it is the reason this revision is not
 optional. Upstream moved `v3.2.0-beta5` three times on `2026-08-03`:
@@ -190,16 +192,16 @@ per mode, over the same three paths -- plus four host-scoped transport rules:
    on the host the `Endpoint` setting names. The rest of the URL, and the whole
    request, carry through unchanged. They declare no script, so no code runs on
    the gateway for them.
-5. Four routing rules. Three are upstream's exact-name rejects for
+5. Three routing rules preserve upstream's exact-name rejects for
    `weather-analytics-events.apple.com`, `tthr.apple.com`, and
-   `tether.edge.apple`; revisions before 3.2.0 simply omitted them. The fourth
-   rejects UDP destination port 443 for `weatherkit.apple.com`, encouraging
-   fallback to interceptable TCP.
+   `tether.edge.apple`; revisions before 3.2.0 simply omitted them. The core's
+   fixed global UDP/443 guard already forces fallback to interceptable TCP, so
+   this extension no longer duplicates it with a host-scoped rule.
 
-   That fourth rule remains a narrower approximation of upstream's
+   Upstream also declares
    `AND,((OR,((IP-ASN,714),(IP-ASN,6185))),(PROTOCOL,QUIC))`. The ASN half is
    not expressible at all: `ipASN` was accepted by the gateway's manifest parser
-   for a while, but nothing downstream could carry it — not the sidecar's
+   for a while, but nothing downstream could carry it — not the former sidecar's
    decoder, not the typed overlay, not this repository's validator — so a rule
    using it would have been rendered in the enable review as an enforced deny
    and then dropped from the published generation. The selector has since been
@@ -447,7 +449,7 @@ in both phases.
   install that had selected it does not retain the value, because the shared
   playbook retains a value only while it stays valid under the candidate, so the
   required select applies its default, `weatherkit.pages.dev`. Re-confirm the
-  endpoint while disabled.
+  endpoint during Marketplace review before apply.
 - Upstream has *not* dropped that module's `endpoint` argument, and an earlier
   revision of this README said it had. What is true is narrower: at
   `c66350d91457f9a1b8a6c5e6aba46370fa6da254` the Loon and Stash forms of the
@@ -520,9 +522,9 @@ in both phases.
   requested dataset.
 - The bundles are remote assets. Their behavior can change with a new release,
   their internals are not reviewed line by line here, and the release URLs name
-  a replaceable tag asset. A marketplace rebuild exposes replacement bytes as
-  changed generated resource integrity fields; it cannot prove that a bundle
-  still corresponds to the recorded source commit.
+  a replaceable tag asset. A fresh runtime review exposes replacement bytes as
+  a different snapshot digest and requires a new confirmation, but cannot prove
+  that a bundle still corresponds to the recorded source commit.
 - Certificate pinning, independently provisioned ECH, unsupported protocols,
   and direct traffic that bypasses the gateway remain outside this extension's
   control.
@@ -534,12 +536,10 @@ npm test
 if ($LASTEXITCODE -ne 0) { throw "npm test failed with exit code $LASTEXITCODE" }
 ```
 
-Runtime-facing changes must also pass the pinned external parser-contract
-fallback documented in [`MIGRATION.md`](../MIGRATION.md). That fallback checks
-the manifest and marketplace against the last publicly reviewable parser; it
-does not represent the current 5gpn channels and does not establish that the
-sidecar honors `$done({ response })` from a request script. Nothing in this
-repository exercises that runtime behavior.
+Runtime-facing changes must also pass the installer-pinned mihomo full-review
+corpus documented in [`MIGRATION.md`](../MIGRATION.md). It fetches these real
+release assets, constructs the complete immutable snapshot, and compiles the
+proxy-compat programs with the monolith source operators receive.
 Finally, exercise authorized device traffic with the candidate enabled and
 confirm, from the plugin engine log stream:
 
@@ -586,7 +586,8 @@ confirm, from the plugin engine log stream:
 4. Update the manifest source URLs, settings, README record, `REUSE.toml`,
    notices, validator counts, marketplace metadata, and `metadata.version` in
    one reviewed change.
-5. Run the gates above, then apply the candidate while disabled.
+5. Run the gates above, select the commit-addressed Marketplace entry, and
+   apply only the candidate and snapshot digest that were reviewed.
 
 ## Migration and rollback
 
@@ -599,15 +600,16 @@ decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.weatherkit`; bump `metadata.version` for every manifest or pinned-bundle change. |
-| Current manifest | `version=8.0.0`; `persistentStorage=true`; `settings=11`; `captureHosts=1`; `actions=6`; `routingRules=4`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=8.1.0`; `persistentStorage=true`; `settings=11`; `captureHosts=1`; `actions=6`; `routingRules=3`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateful. `persistentStorage` is true and the bundles cache provider lookups in the extension-scoped store. |
 | Settings | Preserve the eight upstream argument keys, the `Storage` pin, and the two mode gates with their types. `API.QWeather.Host` must keep upstream's own default rather than being blanked, because `$argument` overrides the bundle's database default. A normal same-ID update retains only values that remain valid under the candidate; a candidate that drops a gate must state which mode an existing install lands in. |
 | Script contract | The two response actions and the one request action use `entry: proxy-compat`; the three cloud actions are declarative rewrites and run no code. The request action terminates its exchange with a synthesized response rather than editing and forwarding one, so a candidate that moves it to the response phase, or drops the `&ids=` constraint from its matcher, is a capability change. Both alert matchers are upstream's own, transcribed; widening either beyond what upstream selects is a capability change even when upstream narrows. Changing an action back to the native contract requires a new reviewed script, not a manifest edit. |
-| Third-party endpoint | `https://weatherkit.pages.dev` and `https://dev.weatherkit.pages.dev` are the reviewed set. Changing one, adding an endpoint, or moving the choice out from behind the setting is a capability change and needs a disabled replacement. Removing one, as 6.0.0 did, is a capability reduction and needs the same review. |
-| Permission review gate | The network capability and persistent storage are part of the reviewed baseline. Removing either is a capability reduction and still needs a disabled replacement. |
-| Reviewed capability baseline | One capture host, two proxy-compat response actions and one proxy-compat request action gated on `Mode: Script`, three request rewrites to one third-party endpoint gated on `Mode: Cloud`, eleven settings, four reject routing rules, the network capability, persistent storage, and no required egress. The request action reaches QWeather with the request's coordinates under no provider gate, and answers the client itself. From 8.0.0 the `weather-data` response action reaches the same host under no gate at all. |
-| Operator state | A normal update retains valid settings, `capture_dns`, and execution order. Review all while disabled, and re-confirm which mode gate is on. |
-| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed URL. The extension-owned store is a cache, so discarding it costs only a refetch. |
+| Third-party endpoint | `https://weatherkit.pages.dev` and `https://dev.weatherkit.pages.dev` are the reviewed set. Changing one, adding an endpoint, or moving the choice out from behind the setting is a capability change and needs a fresh Marketplace review. Removing one, as 6.0.0 did, is a capability reduction and needs the same review. |
+| Permission review gate | The network capability and persistent storage are part of the reviewed baseline. Removing either is a capability reduction and still needs a fresh Marketplace review. |
+| Reviewed capability baseline | One capture host, two proxy-compat response actions and one proxy-compat request action gated on `Mode: Script`, three request rewrites to one third-party endpoint gated on `Mode: Cloud`, eleven settings, three reject routing rules, the network capability, persistent storage, and no required egress. The request action reaches QWeather with the request's coordinates under no provider gate, and answers the client itself. From 8.0.0 the `weather-data` response action reaches the same host under no gate at all. UDP/443 fallback is the core seed's fixed global guard, not extension policy. |
+| Operator state | A normal update retains valid settings, `capture_dns`, execution order, and the prior enabled authorization. Re-confirm which mode gate is on before apply. |
+| Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. The extension-owned store is a cache, so discarding it costs only a refetch. |
 
 ### Repeatable migration
 
@@ -615,8 +617,8 @@ decision.
    rewrite module, all six actions, eleven settings, the network capability,
    persistent storage, routing, and exact capability diffs.
 2. Confirm the release still resolves to the selected source revision, rebuild
-   the marketplace so its resource integrity fields are derived from the
-   candidate assets, and review that generated diff before applying.
+   the commit-addressed marketplace locally, and run its complete review corpus
+   against the installer-pinned mihomo source before applying.
 3. Exercise both response actions against authorized device traffic with the
    declared providers left at their defaults, then with one provider enabled,
    and confirm from the plugin engine log which external requests were made.
@@ -631,19 +633,20 @@ decision.
 5. Exercise cloud endpoint mode separately, with `Mode` set to `Cloud`, and
    confirm from the same log that all three paths leave for
    `weatherkit.pages.dev` and that no provider request is made.
-6. Apply the same-ID candidate while disabled. Confirm settings, both mode
-   gates, the one-host boundary, action order, the network capability, and the
-   routing rule before authorized device testing.
+6. Select and apply the reviewed Marketplace candidate without a disable-first
+   step. Confirm prior authorization, settings, both mode gates, the one-host boundary, action order, network capability, and
+   three routing rules before authorized device testing.
 
 ### Rollback
 
 The publisher prepares a same-ID revert-forward candidate that restores the
 reviewed bundle pins, the endpoint, settings, mode gates, action matchers,
-permissions, and routing rule. It must use a version higher than the failing
-candidate and pass all current gates. Apply it while disabled and confirm the
-retained settings and execution order before enabling.
+permissions, and routing rules. It must use a version higher than the failing
+candidate and pass all current gates. Select and review the rollback Marketplace
+entry, then confirm prior authorization, retained settings, and execution order
+after apply.
 
 An emergency reinstall from an older manifest loses settings, `capture_dns`,
-execution position, and installed source identity. An operator who does not
-control the installed URL cannot publish an immediate rollback; disable the
-extension or use a separately reviewed operator-controlled fork.
+execution position, and installed source identity. Until the publisher lists a
+reviewed rollback entry, disable the extension or move through a separately
+reviewed operator-controlled Marketplace source.

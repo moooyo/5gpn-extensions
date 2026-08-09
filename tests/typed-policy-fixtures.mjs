@@ -1,16 +1,15 @@
-import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYAML } from 'yaml'
-import { compileManifestPolicy, compileRoutingRule, OVERLAY_LIMITS, policyDigest } from '../scripts/typed-policy.mjs'
+import { compileManifestPolicy, compileRoutingRule, OVERLAY_LIMITS } from '../scripts/typed-policy.mjs'
 import { validateRoutingRules } from '../scripts/generate-marketplace.mjs'
 
-// Every declared policy must compile to the typed runtime overlay.
+// Every declared rule must pass the repository-local typed-policy lint.
 //
-// The gateway used to render these declarations into mihomo rule strings, so a
-// rule the typed model could not express was dropped silently at commit time on
-// a live gateway — a reviewed deny that stopped being enforced with nothing
-// reporting it. This suite is the gate that keeps that from returning.
+// This is a fast feedback layer, not a published projection or runtime
+// authority. The installer-pinned mihomo full-review corpus below CI is the
+// gate that compiles the complete manifest with the implementation operators
+// actually receive.
 
 let failures = 0
 const check = (name, fn) => {
@@ -147,15 +146,9 @@ function compileCaptureRulesFor(hosts) {
   return projection.rules.filter((r) => r.action === 'capture')
 }
 
-// --- the digest depends on the manifest's exact text ------------------------
-
-// This file digests what the manifest says; the gateway digests what it parsed,
-// and for ipCIDR alone those differ, because net.ParseCIDR + network.String()
-// rewrites a non-canonical spelling. Two digests for one policy would make the
-// gateway refuse the install claiming it would enforce something other than
-// what was reviewed. The validators therefore require the canonical spelling,
-// which is what this pins.
-check('a non-canonical CIDR is refused rather than digested as written', () => {
+// A canonical CIDR keeps the reviewed text identical to the normalized rule
+// the runtime displays and enforces.
+check('a non-canonical CIDR is refused', () => {
   const cases = {
     'host bits set': '203.0.113.5/24',
     'leading zero octet': '010.0.0.0/8',
@@ -171,7 +164,7 @@ check('a non-canonical CIDR is refused rather than digested as written', () => {
     } catch {
       refused = true
     }
-    assert(refused, `${name} (${cidr}) was accepted; its digest cannot match the gateway's`)
+    assert(refused, `${name} (${cidr}) was accepted`)
   }
   // The canonical spelling still works, or this test would prove nothing.
   validateRoutingRules([{ action: 'reject', ipCIDR: '203.0.113.0/24' }], 'fixture')
@@ -185,19 +178,9 @@ check('every shipped extension compiles to the typed overlay', () => {
   for (const dir of extensionDirs) {
     const manifest = loadManifest(dir)
     const projection = compileManifestPolicy(manifest)
-    report.push(
-      `    ${projection.owner}: ${projection.policyRules} policy + ${projection.captureRules} capture ` +
-        `= ${projection.rules.length} rules, digest ${policyDigest(projection, createHash).slice(0, 12)}`,
-    )
+    report.push(`    ${projection.owner}: ${projection.policyRules} policy + ${projection.captureRules} capture = ${projection.rules.length} rules`)
   }
   console.log(report.join('\n'))
-})
-
-check('the policy digest is stable', () => {
-  const manifest = loadManifest(extensionDirs[0])
-  const a = policyDigest(compileManifestPolicy(manifest), createHash)
-  const b = policyDigest(compileManifestPolicy(manifest), createHash)
-  assert(a === b, 'the same manifest produced two digests')
 })
 
 if (failures > 0) {

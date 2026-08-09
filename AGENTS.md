@@ -43,7 +43,7 @@
   at a time from immutable commit URLs or a deliberately selected official
   release asset.
 - Run `npm test` before delivery. It is the gate CI runs first.
-  When changing runtime-facing behavior, also run the current 5gpn core parser
-  integration gate when its source is publicly available. Otherwise run the
-  immutable compatibility-floor fallback documented in `MIGRATION.md` and
-  record that it is not current-channel validation.
+  When changing runtime-facing behavior, also run the installer-pinned mihomo
+  full-review corpus documented in `MIGRATION.md`. Keep the source commit exact
+  and synchronized with the installer; a branch, movable tag, parser-only
+  fallback, or stub script is not runtime validation.

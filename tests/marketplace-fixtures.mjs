@@ -20,35 +20,28 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   const validate = ajv.compile(schema)
   const catalog = JSON.parse(await generateMarketplace({ revision }))
 
-  // The index is one document describing one contract. It used to be several,
-  // with the frozen one omitting every entry that needed a newer field; the
-  // assertions that policed that split are gone with it. What replaces them is
-  // the direct statement of what the document carries, which is what a reader
-  // depends on either way.
+  // The runtime compiles scripts and policy from the reviewed manifest. The
+  // retired resources and policy projections must not come back as parallel,
+  // non-authoritative wire contracts.
   for (const entry of catalog.entries) {
-    assert.equal(Object.hasOwn(entry, 'policy'), true, `${entry.id}: missing the typed policy projection`)
+    assert.equal(Object.hasOwn(entry, 'resources'), false, `${entry.id}: published retired resources`)
+    assert.equal(Object.hasOwn(entry, 'policy'), false, `${entry.id}: published retired policy projection`)
     assert.equal(
       Object.hasOwn(entry.capabilities, 'network'),
       true,
       `${entry.id}: missing the network capability`,
     )
+    assert.match(entry.manifest.url, new RegExp(`/5gpn-extensions/${revision}/`))
+    assert.match(entry.documentationUrl, new RegExp(`/blob/${revision}/`))
+    assert.match(entry.license.url, new RegExp(`/5gpn-extensions/${revision}/`))
   }
 
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
   assert.equal(catalog.entries.length, 6)
-  for (const entry of catalog.entries) {
-    assert.equal(entry.policy.clientRules, entry.policy.policyRules + entry.policy.captureRules)
-    assert.equal(entry.policy.policyRules, entry.capabilities.routingRuleCount,
-      `${entry.id}: a reviewed routing rule did not survive into the typed projection`)
-  }
   const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
   assert.equal(bilibili.capabilities.actionCount, 24)
-  // Eleven of bilibili's actions are jq expressions and five load pinned
-  // upstream scripts. Every other action is declarative, so the entry
-  // contributes no repository-local script resource.
-  assert.deepEqual(bilibili.resources.map(resource => resource.path).filter(p => !p.includes('/')), [])
   const weatherkit = catalog.entries.find(entry => entry.id === 'io.5gpn.weatherkit')
-  assert.equal(weatherkit.version, '8.0.0')
+  assert.equal(weatherkit.version, '8.1.0')
   assert.deepEqual(weatherkit.capabilities, {
     captureHostCount: 1,
     actionCount: 6,
@@ -56,46 +49,41 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
     network: true,
     persistentStorage: true,
     upstreamMappingCount: 0,
-    routingRuleCount: 4,
+    routingRuleCount: 3,
     egressGroupRequired: false,
   })
-  // The generator derives integrity fields from every action that names a
-  // script source. This fixture fixes the reviewed resource identities without
-  // turning their current bytes into a second, manually maintained upstream
-  // pin. The schema below validates the generated size and SHA-256 fields.
-  assert.deepEqual(weatherkit.resources.map(({ path: resourcePath, url }) => ({ path: resourcePath, url })), [{
-    path: 'NSRingo/WeatherKit/releases/download/v3.2.0/request.bundle.js',
-    url: 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0/request.bundle.js',
-  }, {
-    path: 'NSRingo/WeatherKit/releases/download/v3.2.0/response.bundle.js',
-    url: 'https://github.com/NSRingo/WeatherKit/releases/download/v3.2.0/response.bundle.js',
-  }])
   const zhihu = catalog.entries.find(entry => entry.id === 'io.5gpn.zhihu-cleaner')
-  assert.equal(zhihu.version, '2.1.0')
+  assert.equal(zhihu.version, '2.2.0')
   assert.deepEqual(
     [zhihu.capabilities.captureHostCount, zhihu.capabilities.actionCount, zhihu.capabilities.routingRuleCount],
-    [5, 18, 5],
+    [5, 18, 0],
   )
-  // The published projection is what the gateway checks its own Go compile
-  // against, so a drift in either compiler has to be visible here.
-  assert.deepEqual(zhihu.policy, {
-    clientRules: 15,
-    policyRules: 5,
-    captureRules: 10,
-    digest: 'e7d7baaa94c139160a879aad2cbbec2aabfdbc476972ba914cff84dc038030eb',
-  })
-  // All eighteen of zhihu's actions are declarative, so it names no script for
-  // the gateway to fetch or pin.
-  assert.deepEqual(zhihu.resources.map(resource => resource.path), [])
   assert.equal(validate(catalog), true, ajv.errorsText(validate.errors))
   const boundary = structuredClone(catalog)
   boundary.entries[0].capabilities.captureHostCount = 512
   assert.equal(validate(boundary), true, ajv.errorsText(validate.errors))
   boundary.entries[0].capabilities.captureHostCount = 513
   assert.equal(validate(boundary), false, 'schema accepted more than 512 capture hosts')
+  const settingBoundary = structuredClone(catalog)
+  settingBoundary.entries[0].capabilities.settingCount = 64
+  assert.equal(validate(settingBoundary), true, ajv.errorsText(validate.errors))
+  settingBoundary.entries[0].capabilities.settingCount = 65
+  assert.equal(validate(settingBoundary), false, 'schema accepted more than 64 settings')
   const invalid = structuredClone(catalog)
   invalid.entries[0].manifest.sha256 = 'invalid'
   assert.equal(validate(invalid), false, 'schema accepted an invalid manifest digest')
+  const retiredResources = structuredClone(catalog)
+  retiredResources.entries[0].resources = []
+  assert.equal(validate(retiredResources), false, 'schema accepted the retired resources contract')
+  const retiredPolicy = structuredClone(catalog)
+  retiredPolicy.entries[0].policy = { clientRules: 0, policyRules: 0, captureRules: 0, digest: '0'.repeat(64) }
+  assert.equal(validate(retiredPolicy), false, 'schema accepted the retired policy projection')
+  const mutableManifest = structuredClone(catalog)
+  mutableManifest.entries[0].manifest.url = mutableManifest.entries[0].manifest.url.replace(revision, 'main')
+  assert.equal(validate(mutableManifest), false, 'schema accepted a mutable main manifest URL')
+  const mutableLicense = structuredClone(catalog)
+  mutableLicense.entries[0].license.url = mutableLicense.entries[0].license.url.replace(revision, 'main')
+  assert.equal(validate(mutableLicense), false, 'schema accepted a mutable main license URL')
 }
 
 {
@@ -200,6 +188,27 @@ function manifestWithCaptureHostCount(count) {
   )
 }
 
+function manifestWithSettingCount(count) {
+  assert(Number.isInteger(count) && count >= 0)
+  const settings = Array.from({ length: count }, (_, index) => [
+    `  - key: setting_${index}`,
+    '    type: boolean',
+    `    label: Setting ${index}`,
+    '    required: false',
+    '    default: false',
+  ].join('\n')).join('\n')
+  return manifest().replace(
+    `settings:
+  - key: enabled
+    type: boolean
+    label: Enabled
+    description: Enables the fixture.
+    required: true
+    default: true`,
+    `settings:\n${settings}`,
+  )
+}
+
 async function fixtureRepository({ metadataDocument = metadata(), manifestBody = manifest() } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), '5gpn-marketplace-'))
   await mkdir(path.join(root, 'marketplace'), { recursive: true })
@@ -236,9 +245,14 @@ async function expectFailure(options, pattern) {
     assert.deepEqual(catalog.entries[0].tags, ['fixture', 'testing'])
     assert.equal(catalog.entries[0].manifest.size, Buffer.byteLength(manifestBody))
     assert.equal(catalog.entries[0].manifest.sha256, createHash('sha256').update(manifestBody).digest('hex'))
-    const script = await readFile(path.join(root, 'fixture-extension', 'transform.js'))
-    assert.equal(catalog.entries[0].resources[0].size, script.length)
-    assert.equal(catalog.entries[0].resources[0].sha256, createHash('sha256').update(script).digest('hex'))
+    assert.equal(catalog.entries[0].manifest.url,
+      `https://raw.githubusercontent.com/moooyo/5gpn-extensions/${revision}/fixture-extension/extension.yaml`)
+    assert.equal(catalog.entries[0].documentationUrl,
+      `https://github.com/moooyo/5gpn-extensions/blob/${revision}/fixture-extension/README.md`)
+    assert.equal(catalog.entries[0].license.url,
+      `https://raw.githubusercontent.com/moooyo/5gpn-extensions/${revision}/LICENSES/MIT.txt`)
+    assert.equal(Object.hasOwn(catalog.entries[0], 'resources'), false)
+    assert.equal(Object.hasOwn(catalog.entries[0], 'policy'), false)
     assert.deepEqual(catalog.entries[0].capabilities, {
       captureHostCount: 1,
       actionCount: 1,
@@ -263,6 +277,21 @@ await expectFailure({ manifestBody: manifest('./../escape.js') }, /escapes its e
 await expectFailure({ metadataDocument: metadata([{ directory: 'missing-extension', licenseSpdx: 'MIT', tags: ['fixture'] }]) }, /missing marketplace metadata/)
 await expectFailure({ metadataDocument: { ...metadata(), metadata: { ...metadata().metadata, id: 'io.example.other' } } }, /id must be io\.5gpn\.official/)
 await expectFailure({ manifestBody: manifestWithCaptureHostCount(513) }, /captureHosts must contain 1 to 512 entries/)
+await expectFailure({ manifestBody: manifestWithSettingCount(65) }, /at most 64 entries/)
+
+{
+  const root = await fixtureRepository({ manifestBody: manifest('https://unreachable.invalid/transform.js') })
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = () => { throw new Error('marketplace generation attempted a network request') }
+  try {
+    const catalog = JSON.parse(await generateMarketplace({ root, revision }))
+    assert.equal(catalog.entries.length, 1)
+    assert.equal(Object.hasOwn(catalog.entries[0], 'resources'), false)
+  } finally {
+    globalThis.fetch = previousFetch
+    await rm(root, { recursive: true, force: true })
+  }
+}
 
 {
   const root = await fixtureRepository({ manifestBody: manifestWithCaptureHostCount(512) })

@@ -275,6 +275,7 @@ manual review decision.
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
 | Current manifest | `version=4.1.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |
@@ -282,7 +283,7 @@ manual review decision.
 | Source boundary | Keep the four JavaScript bundles remote at exact commit-pinned raw URLs. Redistribute only the two jq programs in their preferred source form, and keep their inline text and provenance synchronized. |
 | External artifacts | The bundle builds Chronos URLs on `kokoryh/chronos` `master` and this manifest cannot pin them; re-review what that branch serves whenever the Sparkle pin moves. Archives without corresponding preferred source remain referenced rather than redistributed. |
 | License review gate | Before any candidate or rollback publication, reconcile the GPL mapping, license text, notices, and README provenance with the two redistributed jq programs and four referenced JavaScript bundles. |
-| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. No extension data conversion is required. |
+| Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. No extension data conversion is required. |
 
 ### Repeatable migration
 
@@ -303,8 +304,9 @@ manual review decision.
    requirement, and execution-order effect. Any reachable-host or disclosure change
    requires a fresh permission review.
 6. Run the common gates, including the fixture that checks each action against
-   its exact raw URL and execution bounds. Apply the candidate while disabled,
-   confirm persistent storage, the five settings, and egress binding, then
+   its exact raw URL and execution bounds. Apply the reviewed Marketplace
+   candidate without a disable-first step, confirm prior authorization,
+   persistent storage, the five settings, and egress binding, then
    exercise every request, response, mock, webpage, and network failure branch
    before enable.
 
@@ -313,8 +315,8 @@ manual review decision.
 The publisher prepares a same-ID revert-forward candidate under a new version,
 restoring the baseline manifest's exact commit-pinned JavaScript URLs and
 inlined jq programs together with their license mapping, notices, and
-provenance. Run every Bilibili and core gate before publication. Disable the
-failing candidate, apply the rollback candidate, confirm retained persistent
+provenance. Run every Bilibili and core gate before publication. Review and
+apply the rollback Marketplace candidate, confirm prior authorization and retained persistent
 storage, settings, and egress binding, and test remote replay and SponsorBlock
 failure paths before enable. Prefer this update path because the extension is
 stateful: removing it and reinstalling an old immutable manifest can lose its
@@ -337,11 +339,10 @@ What this repository can no longer assert is what the scripts do. The previous
 revision shipped protobuf fixtures over local code; that code is gone, and
 running upstream's own bundle against fabricated frames would test upstream
 rather than this manifest. Node has no jq, so the expressions cannot be
-executed here. The sidecar has a jq suite, but its copies of these expressions
-are a snapshot and currently lag what this manifest ships, so a green sidecar
-suite does not cover these programs. Behavioural checks are run out of band
-against gojq at the sidecar's pinned version.
+executed in this focused fixture. The installer-pinned mihomo full-review corpus
+compiles the exact manifest expressions with the monolith's gojq integration;
+retain separate behavioral fixtures for representative documents.
 
 Before relying on the airborne helper, exercise it on a device while reviewing
-sidecar logs: it reaches `bsbsb.top` and replays to `grpc.biliapi.net`, and
+plugin logs: it reaches `bsbsb.top` and replays to `grpc.biliapi.net`, and
 neither is covered by any fixture.

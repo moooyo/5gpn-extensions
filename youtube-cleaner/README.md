@@ -101,7 +101,7 @@ metadata. The `encryptKey` remains in extension-scoped storage and is used
 locally only to decide whether the request key matches.
 
 A cross-host request patch also preserves the original HTTP method, decoded
-binary request body, and end-to-end request headers. The sidecar removes
+binary request body, and end-to-end request headers. The monolith removes
 hop-by-hop/framing headers, but it does not generally remove cookies,
 authorization fields, client identifiers, or other application headers before
 forwarding to the Worker. Operators must therefore treat every part of the
@@ -250,8 +250,9 @@ external service dependency rather than represented as rebuildable local source.
    source and license obligations cannot be satisfied. Keep every external
    service limitation explicit.
 5. Update the commit-pinned URLs and fetch date, increment `metadata.version`,
-   and review all changed capabilities while the extension remains disabled.
-   The bundles are the runtime, so a new commit is a new implementation.
+   and review all changed capabilities before applying the Marketplace
+   replacement. The bundles are the runtime, so a new commit is a new
+   implementation.
 
 ## Migration and rollback
 
@@ -264,13 +265,14 @@ upstream revision. Upstream selection remains a manual review decision.
 | --- | --- |
 | Identity | Keep `io.5gpn.youtube-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
 | Current manifest | `version=5.1.0`; `persistentStorage=true`; `settings=4`; `captureHosts=2`; `actions=3`; `routingRules=0`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | Settings | Preserve the four current keys and types when possible. `debug` was removed in `5.1.0`; see "Why there is no `debug` setting" before re-adding it. A normal update retains only values that remain valid under the candidate definitions. |
 | State class | Stateful. Keep `persistentStorage: true` during normal migration and rollback. |
 | Advertisement cache | `YouTubeAdvertiseInfo` is a non-authoritative version `1.0` cache. An incompatible schema may reset and relearn only when that behavior is documented and tested. |
 | Key configuration | `YouTubeConfig` contains sensitive YouTube and YouTube Music `clientKey`/`encryptKey` pairs. Never copy values into migration records or logs. An incompatible format requires an additive versioned key and dual-read strategy. |
 | Reviewed capability baseline | Two capture-host patterns, three proxy-compat actions, four settings, one global network grant used by one reviewed Worker destination, no routing rules, and no required egress binding. |
 | Operator state | A normal same-ID update retains valid settings, `capture_dns`, execution position, and the ID-scoped storage bucket while storage permission remains enabled. |
-| Rollback | Prefer a verified publisher-managed revert-forward candidate at the installed manifest URL. An operator can publish it only from an operator-controlled fork. The baseline must remain able to read retained state or safely relearn it. |
+| Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. The baseline must remain able to read retained state or safely relearn it. |
 
 ### Repeatable migration
 
@@ -291,8 +293,8 @@ upstream revision. Upstream selection remains a manual review decision.
 5. Synchronize all immutable raw URLs, fetch dates, licenses, notices,
    `REUSE.toml`, validator pins, storage documentation, fixtures, and version
    in the same change.
-6. Apply the candidate while disabled without uninstalling the extension or
-   removing storage permission. Confirm retained settings and state behavior,
+6. Apply the reviewed Marketplace candidate without a disable-first step or
+   uninstalling the extension. Confirm prior authorization, retained settings and state behavior,
    review the Worker permission again, then exercise cache learning and both
    platforms before enable.
 
@@ -302,8 +304,8 @@ The publisher prepares a same-ID revert-forward candidate that restores the base
 response, settings, storage-reader, Worker, and permission behavior with a new
 version incremented above the failing candidate. Before rollout, prove that it
 can read the candidate's retained state
-or safely reset and relearn only the non-authoritative cache. Disable the
-failing candidate, apply the exact published rollback candidate, verify both
+or safely reset and relearn only the non-authoritative cache. Review and apply
+the exact published rollback Marketplace candidate, verify prior authorization, both
 platform slots, cache learning, mismatch failover, and Worker URL construction,
 then enable only after focused tests pass. Do not use uninstall/reinstall as
 routine rollback: it loses installed control-plane values and can make
@@ -337,6 +339,6 @@ shape, the exact immutable script URLs, and the routing projection. Behavior is
 upstream's to test.
 
 Before relying on the encrypted playback path, perform a device smoke test
-while reviewing sidecar logs, capture-host and global-network-permission review,
+while reviewing plugin logs, capture-host and global-network-permission review,
 cache regeneration, response-size failures, and the exact data sent to the
 Worker. A JavaScript pin does not pin the external Worker deployment.

@@ -1,5 +1,5 @@
-// Compiles a manifest's declared traffic policy into the typed runtime-overlay
-// projection, and refuses anything the overlay cannot carry.
+// Fast, non-authoritative local lint for the manifest's declared traffic
+// policy. It refuses rules the monolith's typed model cannot carry.
 //
 // The gateway used to turn these declarations into mihomo rule strings, so an
 // unrepresentable rule was only discovered — silently — when a generation was
@@ -8,15 +8,11 @@
 // direct decision that had simply stopped being enforced with nothing reporting
 // it.
 //
-// This module is the gate that makes that impossible to reintroduce: a rule
-// that cannot become exactly one typed overlay entry fails validation here, in
-// this repository, at review time.
+// This module catches that class of mistake before the slower integration
+// gate. The installer-pinned mihomo full-review corpus remains authoritative.
 //
-// It deliberately mirrors the Go compiler in 5gpn (overlayPolicyRule and
-// interceptModuleCaptureSelectors). Two implementations of the same mapping is
-// a real risk, so `npm test` asserts the projection against fixtures derived
-// from the same manifests the gateway consumes; a divergence shows up as a
-// fixture mismatch rather than as traffic behaving differently in production.
+// It deliberately mirrors the Go compiler. Two implementations of the same
+// mapping are a drift risk, so this result is never published on the wire.
 
 const SELECTOR_DOMAIN = 'domain'
 const SELECTOR_DOMAIN_SUFFIX = 'domain-suffix'
@@ -182,44 +178,4 @@ export function compileManifestPolicy(manifest) {
     captureRules: capture.length,
     rules,
   }
-}
-
-// The canonical encoding the digest is taken over.
-//
-// Every field is length-prefixed rather than joined by a separator. Joining
-// lets two different rule sets share one encoding whenever a value can contain
-// the separator, and "a keyword never contains a space" is a property of
-// today's validator, not of the format. Length prefixes make field boundaries
-// unambiguous by construction — which is also what lets the gateway's Go
-// compiler reproduce this byte-for-byte from its own parse of the same
-// manifest, so a divergence between the two shows up as a digest mismatch
-// before a generation is committed rather than as traffic behaving differently.
-const POLICY_DIGEST_DOMAIN = '5gpn.policy/v1'
-
-const lengthPrefixed = (value) => {
-  const text = String(value)
-  return `${Buffer.byteLength(text, 'utf8')}:${text}`
-}
-
-/**
- * A stable fingerprint of the projection, so a change in what an extension
- * would enforce is visible as a changed digest in review rather than needing a
- * rule-by-rule diff, and so the gateway can verify that what it compiled is
- * what the publisher reviewed.
- */
-export function policyDigest(projection, createHash) {
-  const lp = lengthPrefixed
-  const parts = [lp(POLICY_DIGEST_DOMAIN), lp(projection.owner), lp(projection.rules.length)]
-  for (const rule of projection.rules) {
-    parts.push(lp(rule.kind), lp(rule.value), lp(rule.network ?? ''), lp(rule.action))
-    parts.push(lp(rule.processor ?? ''), lp(rule.owner))
-    const ports = rule.ports ?? []
-    parts.push(lp(ports.length))
-    for (const port of ports) parts.push(lp(port.from), lp(port.to))
-    for (const group of [rule.keywordsAny ?? [], rule.keywordsAll ?? []]) {
-      parts.push(lp(group.length))
-      for (const keyword of group) parts.push(lp(keyword))
-    }
-  }
-  return createHash('sha256').update(parts.join(''), 'utf8').digest('hex')
 }

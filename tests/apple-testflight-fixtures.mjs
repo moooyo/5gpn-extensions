@@ -112,7 +112,7 @@ assert.equal(wlocAction.match.statusCodes, undefined)
 
 // TestFlight rewrites the storefront declaratively now. The region-to-id table
 // lives in the action's valueMap, which resolves the operator's choice; the
-// substitution itself is executed by the sidecar, because this repository has
+// substitution itself is executed by the monolith, because this repository has
 // no way to run it. What is checked here is that the shipped action still
 // carries every reviewed region and reads the setting rather than a constant.
 const testflightManifest = await readManifest('testflight-region-unlock/extension.yaml')

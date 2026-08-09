@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Enhancer
-  version: 8.0.0
+  version: 8.1.0
   description: Runs the reviewed NSRingo WeatherKit release bundles on the gateway, or sends the same three paths to the reviewed upstream cloud endpoint.
 
 permissions:
@@ -21,10 +21,6 @@ traffic:
       domainSuffix: tthr.apple.com
     - action: reject
       domain: tether.edge.apple
-    - action: reject
-      domain: weatherkit.apple.com
-      network: udp
-      destinationPort: 443
 
 settings:
   # Upstream publishes the same three paths twice: a release module that runs
