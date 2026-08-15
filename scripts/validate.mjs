@@ -40,7 +40,7 @@ const expectedExtensions = new Map([
   ['apple-wloc', { license: 'MIT', pin: 'eec07a8dc8de6dbaee8eac1fb376e4d03020154a', unlicensed: true }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: 'a26c3412a760fb8d7d4d1bcc124d126e19d630e5' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
-  ['weatherkit', { license: 'Apache-2.0', pin: 'c66350d91457f9a1b8a6c5e6aba46370fa6da254' }],
+  ['weatherkit', { license: 'Apache-2.0', pin: '4ec00d076959defcda72bbe24ba83ae7a4d9c405' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525' }],
   ['zhihu-cleaner', { license: 'CC-BY-NC-SA-4.0', pin: '8d0e2791f531d4a02e1bd00d0f64427984bc999a' }],
 ])
@@ -555,29 +555,29 @@ for (const entry of entries) {
   }
   if (entry.name === 'weatherkit') {
     assert(
-      actions.length === 6 && manifest.settings?.length === 11 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 3,
+      actions.length === 9 && manifest.settings?.length === 13 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 3,
       'weatherkit: reviewed two-mode capability set is incomplete',
     )
-    // Upstream publishes the same three paths twice: a release module that runs
-    // the bundles in the client and a repository module that rewrites all three
-    // paths to a cloud endpoint. Both are carried, and one select chooses between
-    // them, so "both at once" is not a state an operator can reach.
+    // Upstream publishes a five-action release module and a four-rule cloud
+    // rewrite module. Both are carried, and one select chooses between them, so
+    // "both at once" is not a state an operator can reach.
     const scripted = actions.filter((action) => action.script.entry === 'proxy-compat')
     const cloud = actions.filter((action) => action.script.rewrite !== undefined)
-    assert(scripted.length === 3 && cloud.length === 3 && scripted.length + cloud.length === actions.length, 'weatherkit: each mode must declare exactly the three upstream paths')
+    assert(scripted.length === 5 && cloud.length === 4 && scripted.length + cloud.length === actions.length, 'weatherkit: each mode must declare its complete upstream action set')
     assert(scripted.every((action) => action.enabledWhen?.key === 'Mode' && action.enabledWhen.equals === 'Script'), 'weatherkit: every bundle action must be gated on Mode=Script')
     assert(cloud.every((action) => action.enabledWhen?.key === 'Mode' && action.enabledWhen.equals === 'Cloud' && action.phase === 'request'), 'weatherkit: every cloud rewrite must be a request action gated on Mode=Cloud')
-    // The release module declares two response scripts and, since v3.2.0-beta5,
-    // one request script. That third one is not a request editor: for its path
-    // it answers the exchange itself, so the phase split is load-bearing and is
-    // pinned here rather than left to whoever edits the manifest next.
+    // The release module declares two response scripts and three request
+    // scripts. The request actions may rewrite a URL or terminate the exchange,
+    // so the phase split is load-bearing.
     assert(scripted.filter((action) => action.phase === 'response').length === 2, 'weatherkit: the two upstream response scripts must stay response actions')
-    const alerts = scripted.filter((action) => action.phase === 'request')
-    assert(alerts.length === 1 && alerts[0].match.statusCodes === undefined, 'weatherkit: the upstream request script must be one request action with no status matcher')
-    // Both modes must select the same exchanges, so Mode changes only how a
-    // request is handled and never which requests the extension touches.
+    const requests = scripted.filter((action) => action.phase === 'request')
+    assert(requests.length === 3 && requests.every((action) => action.match.statusCodes === undefined), 'weatherkit: the three upstream request actions must have no status matcher')
+    // Four rule selectors are shared. Script mode alone carries upstream's
+    // airQualityScale request action because the rewrite module omits it.
     const selectorsOf = (list) => JSON.stringify(list.map((action) => `${action.match.pathRegex}|${(action.match.methods ?? []).join(',')}`).sort())
-    assert(selectorsOf(scripted) === selectorsOf(cloud), 'weatherkit: the two modes must cover the same paths and methods')
+    const scriptedCloudTwins = scripted.filter((action) => action.id !== 'air-quality-scale')
+    assert(selectorsOf(scriptedCloudTwins) === selectorsOf(cloud), 'weatherkit: the four shared selectors must match across modes')
+    assert(requests.some((action) => action.id === 'air-quality-scale' && action.match.pathRegex === '^/api/v1/airQualityScale/'), 'weatherkit: the release-only airQualityScale action is missing')
     const mode = manifest.settings.find((setting) => setting.key === 'Mode')
     assert(mode?.type === 'select' && mode.required === true, 'weatherkit: Mode must be a required select')
     // The default keeps every byte on this gateway. Cloud mode is opt-in
@@ -602,6 +602,13 @@ for (const entry of entries) {
     // $argument, so every other setting on the page silently does nothing.
     const storage = manifest.settings.find((setting) => setting.key === 'Storage')
     assert(storage?.default === '$argument' && storage.options?.length === 1, 'weatherkit: settings must be declared as reaching the bundle through $argument')
+    // The official release publishes DataSets as a comma-separated input even
+    // though its action wiring never invokes the only request branch that reads
+    // it. Carry the argument exactly and disclose that current no-op behavior.
+    const dataSets = manifest.settings.find((setting) => setting.key === 'DataSets')
+    assert(dataSets?.type === 'text' && dataSets.required === true, 'weatherkit: DataSets must carry the published input shape')
+    assert(dataSets.default === 'airQuality,currentWeather,forecastDaily,forecastHourly,forecastNextHour,weatherAlerts', 'weatherkit: DataSets must carry the release default')
+    assert(/no effect|not read|ineffective/i.test(`${dataSets.description} ${readme}`), 'weatherkit: the current DataSets no-op must be disclosed')
     // $argument is merged last, over the bundle's own database defaults, so a
     // declared-but-empty host would overwrite upstream's devapi.qweather.com
     // with "" and every QWeather URL would be built against a hostless https://.

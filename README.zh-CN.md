@@ -12,7 +12,7 @@
 | `apple-wloc` | 将 Apple WLOC 响应改写为运营者选择的位置 | MIT |
 | `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
 | `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
-| `weatherkit` | 在网关上运行经审查的 WeatherKit bundle，或将全部三条捕获路径发送到上游云端端点 | Apache-2.0 |
+| `weatherkit` | 在 Script 模式运行经审查的 WeatherKit bundle，或在 Cloud 模式应用经审查的上游改写 | Apache-2.0 |
 | `youtube-cleaner` | 清理 YouTube 响应并准备经审查的外部 Onesie 播放链路 | Apache-2.0 |
 | `zhihu-cleaner` | 移除部分知乎传输配置、广告、推广内容和导航入口 | CC BY-NC-SA 4.0 |
 
