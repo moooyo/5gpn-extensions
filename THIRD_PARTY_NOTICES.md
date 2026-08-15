@@ -99,54 +99,55 @@ boundary before enable.
 
 ## WeatherKit release bundles
 
-`weatherkit` does not vendor upstream source. It loads two Apache-2.0
-`NSRingo/WeatherKit` published release bundles at runtime and executes them under
-the `5gpn.io/v1` proxy-compat script contract. The reviewed assets are
-`v3.2.0/response.bundle.js` and `v3.2.0/request.bundle.js`, both built from
-commit `c66350d91457f9a1b8a6c5e6aba46370fa6da254`. The upstream tree
-contains no `NOTICE` file.
+`weatherkit` does not vendor upstream source. Revision `9.0.0` loads the two
+Apache-2.0 `NSRingo/WeatherKit` `v3.3.0-beta2` release assets,
+`response.bundle.js` and `request.bundle.js`, at runtime and executes them under
+the `5gpn.io/v1` proxy-compat script contract. The unsigned annotated tag object
+`6d2440cbab1de0d1499348201cf7351bbc84a47e` resolves to source commit
+`4ec00d076959defcda72bbe24ba83ae7a4d9c405`. The upstream tree contains no
+`NOTICE` file.
 
 Because the bundles are fetched rather than copied, this repository distributes
 none of their bytes and adds no derived work of them. `weatherkit/extension.yaml`
 and `weatherkit/README.md` are original and Apache-2.0. The upstream package
-metadata credits VirgilClyne, WordlessEcho, and 001ProMax; those are retained
-creator attributions, not copyright assertions by this repository.
+metadata credits VirgilClyne, WordlessEcho, 001ProMax, and hhh2210; those are
+retained creator attributions, not copyright assertions by this repository.
 
-GitHub release assets are publisher-replaceable, and GitHub reports
-`immutable: false` for this release. No manually maintained provenance field
-re-checks those assets, and no statement in this file is a line-by-line review
-of the bundles' contents; they carry whatever third-party runtimes upstream
-chose to include. Runtime review fetches these assets into the immutable
-snapshot digest and apply refetches them, so changed bytes require a fresh
-confirmation. That review/apply fence does not make the release URL immutable
-provenance or audit the bytes against the recorded source commit. The catalog
-deliberately accepts these direct official release assets because upstream does
-not publish the generated bundles in Git; the extension README records the tag
-object, source commit, replaceability, and review date.
+Both runtime bundles are mutable release assets: GitHub reports
+`immutable: false`, and upstream publishes no commit-pinned URLs for the
+generated files. Runtime review includes the fetched bytes in the immutable
+snapshot digest, and apply refetches them and fails if those bytes changed. That
+review-to-apply fence does not prove that a later publisher replacement still
+corresponds to the recorded tag object and source commit. The extension README
+records the review date and the commit-pinned source files used for comparison.
 
-An enabled provider receives the request's exact coordinates and the operator's
-API token in the provider URL. Since `v3.2.0-beta5` the request bundle also
-reaches QWeather with those coordinates under no provider gate, and answers the
-client from what it returns rather than forwarding the request to Apple. Since
-`v3.2.0` the response bundle does the same on `/api/v2/weather/` whenever the
-captured alert collection names the National Early Warning Center, which no
-setting gates either. The extension therefore declares the network capability
-and persistent storage, and its README states this boundary before enable.
+The manifest exposes thirteen typed settings and nine actions. Script mode runs
+five bundle actions over four pathnames, including local AQHI scale handling and
+two distinct weather-alert identifier forms. The new page-token form can use
+`QWeatherWeb`: it sends the page identifier and selected browser headers to
+`www.qweather.com`, parses the returned HTML, and answers locally without
+forwarding Apple's `Authorization` or `Cookie` header. Coordinate-based provider
+requests can disclose exact coordinates and API tokens. `WeatherAlerts.Provider`
+defaults to `WeatherKit` in this port, rather than upstream's `QWeatherWeb`
+default, and the published `DataSets` setting is retained even though no
+official release action currently reads it. The extension therefore declares
+the network capability and persistent storage, and its README states these
+boundaries before enable.
 
 The same extension also ports upstream's cloud rewrite module,
-`modules/iRingo.WeatherKit.Rewrite.lpx` at the same commit. Its three rewrite
-targets are transcribed, and two of the three endpoints its argument config
-offers; the third no longer resolves and the extension README records the check.
-Those services
-are not distributed by this repository and their deployments are pinned by
-nothing here; the mode that uses them is off by default, and an operator who
-turns it on sends the captured request, including Apple's authorization header
-and the coordinates in its path, to the selected third party.
+`modules/iRingo.WeatherKit.Rewrite.lpx` at the same commit. Its four rewrite
+rules cover availability, weather data, coordinate-form alerts, and page-token
+alerts. Two of the three configured endpoints are offered; the third no longer
+resolves and the extension README records the check. Those services are not
+distributed by this repository and their deployments are pinned by nothing
+here. Cloud mode is off by default; enabling it sends the complete captured
+request, potentially including Apple's authorization header, decoded body, and
+exact coordinates or page token, to the selected third party.
 
-Upstream moved the `v3.2.0-beta5` tag three times on `2026-08-03` and replaced
-both assets each time, so the assets an earlier revision reviewed are no longer
-what that tag serves. The stable `v3.2.0` tag above superseded it the same day;
-the extension README records all three beta commits and what each changed.
+Known beta limitations include an experimental `CA_AQHI` path with an upstream
+unit inconsistency, provider failures that can become a successful `200` with an
+empty alert list, and no cloud rewrite for `airQualityScale`. The README records
+the fuller behavior, exclusions, and smoke-test expectations.
 
 ## Apple WLOC response transformer
 
