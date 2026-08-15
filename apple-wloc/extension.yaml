@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.apple-wloc
   name: Apple WLOC Location Override
-  version: 2.1.0
+  version: 3.0.0
   description: Runs the reviewed Yu9191/wloc scripts against Apple Wi-Fi and cellular location responses.
 
 permissions:
@@ -71,6 +71,18 @@ settings:
       - debug
       - all
     default: info
+  # The manifest boundary follows the upstream picker, which accepts 0..5000.
+  # The upstream bundles themselves enforce no upper bound on a value written
+  # directly through the settings-save request, and a persisted value takes
+  # precedence over this argument until it is replaced or cleared.
+  - key: randomRadius
+    type: number
+    label: Random radius
+    description: Random offset radius in metres. Zero disables it; a value saved from the online picker takes precedence.
+    required: true
+    min: 0
+    max: 5000
+    default: 0
 
 actions:
   - id: rewrite-wloc-response
@@ -83,7 +95,7 @@ actions:
         - https
       pathRegex: '^/clls/wloc(?:\?.*)?$'
     script:
-      source: https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc.js
+      source: https://raw.githubusercontent.com/Yu9191/wloc/782e9c5cadf215263d9d168314113e47baaa302c/dist/wloc.js
       entry: proxy-compat
       bodyMode: binary
       timeoutMs: 30000
@@ -99,7 +111,7 @@ actions:
         - https
       pathRegex: '^/wloc-settings/save(?:\?.*)?$'
     script:
-      source: https://raw.githubusercontent.com/Yu9191/wloc/eec07a8dc8de6dbaee8eac1fb376e4d03020154a/dist/wloc-settings.js
+      source: https://raw.githubusercontent.com/Yu9191/wloc/782e9c5cadf215263d9d168314113e47baaa302c/dist/wloc-settings.js
       entry: proxy-compat
       bodyMode: none
       timeoutMs: 10000

@@ -6,17 +6,22 @@ software license. A file's license is determined by the explicit mapping in
 owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 - Repository scaffolding, validation tooling, and `apple-wloc` use the MIT
-  License. `apple-wloc` loads scripts from an upstream that publishes no
-  license file; it distributes none of their bytes, and
-  [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) records that. The complete project MIT text is in
+  License. This covers the local `apple-wloc` manifest and documentation, not
+  its remote scripts. Those scripts are fetched from `Yu9191/wloc` commit
+  `782e9c5cadf215263d9d168314113e47baaa302c`, whose tree carries the standard
+  AGPL-3.0 text and whose README separately requires authorization for
+  commercial-product or application-store use. The selected candidate records
+  non-commercial use. This repository distributes none of the script bytes,
+  and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) records the boundary.
+  The complete project MIT text is in
   [`LICENSES/MIT.txt`](LICENSES/MIT.txt); retained upstream MIT notices are in
   [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 - `bilibili-cleaner` uses `GPL-3.0-only`, matching the `kokoryh/Sparkle` module
   it accompanies. It does not vendor the four generated JavaScript bundles;
-  the gateway fetches those pinned scripts at runtime. It does distribute two
-  verbatim upstream jq programs inside `extension.yaml`; those programs are
-  their own preferred source and remain GPL-3.0-only. The complete GPL text is
-  in [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt).
+  the gateway fetches those pinned scripts at runtime. It distributes adapted
+  source from two upstream jq programs inside `extension.yaml`; the local forms
+  add type guards and remain GPL-3.0-only preferred source. The complete GPL
+  text is in [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt).
 - `weatherkit` and `youtube-cleaner` use `Apache-2.0`, matching the upstreams
   whose published bundles they load. Neither vendors upstream source. The
   complete Apache text is in

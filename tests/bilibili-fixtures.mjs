@@ -25,7 +25,7 @@ for (const id of ['mock-grpc-teenagers', 'mock-grpc-default-words', 'mock-grpc-e
   assert.equal(mockBodies.get(id).headers['Grpc-Status'], '0', `${id} must carry upstream's grpc-status header`)
 }
 
-assert.equal(manifest.metadata.version, '4.1.0')
+assert.equal(manifest.metadata.version, '4.2.0')
 assert.equal(manifest.permissions.persistentStorage, true)
 assert.deepEqual(
   manifest.settings.map(setting => [setting.key, setting.type, setting.default]),
@@ -61,7 +61,7 @@ assert.deepEqual(byKind.compat, [
   'clean-protobuf-responses',
 ])
 
-const SCRIPT_BASE = 'https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/'
+const SCRIPT_BASE = 'https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/dist/'
 const expectedScriptActions = new Map([
   ['transform-airborne', [`${SCRIPT_BASE}bilibili.protobuf.request.js`, 'binary', 12000, 1048576]],
   ['transform-optimized-request', [`${SCRIPT_BASE}bilibili.protobuf.request.js`, 'binary', 12000, 1048576]],
@@ -132,6 +132,9 @@ for (const value of ['/bilibili.app.viewunite.v1.View/View', '/bilibili.main.com
   assert(new RegExp(optimized.match.pathRegex).test(value), `optimized request action misses ${value}`)
 }
 assert(!new RegExp(optimized.match.pathRegex).test('/bilibili.app.viewunite.v1.View/ViewProgress'))
+const protobufResponses = manifest.actions.find(action => action.id === 'clean-protobuf-responses')
+assert(new RegExp(protobufResponses.match.pathRegex).test('/bilibili.app.viewunite.v1.View/AIRelateAsync'))
+assert(!new RegExp(protobufResponses.match.pathRegex).test('/bilibili.app.view.v1.View/AIRelateAsync'))
 
 // Upstream gates these two entries with the plugin format's own enable=, which
 // the core now expresses as an action-level enabledWhen. Before that existed

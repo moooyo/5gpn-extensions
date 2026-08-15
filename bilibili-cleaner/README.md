@@ -37,49 +37,63 @@ a `mock-response-body` directive has no script and no input document to
 transform.
 
 The four GPL JavaScript bundles are no longer redistributed. Five actions fetch
-them from immutable raw URLs, with the request bundle shared by two actions. The
-two upstream GPL jq programs remain redistributed inside
-`extension.yaml`, because a jq action carries its expression in the manifest;
-those programs are already their own preferred source form and do not require
-the former generated-bundle build tree. `bilibili-cleaner/source/` is gone.
+them from immutable raw URLs, with the request bundle shared by two actions. Two
+adapted upstream GPL jq programs remain redistributed inside `extension.yaml`,
+because a jq action carries its expression in the manifest. The port preserves
+their upstream operations while adding local type guards for missing or
+non-object response data. Those adapted programs are their own preferred source
+form and do not require the former generated-bundle build tree.
+`bilibili-cleaner/source/` is gone.
 
 ## Pinned upstream artifacts
 
 Reviewed at commit
-[`a26c3412a760fb8d7d4d1bcc124d126e19d630e5`](https://github.com/kokoryh/Sparkle/tree/a26c3412a760fb8d7d4d1bcc124d126e19d630e5)
-on `2026-08-03`.
+[`110029696d66a3f3aef8f6546de9d494513c2901`](https://github.com/kokoryh/Sparkle/tree/110029696d66a3f3aef8f6546de9d494513c2901)
+on `2026-08-16`.
 The published module points its `script-path` and `jq-path` values at the
 mutable `master` branch; every entry below is re-pinned to that immutable
 commit, so the bytes a gateway fetches are the reviewed revision's.
 
-Revision 4.1.0 refreshes that pin from `12e89d6d93d72d39eb283ef81d2b58eb204cdb58`,
-four commits back. Nothing this manifest declares changed: the Loon plugin and
-both jq programs are byte-identical across the two commits, so the matchers,
-arguments, rules, and capture hosts are the reviewed ones already. What changed
-is inside the four scripts the gateway loads — upstream rewrote its error
-handling and script-ending logic, added a `grpc-status` response header on
-error, and routed the SponsorBlock lookup through the request context. Upstream's
-fourth commit removes more webpage ads, but only for sites this extension does
-not capture. The ending refactor is worth naming because it looks alarming and
-is not: the fake-response path it now dispatches through
-(`$done({ response })`) was already what the pinned protobuf request script
-used, so no runtime capability is newly required.
+Revision 4.2.0 refreshes the Sparkle pin from
+`a26c3412a760fb8d7d4d1bcc124d126e19d630e5`, four commits back. Sparkle publishes
+no tag or release for this revision. The five settings, five reject rules, six
+capture hosts, mocks, JSON/JQ rewrites, outbound hosts, and permission boundary
+are unchanged. The LPX adds one response route for
+`bilibili.app.viewunite.v1.View/AIRelateAsync`; this port adds exactly that route
+instead of copying the LPX's broader optional `view(unite)?` grouping, because
+the reviewed router registers no `view.v1.View/AIRelateAsync` handler.
+
+The response bundle now decodes `AIRelateAsync`, removes its `cm` advertising
+field, and applies the existing related-card filter to its related-recommend
+modules. The request bundle's bytes changed only through the build timestamp and
+minifier identifier allocation; its behavior is unchanged. The live JSON
+bundle, both upstream jq files, and Sparkle's GPL license are byte-identical to
+the previous pin. One intervening commit changes only the unrelated Hanime
+webpage bundle.
+
+The Bilibili webpage bundle now treats every `H5Slider` as removable, even when
+its links stay on Bilibili, and hides the slider plus any hideable ancestors in
+the traversal path. That broadens the previous external-link-only test and may
+hide legitimate activity-page content. It is retained as reviewed upstream
+behavior, but remains a device-validation and rollback risk.
 
 | Artifact | Immutable raw URL |
 | --- | --- |
-| Sparkle GPL license | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/LICENSE` |
-| Loon plugin (rule and directive source) | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/release/loon/plugin/bilibili.lpx` |
-| Protobuf request transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/bilibili.protobuf.request.js` |
-| Protobuf response transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/bilibili.protobuf.response.js` |
-| Live JSON transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/bilibili.json.js` |
-| Activity webpage transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/webpage.bilibili.js` |
-| Tab replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/jq/bilibili.tab.jq` |
-| My-page replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/jq/bilibili.mine.jq` |
+| Sparkle GPL license | `https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/LICENSE` |
+| Loon plugin (rule and directive source) | `https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/release/loon/plugin/bilibili.lpx` |
+| Protobuf request transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/dist/bilibili.protobuf.request.js` |
+| Protobuf response transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/dist/bilibili.protobuf.response.js` |
+| Live JSON transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/dist/bilibili.json.js` |
+| Activity webpage transformer | `https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/dist/webpage.bilibili.js` |
+| Tab replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/jq/bilibili.tab.jq` |
+| My-page replacement program | `https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/jq/bilibili.mine.jq` |
 
-The two `jq-path` programs are inlined into `extension.yaml` rather than fetched
-at runtime, because a jq action carries its expression in the manifest. Each URL
-above names the immutable commit its inlined copy was taken from, so re-fetching
-that URL is what checks the two against each other. Nothing does so
+The two `jq-path` programs are adapted and inlined into `extension.yaml` rather
+than fetched at runtime, because a jq action carries its expression in the
+manifest. Each URL above names the immutable upstream source used for review.
+The local forms add outer object checks and narrower nested-value type guards so
+unexpected response shapes pass through instead of causing a jq failure; they
+are intentionally not byte-for-byte copies. Nothing re-fetches or compares them
 automatically.
 
 ## Chronos client artifacts
@@ -92,10 +106,12 @@ the bundle from source and could rewrite its revision component; this revision
 loads upstream's bundle verbatim, so nothing here pins it, and a client gets
 whatever `kokoryh/chronos` serves on `master` at request time.
 
-The six archives and their license were fetched and reviewed on `2026-08-05`
+The six archives and their license were re-reviewed on `2026-08-16`
 at commit `69a8996b1f1311b606021e3f194b0390280ab618`, committed on
 `2026-07-04`. These immutable URLs record the reviewed bytes; they do not alter
 the bundle's runtime behavior, which still sends clients to mutable `master`.
+That commit remains the Chronos default-branch HEAD, so this Sparkle update sees
+no Chronos archive, name, license, or branch-content change.
 
 | Reviewed artifact | Immutable raw URL |
 | --- | --- |
@@ -120,9 +136,10 @@ the gateway fetches them itself. The manifest and this documentation are
 original works distributed under GPL-3.0-only so the aggregate stays consistent
 with the module they accompany, and they retain kokoryh/Sparkle attribution.
 
-This repository does redistribute source text from the two jq programs inlined
-into `extension.yaml`. That text is GPL-3.0-only, and its commit-pinned
-provenance is recorded in the table above.
+This repository does redistribute adapted source text from the two jq programs
+inlined into `extension.yaml`. The local type guards are modifications to the
+upstream programs; the resulting source remains GPL-3.0-only, and its
+commit-pinned upstream provenance is recorded in the table above.
 
 Earlier revisions vendored a generated protobuf runtime, a Google BSD-3-Clause
 varint implementation, and an MIT fflate archive to satisfy the
@@ -136,7 +153,7 @@ Twenty-four actions, in three kinds:
 | Kind | Count | What it carries |
 | --- | ---: | --- |
 | `entry: proxy-compat` | 5 | The pinned `dist/` scripts: the protobuf request transformer on both request paths, the protobuf response transformer, the live JSON transformer, and the activity webpage transformer. |
-| `script.jq` | 11 | The pinned `[Rewrite]` expressions, including the two `jq-path` programs inlined. |
+| `script.jq` | 11 | The pinned `[Rewrite]` expressions, including the two adapted `jq-path` programs inlined with local type guards. |
 | `script.mock` | 8 | The `mock-response-body` and `reject-dict` directives, one action per distinct body exactly as upstream declares them. The three gRPC mocks carry upstream's base64 frames and its `grpc-status: 0` header, and add the `application/grpc` content type upstream leaves to the client. |
 
 This directory ships no JavaScript. Earlier revisions carried `mock-json.js`
@@ -235,9 +252,15 @@ is the extension-scoped store the pinned scripts read and write.
 - Client Chronos URLs are built on a mutable branch by upstream's own bundle,
   and their GPL archives are not redistributed because their repository lacks
   corresponding preferred source.
+- The `AIRelateAsync` response handler removes the response-level `cm` field and
+  filters related cards. Its matcher is deliberately limited to
+  `bilibili.app.viewunite.v1.View/AIRelateAsync`; the upstream LPX's grouped
+  expression would also admit an unsupported `view.v1` spelling.
 - The webpage bundle parses the whole document with `DOMParser` and reserializes
-  it, and gates itself on `hostname.includes("bilibili")`. Both are upstream
-  behavior, so the runtime has to supply `DOMParser` for that action to work.
+  it, gates itself on `hostname.includes("bilibili")`, and now hides every
+  `H5Slider` plus hideable ancestors. These are upstream behaviors, so the
+  runtime has to supply `DOMParser`, and operators must treat legitimate-slider
+  removal as a reviewed rollback risk.
 - Request and response bodies stay bounded by the `maxBodyBytes` and
   `timeoutMs` each action declares. The published module declares no size cap
   at all, and allows the two request entries ten seconds where this manifest
@@ -274,13 +297,15 @@ manual review decision.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.bilibili-cleaner`; bump `metadata.version` for every immutable manifest or runtime-script change. |
-| Current manifest | `version=4.1.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=4.2.0`; `persistentStorage=true`; `settings=5`; `captureHosts=6`; `actions=24`; `routingRules=5`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
 | Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |
+| Reviewed upstream baseline | Sparkle `110029696d66a3f3aef8f6546de9d494513c2901` and Chronos `69a8996b1f1311b606021e3f194b0390280ab618`, reviewed on `2026-08-16`. |
+| Response route delta | Add only `bilibili.app.viewunite.v1.View/AIRelateAsync`; do not match `bilibili.app.view.v1.View/AIRelateAsync`. |
 | Operator state | A normal same-ID update retains valid settings, egress binding, `capture_dns`, and execution position. Review all of them before enable. |
-| Source boundary | Keep the four JavaScript bundles remote at exact commit-pinned raw URLs. Redistribute only the two jq programs in their preferred source form, and keep their inline text and provenance synchronized. |
+| Source boundary | Keep the four JavaScript bundles remote at exact commit-pinned raw URLs. Redistribute only the two adapted jq programs in their preferred source form, and keep their local type guards and upstream provenance synchronized. |
 | External artifacts | The bundle builds Chronos URLs on `kokoryh/chronos` `master` and this manifest cannot pin them; re-review what that branch serves whenever the Sparkle pin moves. Archives without corresponding preferred source remain referenced rather than redistributed. |
 | License review gate | Before any candidate or rollback publication, reconcile the GPL mapping, license text, notices, and README provenance with the two redistributed jq programs and four referenced JavaScript bundles. |
 | Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. No extension data conversion is required. |

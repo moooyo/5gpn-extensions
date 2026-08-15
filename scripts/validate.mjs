@@ -34,11 +34,8 @@ for (const [filename, expectedDigest] of expectedLicenseFiles) {
 assert(licenseSummary.includes('multi-licensed repository'), 'root LICENSE does not describe the multi-license boundary')
 assert(packageMetadata.license === 'SEE LICENSE IN LICENSE', 'package.json must point to the multi-license boundary')
 const expectedExtensions = new Map([
-  // Yu9191/wloc publishes no LICENSE file. That is recorded rather than
-  // papered over: the README must say so, because "no upstream license digest"
-  // and "we forgot to record one" must not look the same.
-  ['apple-wloc', { license: 'MIT', pin: 'eec07a8dc8de6dbaee8eac1fb376e4d03020154a', unlicensed: true }],
-  ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: 'a26c3412a760fb8d7d4d1bcc124d126e19d630e5' }],
+  ['apple-wloc', { license: 'MIT', pin: '782e9c5cadf215263d9d168314113e47baaa302c' }],
+  ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '110029696d66a3f3aef8f6546de9d494513c2901' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
   ['weatherkit', { license: 'Apache-2.0', pin: '4ec00d076959defcda72bbe24ba83ae7a4d9c405' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525' }],
@@ -498,12 +495,6 @@ for (const entry of entries) {
   assert((readme.match(/^## Verification$/gm) ?? []).length === 1, `${entry.name}: README must have exactly one verification procedure`)
   assert(readme.includes(`License: [\`${expected.license}\`]`), `${entry.name}: README has no exact license banner`)
   assert(readme.includes(expected.pin), `${entry.name}: README has no reviewed upstream pin`)
-  // Byte-level pinning is gone, but an upstream that grants no license at all
-  // still has to be recorded as such: "no digest" and "no grant" must not look
-  // the same.
-  if (expected.unlicensed) {
-    assert(/upstream publishes no license file/i.test(readme), `${entry.name}: README must state that upstream publishes no license`)
-  }
   const reuseAnnotations = reusePolicy
     .split(/\r?\n\s*\r?\n/)
     .filter((paragraph) => paragraph.includes(`${entry.name}/`))
@@ -521,6 +512,37 @@ for (const entry of entries) {
     assert(readme.includes('../KELEEONE-LICENSE.md'), `${entry.name}: README has no shared license link`)
     assert(/CC BY-NC-SA 4\.0/.test(readme), `${entry.name}: README has no adapted-material license`)
   }
+  if (entry.name === 'apple-wloc') {
+    assert(manifest.metadata.version === '3.0.0', 'apple-wloc: reviewed manifest version changed')
+    assert(manifest.settings?.length === 5, 'apple-wloc: reviewed setting count changed')
+    const randomRadius = manifest.settings[4]
+    assert(
+      randomRadius?.key === 'randomRadius'
+      && randomRadius.type === 'number'
+      && randomRadius.required === true
+      && randomRadius.default === 0
+      && randomRadius.min === 0
+      && randomRadius.max === 5000,
+      'apple-wloc: randomRadius must remain the required fifth number setting bounded to 0..5000 with default 0',
+    )
+    assert(captureHosts.join(',') === 'gs-loc.apple.com,gs-loc-cn.apple.com', 'apple-wloc: reviewed capture hosts changed')
+    assert(actions.length === 2 && actions.every((action) => action.script.entry === 'proxy-compat'), 'apple-wloc: reviewed proxy-compat action set changed')
+    const reviewedSources = [
+      `https://raw.githubusercontent.com/Yu9191/wloc/${expected.pin}/dist/wloc.js`,
+      `https://raw.githubusercontent.com/Yu9191/wloc/${expected.pin}/dist/wloc-settings.js`,
+    ]
+    assert(actions.map((action) => action.script.source).join(',') === reviewedSources.join(','), 'apple-wloc: runtime bundle pins changed')
+    assert(manifest.permissions.persistentStorage === true && manifest.permissions.network === undefined, 'apple-wloc: permission boundary changed')
+    assert(routingRules.length === 0 && mappings.length === 0 && manifest.requirements?.egressGroup?.required !== true, 'apple-wloc: routing or egress boundary changed')
+    assert(/local manifest and documentation/i.test(readme), 'apple-wloc: local MIT boundary is not explicit')
+    assert(/AGPL-3\.0/.test(readme), 'apple-wloc: upstream AGPL-3.0 text is not recorded')
+    assert(/non-commercial use/i.test(readme), 'apple-wloc: selected non-commercial use is not recorded')
+    assert(/commercial[- ]product/i.test(readme) && /application[- ]store/i.test(readme), 'apple-wloc: upstream README use restriction is incomplete')
+    assert(/merges the new coordinate fields/i.test(readme), 'apple-wloc: merged settings-save behavior is not recorded')
+    assert(/previous persisted radius is retained/i.test(readme), 'apple-wloc: sticky randomRadius behavior is not recorded')
+    assert(/take precedence over\s+the manifest arguments/i.test(readme), 'apple-wloc: persistent settings precedence is not recorded')
+    assert(/enforces no upper bound/i.test(readme), 'apple-wloc: upstream randomRadius limit gap is not recorded')
+  }
   if (entry.name === 'bilibili-cleaner') {
     assert(migrationSection.includes('| License review gate |'), 'bilibili-cleaner: migration contract has no aggregate-license review gate')
     assert(actions.length === 24 && manifest.settings?.length === 5 && manifest.permissions.network === true && manifest.requirements?.egressGroup?.required === false, 'bilibili-cleaner: pinned LPX capability set is incomplete')
@@ -534,7 +556,7 @@ for (const entry of entries) {
     const compat = actions.filter((action) => action.script.entry === 'proxy-compat')
     assert(compat.length === 5, 'bilibili-cleaner: the five upstream transformers must all be loaded')
     for (const action of compat) {
-      assert(action.script.source.startsWith('https://raw.githubusercontent.com/kokoryh/Sparkle/a26c3412a760fb8d7d4d1bcc124d126e19d630e5/dist/'), `bilibili-cleaner: ${action.id} is not the reviewed immutable commit`)
+      assert(action.script.source.startsWith('https://raw.githubusercontent.com/kokoryh/Sparkle/110029696d66a3f3aef8f6546de9d494513c2901/dist/'), `bilibili-cleaner: ${action.id} is not the reviewed immutable commit`)
     }
     assert(actions.filter((action) => typeof action.script.jq === 'string').length === 11, 'bilibili-cleaner: the eleven reviewed rewrite expressions are incomplete')
   }
@@ -647,10 +669,19 @@ for (const entry of entries) {
 extensionNames.sort()
 assert(extensionNames.length === expectedExtensions.size, 'extension catalog and license policy differ')
 assert(thirdPartyNotices.includes('Copyright (c) 2026 WLOC ProxyPin Contributors'), 'Apple upstream MIT notice is missing')
-// No extension vendors upstream source any more, so the notices record what is
-// loaded and pinned rather than what is redistributed. What still has to be
-// stated is where a grant is absent: Yu9191/wloc publishes no license at all.
-assert(thirdPartyNotices.includes('publishes no `LICENSE` file'), 'notices do not record the upstream without a license')
+const appleUpstreamPin = '782e9c5cadf215263d9d168314113e47baaa302c'
+const appleUpstreamLicenseUrl = `https://github.com/Yu9191/wloc/blob/${appleUpstreamPin}/LICENSE`
+for (const [document, label] of [
+  [licenseSummary, 'root license summary'],
+  [thirdPartyNotices, 'third-party notices'],
+]) {
+  assert(document.includes(appleUpstreamPin), `${label} does not record the Apple WLOC upstream pin`)
+  assert(document.includes('AGPL-3.0'), `${label} does not record the Apple WLOC upstream license`)
+  assert(/non-commercial use/i.test(document), `${label} does not record the selected Apple WLOC use boundary`)
+  assert(/commercial[- ]product/i.test(document) && /application[- ]store/i.test(document), `${label} does not record the upstream Apple WLOC README restriction`)
+}
+assert(thirdPartyNotices.includes(appleUpstreamLicenseUrl), 'Apple WLOC notices do not link the exact upstream license text')
+assert(licenseSummary.includes('local `apple-wloc` manifest and documentation'), 'root license summary does not retain the local Apple WLOC MIT boundary')
 assert(!existsSync(path.join(root, 'LICENSES', 'BSD-3-Clause.txt')), 'an unused license text would fail the REUSE gate')
 assert(rootReadme.includes('MIGRATION.md'), 'root README does not reference the migration playbook')
 assert(rootReadmeZh.includes('MIGRATION.md'), 'Chinese root README does not reference the migration playbook')

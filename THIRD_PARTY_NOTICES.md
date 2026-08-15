@@ -42,23 +42,26 @@ not treated as the creator or licensing authority.
 the GPL-3.0-only `kokoryh/Sparkle` project at runtime under the `5gpn.io/v1`
 proxy-compat contract, and carries that project's own rewrite expressions as jq
 actions. Every artifact is pinned at commit
-`a26c3412a760fb8d7d4d1bcc124d126e19d630e5` in the extension README, which is the
+`110029696d66a3f3aef8f6546de9d494513c2901` in the extension README, which is the
 immutable revision a gateway fetches from.
 
 Because the four generated JavaScript bundles are fetched by the gateway rather
 than shipped here, this repository does not distribute those bundles. It does
-distribute two jq programs verbatim inside `extension.yaml`; those programs are
-their own preferred source, retain Sparkle attribution, and remain
-GPL-3.0-only. `extension.yaml` and `README.md` are also distributed under
-GPL-3.0-only so the extension's license boundary is consistent.
+distribute adapted source from two jq programs inside `extension.yaml`; the
+local forms retain the upstream operations while adding type guards for missing
+or non-object response data. Those adapted programs are their own preferred
+source, retain Sparkle attribution, and remain GPL-3.0-only. `extension.yaml`
+and `README.md` are also distributed under GPL-3.0-only so the extension's
+license boundary is consistent.
 
 The pinned response bundle can direct supported clients to six archives under
 the mutable `kokoryh/chronos` `master` branch. Those names and the Chronos
 license were reviewed at commit
-`69a8996b1f1311b606021e3f194b0390280ab618` on `2026-08-05`; the extension
-README records every commit-pinned raw URL. The client still follows the
-mutable branch at runtime, and this repository neither copies the archives nor
-claims that Chronos contains their complete corresponding preferred source.
+`69a8996b1f1311b606021e3f194b0390280ab618` on `2026-08-16`; that commit remains
+the Chronos default-branch HEAD, and the extension README records every
+commit-pinned raw URL. The client still follows the mutable branch at runtime,
+and this repository neither copies the archives nor claims that Chronos
+contains their complete corresponding preferred source.
 
 The KeleeOne snapshot was used to discover a mirrored plugin version, but its
 CC BY-NC-SA root license does not override Sparkle's original GPL license.
@@ -153,14 +156,23 @@ the fuller behavior, exclusions, and smoke-test expectations.
 
 `apple-wloc` does not vendor upstream source. It loads two scripts from
 `Yu9191/wloc` at runtime under the `5gpn.io/v1` proxy-compat contract, pinned at
-commit `eec07a8dc8de6dbaee8eac1fb376e4d03020154a`: `dist/wloc.js` and
+commit `782e9c5cadf215263d9d168314113e47baaa302c`: `dist/wloc.js` and
 `dist/wloc-settings.js`. Their commit-pinned raw URLs are recorded in the
-extension README.
+extension README. This revision was reviewed on `2026-08-16`.
 
-That repository publishes no `LICENSE` file, so no license grant is asserted
-here. This repository distributes none of its bytes; the gateway fetches them
-from the immutable commit URLs recorded in the extension README, which is how
-their author publishes them for proxy clients to load.
+The selected tree carries upstream's standard
+[`AGPL-3.0`](https://github.com/Yu9191/wloc/blob/782e9c5cadf215263d9d168314113e47baaa302c/LICENSE)
+text. Its
+[`README`](https://github.com/Yu9191/wloc/blob/782e9c5cadf215263d9d168314113e47baaa302c/README.md#L285-L287)
+separately states that, without authorization, the project code may not be used
+in commercial products or published in application stores. This repository
+records both statements without interpreting the licensing ambiguity. The
+operator selected this candidate for non-commercial use.
+
+The local manifest and documentation remain MIT. This repository distributes
+none of the upstream script bytes and does not relicense them; the gateway
+fetches them from the immutable commit URLs recorded in the extension README,
+which is how their author publishes them for proxy clients to load.
 
 Revisions through 1.1.1 shipped a bounded JavaScript port derived from the
 MIT-licensed `FFF686868/proxypin-wloc-spoofer` project at commit
