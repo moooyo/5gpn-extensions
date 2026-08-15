@@ -156,14 +156,23 @@ the fuller behavior, exclusions, and smoke-test expectations.
 
 `apple-wloc` does not vendor upstream source. It loads two scripts from
 `Yu9191/wloc` at runtime under the `5gpn.io/v1` proxy-compat contract, pinned at
-commit `eec07a8dc8de6dbaee8eac1fb376e4d03020154a`: `dist/wloc.js` and
+commit `782e9c5cadf215263d9d168314113e47baaa302c`: `dist/wloc.js` and
 `dist/wloc-settings.js`. Their commit-pinned raw URLs are recorded in the
-extension README.
+extension README. This revision was reviewed on `2026-08-16`.
 
-That repository publishes no `LICENSE` file, so no license grant is asserted
-here. This repository distributes none of its bytes; the gateway fetches them
-from the immutable commit URLs recorded in the extension README, which is how
-their author publishes them for proxy clients to load.
+The selected tree carries upstream's standard
+[`AGPL-3.0`](https://github.com/Yu9191/wloc/blob/782e9c5cadf215263d9d168314113e47baaa302c/LICENSE)
+text. Its
+[`README`](https://github.com/Yu9191/wloc/blob/782e9c5cadf215263d9d168314113e47baaa302c/README.md#L285-L287)
+separately states that, without authorization, the project code may not be used
+in commercial products or published in application stores. This repository
+records both statements without interpreting the licensing ambiguity. The
+operator selected this candidate for non-commercial use.
+
+The local manifest and documentation remain MIT. This repository distributes
+none of the upstream script bytes and does not relicense them; the gateway
+fetches them from the immutable commit URLs recorded in the extension README,
+which is how their author publishes them for proxy clients to load.
 
 Revisions through 1.1.1 shipped a bounded JavaScript port derived from the
 MIT-licensed `FFF686868/proxypin-wloc-spoofer` project at commit

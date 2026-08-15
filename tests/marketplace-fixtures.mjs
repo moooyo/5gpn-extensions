@@ -38,6 +38,19 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
 
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
   assert.equal(catalog.entries.length, 6)
+  const apple = catalog.entries.find(entry => entry.id === 'io.5gpn.apple-wloc')
+  assert.equal(apple.version, '3.0.0')
+  assert.equal(apple.license.spdx, 'MIT')
+  assert.deepEqual(apple.capabilities, {
+    captureHostCount: 2,
+    actionCount: 2,
+    settingCount: 5,
+    network: false,
+    persistentStorage: true,
+    upstreamMappingCount: 0,
+    routingRuleCount: 0,
+    egressGroupRequired: false,
+  })
   const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
   assert.equal(bilibili.version, '4.2.0')
   assert.equal(bilibili.capabilities.actionCount, 24)
