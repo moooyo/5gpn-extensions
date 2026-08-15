@@ -13,10 +13,10 @@ owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.
   [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 - `bilibili-cleaner` uses `GPL-3.0-only`, matching the `kokoryh/Sparkle` module
   it accompanies. It does not vendor the four generated JavaScript bundles;
-  the gateway fetches those pinned scripts at runtime. It does distribute two
-  verbatim upstream jq programs inside `extension.yaml`; those programs are
-  their own preferred source and remain GPL-3.0-only. The complete GPL text is
-  in [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt).
+  the gateway fetches those pinned scripts at runtime. It distributes adapted
+  source from two upstream jq programs inside `extension.yaml`; the local forms
+  add type guards and remain GPL-3.0-only preferred source. The complete GPL
+  text is in [`LICENSES/GPL-3.0-only.txt`](LICENSES/GPL-3.0-only.txt).
 - `weatherkit` and `youtube-cleaner` use `Apache-2.0`, matching the upstreams
   whose published bundles they load. Neither vendors upstream source. The
   complete Apache text is in
