@@ -15,9 +15,10 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/weatherkit/extensi
 ```
 
 Keep the extension disabled until its snapshot, thirteen settings, one capture
-host, nine actions, network permission, persistent storage, and three routing
-rules have been reviewed. Cloud mode sends complete captured requests to a
-third party. Script mode can send exact coordinates to selected providers.
+host, nine actions, network permission, persistent storage, three routing
+rules, and explicit egress binding have been reviewed. Cloud mode sends complete
+captured requests to a third party. Script mode can send exact coordinates to
+selected providers.
 
 ## Current upstream refresh
 
@@ -210,6 +211,10 @@ of those configuration sources.
 - `permissions.network: true` is required. It is one boolean grant and names no
   destination. Any bundle action can send any request, response, setting, or
   storage data visible to it to any public host it can reach.
+- The manifest omits `requirements.egressGroup`; normalization therefore
+  reports `egressRequired=false` as review metadata only. Every installation
+  still has one explicit operator binding, and a fresh installation starts at
+  `DIRECT`.
 - `permissions.persistentStorage: true` is retained. The bundle stores provider
   caches in the extension-scoped store. This release adds no new persistent
   schema and remains compatible with the existing cache bucket.

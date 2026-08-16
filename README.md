@@ -6,9 +6,11 @@ This repository is the first-party catalog for independently maintained native
 5gpn extensions. The 5gpn core repository owns the runtime and strict
 `5gpn.io/v1` contract; it does not vendor or mirror extension source code.
 
-Every extension is disabled by default after import. Review its immutable
-manifest, scripts, capture hosts, exact routing rules, the network permission, execution position, and
-operator egress requirement before enabling it.
+Every extension is disabled by default after import. Every installed extension
+also has exactly one explicit operator egress binding, and a fresh import starts
+at `DIRECT`. Review its immutable manifest, scripts, capture hosts, exact routing
+rules, network permission, execution position, current egress binding, and any
+`requirements.egressGroup.required` review marker before enabling it.
 
 | Extension | Purpose | License |
 | --- | --- | --- |
@@ -36,11 +38,13 @@ public HTTPS origin; never embed repository credentials in an extension URL.
 | `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
 | `zhihu-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/extension.yaml> |
 
-Every import starts disabled. Before enabling it, review the immutable
-snapshot, capture hosts, actions, settings, exact routing rules, the network permission, execution
-position, and any required operator egress binding. Installing an extension
-does not enable the global interception master or trust its interception CA on
-a device.
+Every import starts disabled and receives an explicit `DIRECT` egress binding.
+Before enabling it, review the immutable snapshot, capture hosts, actions,
+settings, exact routing rules, network permission, execution position, and
+current operator egress binding. `requirements.egressGroup.required` is review
+metadata only and never creates an unbound state. Installing an extension does
+not enable the global interception master or trust its interception CA on a
+device.
 
 ## Marketplace
 
@@ -84,7 +88,7 @@ maintained manually.
 ## Developing an extension
 
 The normative runtime contract is the core project's
-[`5gpn.io/v1` author guide](https://github.com/moooyo/5gpn/blob/beta/docs/native-extensions.md).
+[`5gpn.io/v1` author guide](https://github.com/moooyo/5gpn/blob/main/docs/native-extensions.md).
 This section is a self-contained maintainer checklist for extensions in this
 catalog. 5gpn accepts only the native manifest format described here; do not
 ship Loon, Surge, Quantumult X, or Stash manifests. `proxy-compat` remains part
@@ -115,29 +119,33 @@ Do not maintain a second byte-size or digest pin in the README.
 
 | Capability | Manifest declaration | Runtime effect and boundary |
 | --- | --- | --- |
-| Acquire traffic | `traffic.captureHosts` | Exact DNS names or constrained `*.example.com` wildcards. This is the only traffic-acquisition permission and publishes DNS, certificate, and mihomo rules for ports 80 and 443 when enabled. |
+| Acquire traffic | `traffic.captureHosts` | Exact DNS names or constrained `*.example.com` wildcards. This is the only traffic-acquisition permission and publishes DNS, certificate, and mihomo rules for plain HTTP and TLS/H1/H2 on ports 80 and 443 when enabled. HTTP/3 interception is unsupported. |
 | Apply reviewed global routing | `traffic.routingRules` | Bounded typed selectors can only `REJECT` or `DIRECT` matching traffic already reaching the gateway. Exact rules share the single enable confirmation, cannot name a proxy group, and exist only while the extension and MITM master are enabled. |
 | Transform requests or responses | `actions[]` | Ordered structured matchers select one action in the declared phase. Each action host must belong to the same extension's `captureHosts`. |
 | Block a matched path | `script.reject` | Aborts the exchange before it is sent upstream. No code. |
 | Answer with a fixed reply | `script.mock` | A declared status, headers, and `body` or `base64Body`. No code, and no request leaves the gateway. |
 | Rewrite a JSON body | `script.jq` | An upstream module's own `response-body-json-jq` expression, run by gojq without entering the JavaScript runtime. Reads operator choices through `$settings`. |
 | Edit headers on a real message | `script.headers` | `set` and `remove` fields without replacing the body. Removal runs first. |
-| Send a request elsewhere | `script.rewrite` | Rewrites the URL in place, or answers 302/307. `to` may interpolate `{{settings.key}}`, which is how an upstream module's endpoint argument survives the port. An in-place rewrite forwards the captured request as it stands, so a cross-origin target needs the network permission. |
+| Send a request elsewhere | `script.rewrite` | Rewrites the URL in place, or answers 302/307. `to` may interpolate `{{settings.key}}`, which is how an upstream module's endpoint argument survives the port. A same-origin rewrite inside the capture-host boundary needs no network grant. A cross-origin rewrite requires it and forwards the complete method, decoded body, and end-to-end headers, potentially including `Cookie` or `Authorization`. |
 | Edit body bytes | `script.replaceBody` | A regular expression and a replacement that may read `{{settings.key}}`, optionally resolved through a declared `valueMap`. Unlike `jq` it does not parse the document, so unmatched bytes survive exactly. |
 | Gate an action on a setting | `actions[].enabledWhen` | `{key, equals}` against a required setting of the same extension. When the comparison fails the action is not compiled, so it never matches. A select therefore drives several mutually exclusive action sets, which two booleans cannot: they have a fourth state where both are on. Upstream plugin formats switch an entry on and off from outside the script, which is why a bundle carrying such a switch never reads the key that controls it. |
 | Run a published proxy-client bundle | `script.entry: proxy-compat` | Loads a pinned upstream script under a Loon persona. See [the contract below](#proxy-compat-contract). |
 | Read a body | `script.bodyMode` | `none`, UTF-8 `text`, or `binary` as `Uint8Array`, bounded by `maxBodyBytes`. |
 | Typed operator configuration | `settings[]` | `text`, `select`, `boolean`, `number`, and `location`; required values must be complete before enable. |
 | Persistent state | `permissions.persistentStorage: true` | Adds extension-scoped, quota-bound `context.storage`; scripts never choose a path or access the filesystem. |
-| Outbound HTTP | `permissions.network: true` | Adds `context.network.request`, the concurrent `context.network.requestAsync`, and cross-origin request rewriting. It names no host: an extension holding it may reach anywhere it can resolve. There is no ambient `fetch`, redirect following, cookie jar, or socket access, and URL canonicalization plus IP-literal and private-host refusal still apply. The operator confirms that visible decrypted data, and any captured request, could be sent anywhere. |
-| Override where a name resolves | `traffic.upstreamMappings` | Loon's `[Host]`. A target is an address (`1.2.3.4`), an alias (`origin.example.net`), or a resolver (`server:1.1.1.1`). The name keeps its Host header and TLS SNI: only the address changes, and it changes in the gateway's resolver, so both the client's answer and the upstream leg of a captured host follow the same table. A mapping supplies an address and never a routing decision — a domestic name mapped to a domestic address still goes direct, and one mapped to a foreign address is still steered. Address targets are SSRF-checked. A mapping cannot reach an outbound that resolves remotely, because a proxy node is handed the name rather than the address. |
-| Require a regional/operator exit | `requirements.egressGroup.required: true` | Forces the operator to bind an existing mihomo group or `DIRECT` before enable. The extension cannot name, inspect, select, or change an arbitrary group; a separately reviewed routing rule may select only `DIRECT`. |
-| Compose several extensions | Console execution order | Request and response actions run top-to-bottom. For overlapping destinations, the first bound extension and first global routing rule in that same order win. Reordering requires a before/after confirmation. |
+| Outbound HTTP | `permissions.network: true` | Adds `context.network.request`, the concurrent `context.network.requestAsync`, and the exception that permits cross-origin request rewriting. It names no host: an extension holding it may reach anywhere it can resolve and may send any request, response, setting, or storage data visible to it. There is no ambient `fetch`, redirect following, cookie jar, or socket access, and URL canonicalization plus IP-literal and unsafe-host refusal still apply. |
+| Select an intercepted upstream or resolver | `traffic.upstreamMappings` | An address (`1.2.3.4`) or alias (`origin.example.net`) changes the interception engine's upstream target while preserving the original HTTP Host and TLS SNI; aliases are resolved, safety-checked, and pinned before rule selection. A `server:` target instead selects up to four monolith resolver upstream specs (`IP[:port]`, `name@IP[:port]` for DoT, or `https://host/path@IP[:port]` for DoH) and is never dialed as the origin. Every accepted connection still traverses the current protected rules and the extension's explicit egress binding; a mapping never selects egress. |
+| Mark egress as review-relevant | `requirements.egressGroup.required: true` | Review metadata only. Every installed extension already has exactly one explicit binding, and new imports default to `DIRECT`; the marker records the dependency in the immutable manifest and snapshot but does not change that default or create a different binding state. The extension cannot name, inspect, select, or change a group. A selected group that disappears remains named and fails closed, while a separately reviewed routing rule may select only `DIRECT`. |
+| Compose several extensions | Console execution order | Request and response actions run top-to-bottom. For overlapping destinations, the first matching extension's explicit egress binding and the first global routing rule in that same order win. Reordering requires a before/after confirmation. |
 
-Scripts never receive filesystem, process, timer, module-loader, raw socket,
-ambient DNS, ambient Go object, or unrestricted network access. All upstream
-TCP and UDP return through mihomo's in-process inner dialer; an extension
-cannot bypass the operator-selected egress path.
+Native interception supports plain HTTP and TLS/H1/H2 only. A client that can
+fall back from HTTP/3 may retry over TCP and enter the capture path; an H3-only
+client fails. The core-owned UDP/443 guard is not an extension capability.
+
+Scripts receive bounded action-scoped timers, but no filesystem, process,
+module-loader, raw socket, ambient DNS, ambient Go object, or unrestricted
+network access. All upstream TCP and UDP return through mihomo's in-process
+inner dialer; an extension cannot bypass the operator-selected egress path.
 
 ### Minimal manifest
 
@@ -250,25 +258,33 @@ context.response.body
 context.settings
 context.storage
 context.network.request
+context.network.requestAsync
 ```
 
 Request actions may return a request patch, a synthetic response, `{abort:
 true}`, `null`, or `undefined`. Response actions may return only a response
 patch, an abort, or no change. A rewritten URL must remain inside the owning
-extension's capture-host boundary. Unknown result fields and uncaught script
-errors fail the matched flow closed.
+extension's capture-host boundary unless its confirmed network grant authorizes
+a cross-origin target; same-origin rewrites need no grant. Unknown result fields
+and uncaught script errors fail the matched flow closed.
 
 Response actions and synthetic responses may include a bounded `trailers`
 patch. Request patches cannot create trailers. Names, values, field counts,
 single-value size, and total bytes are validated; framing and other forbidden
-trailer fields fail closed. Valid HTTP/gRPC trailers are preserved across
-HTTP/1.1, HTTP/2, and HTTP/3.
+trailer fields fail closed. The engine declares and publishes valid HTTP/gRPC
+trailers over HTTP/1.1 and HTTP/2. HTTP/3 downstream interception is unsupported.
 
 `context.storage` exists only when persistent storage was declared.
-`context.network.request` exists only when the network permission was declared
-and confirmed. Network responses contain `url`, `status`, `headers`, `trailers`, binary
-`body`, and `text` when the body is valid UTF-8. Redirects and non-2xx
-responses are returned to the script rather than silently followed.
+`context.network.request` and `context.network.requestAsync` exist only when the
+network permission was declared and confirmed. Network responses contain `url`,
+`status`, `headers`, `trailers`, binary `body`, and `text` when the body is valid
+UTF-8. Redirects and non-2xx responses are returned to the script rather than
+silently followed.
+
+Both native and proxy-compat actions receive bounded, action-scoped
+`setTimeout`, `setInterval`, `clearTimeout`, and `clearInterval`. Timers are
+capped per action, and the action deadline ends the action; a timer longer than
+that deadline is not fired early.
 
 ### Proxy-compat contract
 
@@ -341,16 +357,21 @@ traffic:
       target: origin.example.net
 ```
 
-Network origins contain only a canonical scheme, hostname, and effective port;
-wildcards, paths, queries, fragments, userinfo, IP literals, localhost, and
-private names are rejected. Upstream mappings apply only to a host already
-owned by the same extension and cannot target private, loopback, link-local,
-carrier-grade NAT, or otherwise unsafe addresses. That refusal is not defence
-in depth: the gateway's rendered private-range denies are all `no-resolve`, so
-they stop an IP-form routing target and nothing else, and the egress anchor
-resolves ahead of the rule list entirely. A static mapping is the one case
-where the address is known before any traffic flows, which is why it can be
-checked at all.
+The network permission is one boolean and carries no origin list. Request URLs
+are still canonicalized; userinfo, fragments, IP literals, localhost, private,
+and otherwise unsafe targets are rejected. A same-origin rewrite inside the
+capture-host boundary needs no grant. A cross-origin rewrite needs the grant
+and sends the complete method, decoded body, and end-to-end headers, potentially
+including `Cookie` or `Authorization`; framing and hop-by-hop fields remain
+runtime-owned.
+
+Upstream mappings apply only to a host already owned by the same extension. An
+address or alias changes the engine upstream while preserving the original Host
+and SNI; a `server:` target is parsed as resolver upstreams and is never used as
+the origin destination. Unsafe addresses fail closed, and neither form chooses
+egress. `requirements.egressGroup.required` only records review metadata:
+every installation has an explicit binding and a fresh import starts at
+`DIRECT`.
 
 ### Development and review workflow
 
@@ -367,9 +388,10 @@ checked at all.
    bundle through `entry: proxy-compat`, bound either to an immutable commit or
    to a documented official release asset. Narrow capture hosts and matchers
    instead of preserving broad client-specific patterns.
-4. Declare storage, the network permission, upstream mappings, and required egress
-   only when used. Document what decrypted data a permitted network call could
-   disclose.
+4. Declare storage, the network permission, upstream mappings, and required
+   egress review metadata only when used. Document what decrypted data a
+   permitted network call or cross-origin rewrite could disclose, including the
+   complete method, decoded body, and end-to-end headers.
 5. Add positive, no-op, malformed-input, and boundary fixtures. Preserve
    unrelated fields and fail closed where a partial transformation is unsafe.
 6. Run the catalog validators and marketplace reproducibility gate:
@@ -387,8 +409,9 @@ checked at all.
    the monolith source operators currently receive.
 
 7. Install the candidate disabled, inspect its source revision and permission
-   summary, configure required settings and egress, then enable it only on an
-   authorized test device with the shared interception root trusted.
+   summary, configure required settings, review the explicit egress binding
+   (`DIRECT` on a fresh install), then enable it only on an authorized test
+   device with the shared interception root trusted.
 
 An update must keep `metadata.id`, bump `metadata.version` when a runtime source
 or reviewed asset selection changes, and refresh provenance and fixtures. A

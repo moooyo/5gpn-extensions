@@ -100,13 +100,12 @@ The original URL can contain playback tokens and other request
 metadata. The `encryptKey` remains in extension-scoped storage and is used
 locally only to decide whether the request key matches.
 
-A cross-host request patch also preserves the original HTTP method, decoded
-binary request body, and end-to-end request headers. The monolith removes
-hop-by-hop/framing headers, but it does not generally remove cookies,
-authorization fields, client identifiers, or other application headers before
-forwarding to the Worker. Operators must therefore treat every part of the
-matched initplayback request as disclosed to that service, not only the query
-parameters listed above.
+A cross-host request patch also forwards the complete original HTTP method,
+decoded binary request body, and end-to-end request headers, potentially
+including `Cookie`, `Authorization`, client identifiers, or other application
+headers. The monolith removes hop-by-hop and framing fields. Operators must
+therefore treat every part of the matched initplayback request as disclosed to
+that service, not only the query parameters listed above.
 
 The Worker implementation, deployment revision, build inputs, and license are
 not present in the pinned `Maasea/sgmodule` tree. This repository does not copy
@@ -127,9 +126,11 @@ permission boundary. The enable review must therefore assume that every value
 visible to these scripts could be sent to any such destination, and it must not
 interpret the grant as proof that the Worker is safe.
 
-No operator egress group is required by the reviewed module behavior. An
-operator may still select an egress binding. The manifest declares no upstream
-host mapping or typed mihomo routing rule.
+The reviewed behavior does not require a non-`DIRECT` exit. The manifest omits
+`requirements.egressGroup`, so normalization reports `egressRequired=false` as
+review metadata. Every installation still has one explicit operator binding,
+initialized to `DIRECT`, and the operator may select a different group. The
+manifest declares no upstream host mapping or typed mihomo routing rule.
 
 ## Settings
 
@@ -270,8 +271,8 @@ upstream revision. Upstream selection remains a manual review decision.
 | State class | Stateful. Keep `persistentStorage: true` during normal migration and rollback. |
 | Advertisement cache | `YouTubeAdvertiseInfo` is a non-authoritative version `1.0` cache. An incompatible schema may reset and relearn only when that behavior is documented and tested. |
 | Key configuration | `YouTubeConfig` contains sensitive YouTube and YouTube Music `clientKey`/`encryptKey` pairs. Never copy values into migration records or logs. An incompatible format requires an additive versioned key and dual-read strategy. |
-| Reviewed capability baseline | Two capture-host patterns, three proxy-compat actions, four settings, one global network grant used by one reviewed Worker destination, no routing rules, and no required egress binding. |
-| Operator state | A normal same-ID update retains valid settings, `capture_dns`, execution position, and the ID-scoped storage bucket while storage permission remains enabled. |
+| Reviewed capability baseline | Two capture-host patterns, three proxy-compat actions, four settings, one global network grant used by one reviewed Worker destination, no routing rules, and normalized `egressRequired=false` review metadata because the manifest omits `requirements.egressGroup`. The runtime binding remains explicit. |
+| Operator state | A normal same-ID update retains valid settings, the explicit egress binding, `capture_dns`, execution position, and the ID-scoped storage bucket while storage permission remains enabled. A fresh installation starts at `DIRECT`. |
 | Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. The baseline must remain able to read retained state or safely relearn it. |
 
 ### Repeatable migration

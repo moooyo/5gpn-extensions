@@ -5,7 +5,7 @@
 本仓库是独立维护的原生 5gpn 扩展的第一方目录。5gpn 核心仓库负责运行时和严格的
 `5gpn.io/v1` 契约；它不会将扩展源代码纳入仓库或镜像化。
 
-每个扩展导入后默认处于禁用状态。启用前，请审查其不可变清单、脚本、捕获主机、精确路由规则、联网权限、执行位置及运营者出口要求。
+每个扩展导入后默认处于禁用状态。每个已安装扩展也始终恰好具有一个显式的运营者出口绑定，全新导入从 `DIRECT` 开始。启用前，请审查其不可变清单、脚本、捕获主机、精确路由规则、联网权限、执行位置、当前出口绑定，以及任何 `requirements.egressGroup.required` 审查标记。
 
 | 扩展 | 用途 | 许可证 |
 | --- | --- | --- |
@@ -30,7 +30,7 @@
 | `youtube-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/youtube-cleaner/extension.yaml> |
 | `zhihu-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/zhihu-cleaner/extension.yaml> |
 
-每次导入均从禁用状态开始。启用前，请审查不可变快照、捕获主机、操作、设置、精确路由规则、联网权限、执行位置以及任何所需的运营者出口绑定。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
+每次导入均从禁用状态开始，并获得显式的 `DIRECT` 出口绑定。启用前，请审查不可变快照、捕获主机、操作、设置、精确路由规则、联网权限、执行位置和当前运营者出口绑定。`requirements.egressGroup.required` 仅是审查元数据，绝不会产生未绑定状态。安装扩展不会启用全局拦截总开关，也不会在设备上信任其拦截 CA。
 
 ## Marketplace
 
@@ -53,7 +53,7 @@ GitHub Pages 在上述稳定 URL 提供当前列表。公开 JSON Schema 位于
 ## 开发扩展
 
 规范性运行时契约见核心项目的
-[`5gpn.io/v1` author guide](https://github.com/moooyo/5gpn/blob/beta/docs/native-extensions.md)。本节是本目录中扩展维护者可独立使用的检查清单。5gpn 仅接受此处说明的原生清单格式；请勿发布 Loon、Surge、Quantumult X 或 Stash 清单。`proxy-compat` 仍是原生格式的一部分：它使用核心提供的沙箱，而不是由扩展携带兼容 runtime 或全局对象。
+[`5gpn.io/v1` author guide](https://github.com/moooyo/5gpn/blob/main/docs/native-extensions.md)。本节是本目录中扩展维护者可独立使用的检查清单。5gpn 仅接受此处说明的原生清单格式；请勿发布 Loon、Surge、Quantumult X 或 Stash 清单。`proxy-compat` 仍是原生格式的一部分：它使用核心提供的沙箱，而不是由扩展携带兼容 runtime 或全局对象。
 
 ### 目录结构
 
@@ -72,26 +72,28 @@ example-cleaner/
 
 | 能力 | 清单声明 | 运行时效果与边界 |
 | --- | --- | --- |
-| 获取流量 | `traffic.captureHosts` | 精确 DNS 名称或受限的 `*.example.com` 通配符。这是唯一的流量获取权限，启用时会为端口 80 和 443 发布 DNS、证书和 mihomo 规则。 |
+| 获取流量 | `traffic.captureHosts` | 精确 DNS 名称或受限的 `*.example.com` 通配符。这是唯一的流量获取权限，启用时会为端口 80 和 443 上的明文 HTTP 和 TLS/H1/H2 发布 DNS、证书和 mihomo 规则。不支持 HTTP/3 拦截。 |
 | 应用已审查的全局路由 | `traffic.routingRules` | 有界类型化选择器只能对已经到达网关的命中流量执行 `REJECT` 或 `DIRECT`。精确规则与插件共用一次启用确认，不能命名代理组，且仅在插件和 MITM 总开关均启用时存在。 |
 | 转换请求或响应 | `actions[]` | 有序的结构化匹配器在声明的阶段选中一个动作。每个动作主机都必须属于同一扩展的 `captureHosts`。 |
 | 拦截匹配的路径 | `script.reject` | 在请求发往上游之前中止。无代码。 |
 | 返回固定响应 | `script.mock` | 声明状态码、响应头,以及 `body` 或 `base64Body`。无代码,且请求不会离开网关。 |
 | 改写 JSON 响应体 | `script.jq` | 直接携带上游模块自己的 `response-body-json-jq` 表达式,由 gojq 执行,完全不进 JavaScript 运行时。可通过 `$settings` 读取操作员选择。 |
 | 在真实报文上编辑头部 | `script.headers` | `set` 与 `remove` 两个字段，不替换正文。先执行删除。 |
-| 把请求发往别处 | `script.rewrite` | 原地改写 URL，或直接返回 302/307。`to` 可以插值 `{{settings.key}}`，上游模块的端点参数就是这样被移植过来的。原地改写会把捕获的请求原样转发出去，因此跨源目标需要联网权限。 |
+| 把请求发往别处 | `script.rewrite` | 原地改写 URL，或直接返回 302/307。`to` 可以插值 `{{settings.key}}`，上游模块的端点参数就是这样被移植过来的。捕获主机边界内的同源改写无需联网授权；跨源改写需要该授权，并会转发完整 method、解码后的 body 和端到端 headers，其中可能包含 `Cookie` 或 `Authorization`。 |
 | 编辑正文字节 | `script.replaceBody` | 一个正则和一个替换串，替换串可读取 `{{settings.key}}`，并可选地经由声明的 `valueMap` 解析。与 `jq` 不同，它不解析文档，因此未命中的字节原样保留。 |
 | 用设置开关一个动作 | `actions[].enabledWhen` | 对同一扩展的一个必填设置做 `{key, equals}` 比较。比较不成立时该动作根本不会被编译，因此永远不会命中。因此一个 select 可以驱动多组互斥动作，而两个布尔做不到——它们有"两个都开"的第四种状态。上游插件格式是在脚本之外开关一个条目的，所以携带这种开关的 bundle 从来不会读取控制它的那个键。 |
 | 运行已发布的代理客户端 bundle | `script.entry: proxy-compat` | 以 Loon 人格加载钉住的上游脚本。见下文的契约。 |
 | 读取正文 | `script.bodyMode` | `none`、UTF-8 `text`，或以 `Uint8Array` 表示的 `binary`，并受 `maxBodyBytes` 限制。 |
 | 类型化运营者配置 | `settings[]` | `text`、`select`、`boolean`、`number` 和 `location`；启用前必须完整填写必填值。 |
 | 持久状态 | `permissions.persistentStorage: true` | 添加受扩展作用域和配额限制的 `context.storage`；脚本绝不能选择路径或访问文件系统。 |
-| 出站 HTTP | `permissions.network: true` | 添加 `context.network.request`、其并发形式 `context.network.requestAsync`，以及跨源请求改写。它不指名任何主机：持有该权限的扩展可以访问它能解析的任意地址。不存在环境级 `fetch`、重定向跟随、Cookie jar 或套接字访问，URL 规范化以及对 IP 字面量和私有主机的拒绝仍然生效。运营者确认的是：可见的已解密数据，以及任何被捕获的请求，都可能被发往任意地址。 |
-| 覆盖一个名字的解析结果 | `traffic.upstreamMappings` | Loon 的 `[Host]`。目标可以是地址（`1.2.3.4`）、别名（`origin.example.net`）或解析器（`server:1.1.1.1`）。名字的 Host 头和 TLS SNI 保持不变，只有地址改变，而且改变发生在网关的解析器里 —— 因此客户端的应答与被捕获主机的上游腿遵循同一张表。映射只提供地址，绝不提供转发决策：映射到国内地址的国内域名依然直连，映射到境外地址的依然被引流。地址型目标经过 SSRF 检查。映射无法作用于由远端解析的出站，因为代理节点收到的是名字而不是地址。 |
-| 要求区域/运营者出口 | `requirements.egressGroup.required: true` | 启用前强制运营者绑定现有 mihomo 组或 `DIRECT`。扩展不能命名、检查、选择或更改任意组；另行审查的路由规则只能选择 `DIRECT`。 |
-| 组合多个扩展 | Console 执行顺序 | 请求和响应操作自上而下运行。对于重叠目的地，同一顺序中的第一个已绑定扩展和第一条全局路由规则生效。重排需要审查调整前后顺序并确认。 |
+| 出站 HTTP | `permissions.network: true` | 添加 `context.network.request`、其并发形式 `context.network.requestAsync`，以及允许跨源请求改写的例外。它不指名任何主机：持有该权限的扩展可以访问它能解析的任意地址，并可发送脚本可见的任何请求、响应、设置或存储数据。不存在环境级 `fetch`、重定向跟随、Cookie jar 或套接字访问，URL 规范化以及对 IP 字面量和不安全主机的拒绝仍然生效。 |
+| 选择被拦截流量的上游或解析器 | `traffic.upstreamMappings` | 地址（`1.2.3.4`）或别名（`origin.example.net`）会改变拦截引擎的上游目标，同时保留原始 HTTP Host 和 TLS SNI；别名会在规则选择前解析、接受安全检查并固定地址。`server:` 目标则选择最多四个 monolith 解析器上游规格（明文 UDP 的 `IP[:port]`、DoT 的 `name@IP[:port]`，或 DoH 的 `https://host/path@IP[:port]`），绝不会作为源站拨号。所有获准连接仍会经过当前受保护规则和该扩展的显式出口绑定；映射绝不选择出口。 |
+| 标记出口需要审查 | `requirements.egressGroup.required: true` | 仅为审查元数据。每个已安装扩展本来就恰好具有一个显式绑定，全新导入默认为 `DIRECT`；该标记只在不可变 manifest 与 snapshot 中记录这项依赖，不会改变默认值或产生另一种绑定状态。扩展不能命名、检查、选择或更改组。已选择的组若消失，其名称会保留且流量以拒绝方式失败；另行审查的路由规则仍只能选择 `DIRECT`。 |
+| 组合多个扩展 | Console 执行顺序 | 请求和响应操作自上而下运行。对于重叠目的地，同一顺序中的第一个匹配扩展的显式出口绑定和第一条全局路由规则生效。重排需要审查调整前后顺序并确认。 |
 
-脚本永远不会获得文件系统、进程、计时器、模块加载器、原始套接字、环境级 DNS、环境级 Go 对象或不受限制的网络访问。所有上游 TCP 和 UDP 均经由 mihomo 的进程内 inner dialer 返回；扩展不能绕过运营者选择的出口路径。
+原生拦截仅支持明文 HTTP 和 TLS/H1/H2。能够从 HTTP/3 回退的客户端可以重试 TCP 并进入捕获路径；仅支持 H3 的客户端会失败。由核心拥有的 UDP/443 防护规则不是扩展能力。
+
+脚本可以使用受限且仅作用于当前 action 的计时器，但不会获得文件系统、进程、模块加载器、原始套接字、环境级 DNS、环境级 Go 对象或不受限制的网络访问。所有上游 TCP 和 UDP 均经由 mihomo 的进程内 inner dialer 返回；扩展不能绕过运营者选择的出口路径。
 
 ### 最小清单
 
@@ -186,14 +188,17 @@ context.response.body
 context.settings
 context.storage
 context.network.request
+context.network.requestAsync
 ```
 
 请求操作可以返回请求补丁、合成响应、`{abort:
-true}`、`null` 或 `undefined`。响应操作只能返回响应补丁、中止或不作更改。改写后的 URL 必须保持在所属扩展的捕获主机边界内。未知结果字段和未捕获的脚本错误会使匹配流以拒绝方式失败（fail closed）。
+true}`、`null` 或 `undefined`。响应操作只能返回响应补丁、中止或不作更改。改写后的 URL 必须保持在所属扩展的捕获主机边界内，除非已确认的联网授权允许跨源目标；同源改写不需要该授权。未知结果字段和未捕获的脚本错误会使匹配流以拒绝方式失败（fail closed）。
 
-响应操作和合成响应可以包含有界 `trailers` 补丁；请求补丁不能创建 trailer。运行时会校验名称、值、字段数、单值大小和总字节数，并拒绝 framing 等禁止字段。有效的 HTTP/gRPC trailer 会在 HTTP/1.1、HTTP/2 和 HTTP/3 间保留。
+响应操作和合成响应可以包含有界 `trailers` 补丁；请求补丁不能创建 trailer。运行时会校验名称、值、字段数、单值大小和总字节数，并拒绝 framing 等禁止字段。引擎会在 HTTP/1.1 和 HTTP/2 上正确声明并发布有效的 HTTP/gRPC trailer；不支持 HTTP/3 下游拦截。
 
-仅在声明了持久存储时，`context.storage` 才存在。仅在声明并确认联网权限时，`context.network.request` 才存在。网络响应包含 `url`、`status`、`headers`、`trailers`、二进制 `body`，以及当正文是有效 UTF-8 时的 `text`。重定向和非 2xx 响应会返回给脚本，而不会被静默跟随。
+仅在声明了持久存储时，`context.storage` 才存在。仅在声明并确认联网权限时，`context.network.request` 和 `context.network.requestAsync` 才存在。网络响应包含 `url`、`status`、`headers`、`trailers`、二进制 `body`，以及当正文是有效 UTF-8 时的 `text`。重定向和非 2xx 响应会返回给脚本，而不会被静默跟随。
+
+原生 action 和 proxy-compat action 都可以使用有界、仅作用于当前 action 的 `setTimeout`、`setInterval`、`clearTimeout` 和 `clearInterval`。每个 action 的计时器数量受限，action 截止时间会终止该 action；超过截止时间的计时器不会被提前触发。
 
 ### proxy-compat 契约
 
@@ -246,14 +251,16 @@ traffic:
       target: origin.example.net
 ```
 
-网络源只包含规范化的 scheme、主机名和有效端口；通配符、路径、查询、片段、userinfo、IP 字面量、localhost 和私有名称均会被拒绝。上游映射仅适用于已由同一扩展拥有的主机，且不得以私有、回环、链路本地、运营商级 NAT 或其他不安全地址为目标。这一拒绝并不是纵深防御：网关渲染的私网段拒绝规则全部使用 `no-resolve`，只能阻止以 IP 形式出现的路由目标，而出口锚点会在规则列表之前完成解析。静态映射是流量发生前已知地址的唯一情形，因此也只有它能在此阶段接受检查。
+联网权限是一个布尔值，不携带源列表。请求 URL 仍会被规范化；userinfo、片段、IP 字面量、localhost、私有目标和其他不安全目标会被拒绝。捕获主机边界内的同源改写无需授权；跨源改写需要授权，并会发送完整 method、解码后的 body 和端到端 headers，其中可能包含 `Cookie` 或 `Authorization`；framing 与 hop-by-hop 字段仍由运行时拥有。
+
+上游映射仅适用于已由同一扩展拥有的主机。地址或别名会在保留原始 Host 和 SNI 的同时改变引擎上游；`server:` 目标会被解析为解析器上游，绝不会用作源站目标。不安全地址会以拒绝方式失败，两种形式都不会选择出口。`requirements.egressGroup.required` 只记录审查元数据：每次安装都有显式绑定，全新导入从 `DIRECT` 开始。
 
 ### 开发和审查流程
 
 1. 选择权威上游仓库和不可变提交。不得将扩展商店或镜像的根许可证视为比更具体的原始文件许可证更有权威性。
 2. 移植行为前，记录并验证每个源文件和许可证文件的不可变原始 URL、获取日期、创作者署名和许可证。对于仅以官方 release asset 提供的生成 bundle，还要记录直接 asset URL、tag 对象、源码提交及 release 的可变状态。不要另加手工维护的字节大小或摘要 pin。
 3. 仅将经审查的行为转换为严格的原生清单。能够忠实表达时优先使用声明式操作；否则通过 `entry: proxy-compat` 使用绑定到不可变提交或有完整记录的官方 release asset 的经审查上游 bundle。缩小捕获主机和匹配器，而不是保留宽泛的客户端专用模式。
-4. 仅在使用时声明存储、联网权限、上游映射和所需出口。记录获准的网络调用可能泄露哪些已解密数据。
+4. 仅在使用时声明存储、联网权限、上游映射和所需出口审查元数据。记录获准的网络调用或跨源改写可能泄露哪些已解密数据，包括完整 method、解码后的 body 和端到端 headers。
 5. 添加正向、无操作、格式错误输入和边界测试样例。保留无关字段，并在部分转换不安全时以拒绝方式失败（fail closed）。
 6. 运行目录验证器和 marketplace 可复现性门禁：
 
@@ -266,7 +273,7 @@ traffic:
 
    涉及运行时的变更还必须运行 [`MIGRATION.md`](MIGRATION.md) 所述、固定到安装器 mihomo 版本的完整审查语料库。它会审查每个条目、抓取真实脚本资源，并用运营者当前获得的 monolith 源码编译完整候选项。
 
-7. 在禁用状态下安装候选项，检查其源码 revision 和权限摘要，配置必需设置和出口，然后仅在已授权的测试设备上启用它，且该设备已信任共享拦截根证书。
+7. 在禁用状态下安装候选项，检查其源码 revision 和权限摘要，配置必需设置并审查显式出口绑定（全新安装为 `DIRECT`），然后仅在已授权的测试设备上启用它，且该设备已信任共享拦截根证书。
 
 更新必须保持 `metadata.id`，当运行时来源或经审查的 asset 选择变化时提升 `metadata.version`，并刷新溯源信息和测试样例。全新安装从禁用状态开始；已安装的 Marketplace 替换无需先禁用，并保留此前的启用授权。请勿引入自动更新、未经审查的可变分支获取或扩展自带的兼容性垫片。
 

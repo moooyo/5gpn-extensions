@@ -195,10 +195,13 @@ unrecognized response is returned unchanged rather than blocked.
 | `[MITM] hostname` | The same two exact names as `traffic.captureHosts` |
 | `[Argument]` block | The five settings above. The coordinate defaults, number boundaries, and `LogLevel` spelling deviate deliberately, and "Settings and the picker" records why |
 
-The manifest declares no network permission, no upstream mapping, and no required
-egress-group binding. The scripts reach no third party: the picker page is
-opened by the operator in a browser and its coordinate arrives through the
-capture path, not through an outbound request from the script.
+The manifest declares no network permission or upstream mapping and omits
+`requirements.egressGroup`; normalization therefore reports
+`egressRequired=false` as review metadata. Every installation still has one
+explicit operator egress binding, initialized to `DIRECT`. The scripts reach no
+third party: the picker page is opened by the operator in a browser and its
+coordinate arrives through the capture path, not through an outbound request
+from the script.
 
 ## Canonical record
 
@@ -241,10 +244,10 @@ upstream revision. Upstream selection remains a manual review decision.
 | State class | Stateful. `persistentStorage` is true: the picker page's saved coordinate, accuracy, and random radius live in the extension-scoped `wloc_settings` object. |
 | Settings | Keep `longitude`, `latitude`, `accuracy`, and `randomRadius` as required numbers with their `min`/`max` bounds, and `LogLevel` as a required select. The three coordinate keys are what the Console binds its map picker to, so renaming one removes the picker silently. `longitude` and `latitude` carry no default on purpose; `randomRadius` defaults to `0` and is bounded to `0..5000`. Valid same-key, same-type values survive a normal update; changing a type deliberately does not. |
 | Sensitive values | Record whether each coordinate setting is complete, but never copy its value into a migration record, issue, or log. The same applies to a coordinate saved through the picker. |
-| Reviewed capability baseline | Two capture hosts, two proxy-compat actions (one response rewrite and one request settings-save), five settings, persistent storage, and no network permission, routing rules, upstream mappings, or required egress binding. |
+| Reviewed capability baseline | Two capture hosts, two proxy-compat actions (one response rewrite and one request settings-save), five settings, persistent storage, no network permission, routing rules, or upstream mappings, and normalized `egressRequired=false` review metadata because the manifest omits `requirements.egressGroup`. The runtime egress binding remains explicit. |
 | License review gate | The manifest and documentation remain MIT. The remote scripts are selected under upstream's AGPL-3.0 text plus its README's separate commercial-product and application-store restriction; this candidate records an explicit non-commercial-use decision. |
 | Current migration baseline | Version `2.0.0` replaced the `FFF686868/proxypin-wloc-spoofer` port with the `Yu9191/wloc` proxy-client modules, removing the typed `location` setting and the local `failClosed` behavior with the parser that backed them. Version `2.1.0` restored a Console map picker over the flat coordinate trio, retyped the coordinates to bounded `number`s, and re-keyed the log level to `LogLevel`. Version `3.0.0` moves to the licensed upstream HEAD, adds the default-off bounded `randomRadius` setting, adopts the settings-save merge behavior, and records that a persisted radius wins over the argument and may exceed the manifest maximum. |
-| Operator state | A normal same-ID update retains valid settings, stored picker state, `capture_dns`, and execution position. Existing `2.1.0` storage has no radius, so the new argument starts at `0`; after the new settings-save script stores a radius, it remains authoritative until replaced or cleared. There is no egress binding. Record presence, not sensitive coordinates. |
+| Operator state | A normal same-ID update retains valid settings, stored picker state, the explicit egress binding, `capture_dns`, and execution position. A fresh installation starts with `DIRECT`. Existing `2.1.0` storage has no radius, so the new argument starts at `0`; after the new settings-save script stores a radius, it remains authoritative until replaced or cleared. Record presence, not sensitive coordinates. |
 | Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. Reverting to the `2.1.0` behavior removes the visible `randomRadius` setting and makes the old bundles ignore a stored radius, but it does not necessarily erase that value; a later `3.0.0`-compatible update can make it active again unless storage was cleared. Restoring the old upstream pin also restores its no-license-in-tree uncertainty and requires a new license review. Reverting to `2.0.x` additionally changes coordinate types back to `text` and restores the ineffective `logLevel` spelling. Reverting below `2.0.0` reintroduces the different `location`/`failClosed` contract. |
 
 ### Repeatable migration

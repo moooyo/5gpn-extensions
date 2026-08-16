@@ -13,9 +13,10 @@ https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/e
 ```
 
 The extension captures six exact Bilibili hosts and projects the pinned five
-reject rules through the reviewed routing-rule contract. It requires no egress
-binding: every host it actually reaches is a mainland service, so the ordinary
-mihomo path is the correct one and the operator may still bind a group
+reject rules through the reviewed routing-rule contract. Its egress review
+marker is false, but every installation still has one explicit binding,
+initialized to `DIRECT`. Every host it actually reaches is a mainland service,
+so that default is the ordinary path; the operator may still select a group
 deliberately. It exposes the five settings declared by the pinned Loon plugin,
 declares persistent storage because the pinned scripts keep their own values in
 it, and takes the network permission for the SponsorBlock and
@@ -210,21 +211,21 @@ describes the unbounded grant, because it states the maximum the operator is
 consenting to rather than what the current settings permit.
 
 The upstream LPX routes only `bsbsb.top` to `PROXY`, while the native manifest
-cannot name a proxy group or attach one to a single host. A required binding
-therefore could not be scoped to the one host that motivated it: it applied to
-this extension's complete capture selector set, and an install that left it
-unbound failed closed, disabling comment filtering, the uploader list, and
-danmaku along with the SponsorBlock lookup that was the only reason for it.
-Every host these helpers reach is a mainland service for which the ordinary
-mihomo path is the appropriate one, so revision 3.2.0 stops requiring the
-binding. An operator who wants these flows to leave through a
-specific group may still bind one, subject to that same broader scope; the
-script cannot inspect, name, select, or change it.
+cannot name a proxy group or attach one to a single host. Any non-`DIRECT`
+binding therefore applies to this extension's complete capture selector set,
+not only the host that motivated it. Every host these helpers reach is a
+mainland service for which the ordinary path is appropriate, so revision 3.2.0
+records `egressGroup.required: false` as review metadata and a fresh install
+uses its explicit `DIRECT` binding. An operator who wants these flows to leave
+through a specific group may select one, subject to that same broader scope;
+the script cannot inspect, name, select, or change it, and there is no unbound
+state.
 
-Every call returns through authenticated mihomo SOCKS5. The extension has no
+Every call returns through mihomo's in-process inner dialer. The extension has no
 ambient `fetch`, cookie jar, redirect following, DNS, socket, filesystem,
-process, timer, or module-loader access. It declares persistent storage, which
-is the extension-scoped store the pinned scripts read and write.
+process, or module-loader access. It receives only bounded action-scoped timers.
+It declares persistent storage, which is the extension-scoped store the pinned
+scripts read and write.
 
 ## Deliberate architecture boundary and remaining differences
 
@@ -301,7 +302,7 @@ manual review decision.
 | Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateful. `persistentStorage` is true and the pinned scripts keep their own values in the extension-scoped store. |
 | Settings | Preserve the five current keys and types when possible. A normal update retains only values that remain valid under the candidate definitions. |
-| Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and no required egress binding. |
+| Reviewed capability baseline | Six capture hosts, five routing rules, twenty-four actions, the network permission, five settings, and `egressRequired=false` review metadata. Every installation still has an explicit binding. |
 | Reviewed upstream baseline | Sparkle `110029696d66a3f3aef8f6546de9d494513c2901` and Chronos `69a8996b1f1311b606021e3f194b0390280ab618`, reviewed on `2026-08-16`. |
 | Response route delta | Add only `bilibili.app.viewunite.v1.View/AIRelateAsync`; do not match `bilibili.app.view.v1.View/AIRelateAsync`. |
 | Operator state | A normal same-ID update retains valid settings, egress binding, `capture_dns`, and execution position. Review all of them before enable. |
