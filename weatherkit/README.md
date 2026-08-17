@@ -2,7 +2,7 @@
 
 License: [`Apache-2.0`](../LICENSES/Apache-2.0.txt)
 
-This extension tracks the official `NSRingo/WeatherKit` `v3.3.0-beta2`
+This extension tracks the official `NSRingo/WeatherKit` `v3.3.0`
 release. **Script mode** runs the reviewed request and response bundles on the
 gateway through the `5gpn.io/v1` proxy-compat contract. **Cloud mode** applies
 the separate upstream rewrite module and sends selected WeatherKit requests to
@@ -14,7 +14,7 @@ Install the manifest with the Console's **Install from URL** action:
 https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/weatherkit/extension.yaml
 ```
 
-Keep the extension disabled until its snapshot, thirteen settings, one capture
+Keep the extension disabled until its snapshot, fourteen settings, one capture
 host, nine actions, network permission, persistent storage, three routing
 rules, and explicit egress binding have been reviewed. Cloud mode sends complete
 captured requests to a third party. Script mode can send exact coordinates to
@@ -22,71 +22,86 @@ selected providers.
 
 ## Current upstream refresh
 
-Revision `9.0.0` moves the runtime assets from upstream `v3.2.0` to
-`v3.3.0-beta2`. The upstream release notes are cumulative across the beta
-cycle; relative to this extension's previous stable pin, the material port
-changes are:
+Revision `10.0.0` replaces the `v3.3.0-beta2` runtime assets with stable
+`v3.3.0`. Relative to revision `9.0.0`, the material port changes are:
 
-- six new local AQHI algorithms: `CA_AQHI`, `HK_AQHI`, `AQHI_Multi_CN`,
-  `AQHI_Multi_CN_HK`, `CN_DEATH_AQHI`, and `CN_DEATH_HK_AQHI`;
-- a new `/api/v1/airQualityScale/` request action that normalizes versioned
-  scale names and locally serves the Hong Kong and China AQHI scales;
-- a second `/api/v1/weatherAlerts` identifier matcher for QWeather page tokens;
-- a published `WeatherAlerts.Provider` setting that controls both response
-  completion and matched alert-detail requests; and
-- the published `DataSets` release argument, retained even though the current
-  official action wiring never invokes the request branch that reads it.
+- the official release now exposes `AirQuality.Current.Pollutants.Provider`,
+  selecting ColorfulClouds or QWeather when Apple's current air-quality response
+  has no pollutant list;
+- page-token alert requests now always fetch QWeather Web, while coordinate
+  requests use ColorfulClouds for `ColorfulClouds`, the QWeather API for either
+  `QWeather` or `QWeatherWeb`, and a local empty list for `WeatherKit`;
+- built-in ColorfulClouds and QWeather service tokens now live in the bundle
+  database and both request and response paths read the same setting values; an
+  explicitly saved empty string now suppresses the built-in value instead of
+  activating the old inline fallback;
+- the generic `zh` AQHI-scale fallback now selects Traditional Chinese for
+  Taiwan instead of the mainland Traditional-Chinese variant; and
+- the five Script actions and four Cloud rewrites remain unchanged.
 
-Upstream declares no breaking change. This extension still uses a major
-version bump because its reviewed manifest grows from six to nine actions and
-from eleven to thirteen settings, and because the new alert-provider setting
-changes the default data boundary.
+Upstream declares no breaking change. This port uses a major version bump
+because an existing `WeatherAlerts.Provider=WeatherKit` installation no longer
+forwards a matched coordinate request to Apple, a page-token request now reaches
+QWeather regardless of that setting, and the reviewed manifest grows from
+thirteen to fourteen settings.
 
-The upstream release defaults `WeatherAlerts.Provider` to `QWeatherWeb`. This
-port deliberately defaults it to `WeatherKit`, matching the existing least-data
-defaults for weather and next-hour providers. An upgraded `8.1.0` installation
-previously used upstream's hidden `QWeather` default for alert completion. The
-new setting therefore stops that implicit third-party lookup until the operator
-explicitly chooses a provider.
+The new pollutant-provider setting defaults to `ColorfulClouds`, matching the
+previous hidden database default and preserving the prior provider selection.
+Token behavior is separate: a carried explicit empty value now suppresses the
+built-in token. The visible weather, alert, and next-hour provider defaults
+remain `WeatherKit`; the alert default still preserves Apple's response dataset,
+but it no longer means that every matched alert-detail request continues to
+Apple.
 
 ## Reviewed upstream and runtime assets
 
 The two runtime assets are official GitHub release files:
 
-- `https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0-beta2/response.bundle.js`;
-- `https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0-beta2/request.bundle.js`.
+- `https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/response.bundle.js`;
+- `https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/request.bundle.js`.
 
 The release module used to transcribe the argument list and five script lines is:
 
 ```text
-https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0-beta2/iRingo.WeatherKit.lpx
+https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/iRingo.WeatherKit.lpx
 ```
 
 The annotated tag object
-`6d2440cbab1de0d1499348201cf7351bbc84a47e` resolves to source commit
-[`4ec00d076959defcda72bbe24ba83ae7a4d9c405`](https://github.com/NSRingo/WeatherKit/tree/4ec00d076959defcda72bbe24ba83ae7a4d9c405).
+`305032889bc471e13a81ee0fa53ed5b9aa3acca6` resolves to source commit
+[`d9e89db7783d23f8bcb1a967af85394ac24b30e3`](https://github.com/NSRingo/WeatherKit/tree/d9e89db7783d23f8bcb1a967af85394ac24b30e3).
 The tag is unsigned. The release and its assets were fetched and reviewed on
-`2026-08-16`.
+`2026-08-17`.
 
-GitHub reports the release as published at `2026-08-13T09:55:02Z`, while the
-current annotated tag object was created at `2026-08-14T09:01:18Z`. That order
-is consistent with a tag rebuilt after publication. The object and commit above
-are the refs observed during this review, not a claim that the tag never moved.
+GitHub reports the release as published at `2026-08-17T08:19:25Z`, while the
+current annotated tag object was created at `2026-08-17T08:35:01Z` and the
+reviewed assets were created seconds later. The object and commit above are the
+refs observed during this review, not a claim that the tag or assets never move.
 
 | Artifact and purpose | Immutable raw URL |
 | --- | --- |
-| Upstream license | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/LICENSE` |
-| Package metadata, license declaration, and credits | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/package.json` |
-| Official release argument composition | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/arguments-builder.release.config.ts` |
-| Argument definitions and option values | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/arguments-builder.full.config.ts` |
-| Cloud endpoint options | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/arguments-builder.rewrite.config.ts` |
-| Cloud rewrite module ported by Cloud mode | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/modules/iRingo.WeatherKit.Rewrite.lpx` |
-| Request action behavior | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/src/process/Request.mjs` |
-| Response action behavior | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/src/process/Response.mjs` |
-| AQHI calculations and scale mappings | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/src/class/AirQuality.mjs` |
-| Local AQHI scale responses | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/src/class/AirQualityScale.mjs` |
-| URL and identifier parsing | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/src/function/parseWeatherKitURL.mjs` |
-| Bundle defaults and hidden full settings | `https://raw.githubusercontent.com/NSRingo/WeatherKit/4ec00d076959defcda72bbe24ba83ae7a4d9c405/src/function/database.mjs` |
+| Upstream license | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/LICENSE` |
+| Package metadata, license declaration, and credits | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/package.json` |
+| Release changelog and declared breaking-change status | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/CHANGELOG.md` |
+| Locked dependency versions | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/package-lock.json` |
+| Official release argument composition | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/arguments-builder.release.config.ts` |
+| Argument definitions and option values | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/arguments-builder.full.config.ts` |
+| Cloud endpoint options | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/arguments-builder.rewrite.config.ts` |
+| Cloud rewrite module ported by Cloud mode | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/modules/iRingo.WeatherKit.Rewrite.lpx` |
+| Request action behavior | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/src/process/Request.mjs` |
+| Response action behavior | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/src/process/Response.mjs` |
+| QWeather page and API behavior | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/src/class/QWeather.mjs` |
+| AQHI calculations and scale mappings | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/src/class/AirQuality.mjs` |
+| Local AQHI scale responses | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/src/class/AirQualityScale.mjs` |
+| URL and identifier parsing | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/src/function/parseWeatherKitURL.mjs` |
+| Storage selection before settings merge | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/src/function/setENV.mjs` |
+| Bundle defaults and hidden full settings | `https://raw.githubusercontent.com/NSRingo/WeatherKit/d9e89db7783d23f8bcb1a967af85394ac24b30e3/src/function/database.mjs` |
+| `@nsnanocat/util` settings merge used by the bundle | `https://raw.githubusercontent.com/NSNanoCat/util/720261e4e7c0e4c27d32d10238880e991b1e74ec/getStorage.mjs` |
+
+The lockfile pins `@nsnanocat/util` `2.7.4`. Its published npm metadata reports
+git head `720261e4e7c0e4c27d32d10238880e991b1e74ec`, and the annotated `v2.7.4`
+tag resolves to that commit. The reviewed merge applies the database before
+`$argument`: a missing token key retains the database token, while an explicit
+empty string overwrites it.
 
 GitHub reports `immutable: false` for this release. The generated bundles do
 not exist at commit-pinned raw URLs in the upstream tree. This catalog accepts
@@ -111,9 +126,9 @@ three pathnames. The difference is intentional: upstream's cloud module has no
 | --- | --- | --- | --- |
 | `weather-availability` | Script response | status `200`, `/api/v1/availability/` | Runs `response.bundle.js` with a text body and merges WeatherKit capabilities. |
 | `air-quality-scale` | Script request | `/api/v1/airQualityScale/` | Runs `request.bundle.js`, removes a trailing numeric scale version, locally answers `HK.AQHI` and `CN.AQHI`, and forwards other normalized scale requests to Apple. |
-| `weather-alerts-page` | Script request | `/api/v1/weatherAlerts` with `&ids=<page-token>-<nine digits>` | Runs `request.bundle.js`. With `QWeatherWeb`, fetches the corresponding QWeather page and answers locally. |
-| `weather-alerts` | Script request | `/api/v1/weatherAlerts` with `&ids=<latitude>,<longitude>` | Runs `request.bundle.js`. With `QWeather` or `ColorfulClouds`, fetches provider alerts and answers locally. |
-| `weather-data` | Script response | status `200` GET under `/api/v2/weather/` | Runs `response.bundle.js` with a binary body and applies the selected weather, alert, next-hour, and air-quality behavior. |
+| `weather-alerts-page` | Script request | `/api/v1/weatherAlerts` with `&ids=<page-token>-<nine digits>` | Runs `request.bundle.js`, always fetches the corresponding QWeather page, and answers locally. |
+| `weather-alerts` | Script request | `/api/v1/weatherAlerts` with `&ids=<latitude>,<longitude>` | Runs `request.bundle.js`. ColorfulClouds uses its API, `QWeather` and `QWeatherWeb` use the QWeather API, and `WeatherKit` returns a local empty list. |
+| `weather-data` | Script response | status `200` GET under `/api/v2/weather/` | Runs `response.bundle.js` with a binary body and applies the selected weather, alert, next-hour, pollutant, and air-quality behavior. |
 | four `*-cloud` actions | Cloud request | availability, weather, and both alert identifier rules | Rewrites the complete request to the selected endpoint. No bundle runs on the gateway. |
 
 Three typed routing rules preserve upstream's exact-name rejects for
@@ -155,22 +170,35 @@ does not match. The coordinate form requires a digit before a decimal point, so
 `.5,.5` does not match. Encoded commas and Apple's native UUID identifiers do
 not match either.
 
-The intended provider pairings are:
+Stable `v3.3.0` handles the two forms as follows:
 
-- `QWeatherWeb` with the page-token identifier. The bundle fetches
-  `www.qweather.com`, forwards a small browser-header subset such as
-  `Accept-Language` and `User-Agent`, parses the HTML, and returns a synthesized
-  `200 application/json` response. It does not forward Apple's `Authorization`
-  or `Cookie` header to QWeather.
-- `QWeather` or `ColorfulClouds` with the coordinate identifier. These branches
-  disclose the exact coordinates to the selected API and return a synthesized
-  `200 application/json` response.
-- `WeatherKit`, the manifest default, preserves Apple's response data and lets
-  matched alert-detail requests continue to Apple.
+- A page-token identifier always fetches `www.qweather.com`, regardless of
+  `WeatherAlerts.Provider`. The bundle forwards a small browser-header subset
+  such as `Accept-Language` and `User-Agent`, parses the HTML, and returns a
+  synthesized `200 application/json` response. It does not forward Apple's
+  `Authorization` or `Cookie` header to QWeather.
+- A coordinate identifier uses the ColorfulClouds API when the setting is
+  `ColorfulClouds`, and the QWeather API when it is either `QWeather` or
+  `QWeatherWeb`. These branches disclose the exact coordinates and language and
+  return a synthesized `200 application/json` response.
+- With `WeatherAlerts.Provider=WeatherKit`, a matched coordinate identifier is
+  answered locally with `200 []`. It does not continue to Apple. The same
+  `WeatherKit` setting still preserves the alert dataset carried inside the
+  `/api/v2/weather/` response.
 
-Provider and identifier combinations outside those intended pairings are still
-handled by the upstream bundle. They are not normalized by this manifest and
-can fail as an empty local alert response rather than reliably falling through.
+Requests that do not match either manifest expression, including native UUID
+identifiers, an `ids` first query parameter, or an encoded comma, never enter
+the request bundle and continue to Apple.
+
+The `/api/v2/weather/` response action uses the same setting independently:
+
+- `WeatherKit` leaves the response's existing alert dataset unchanged.
+- `ColorfulClouds` and `QWeather` fetch and merge provider alerts only when the
+  existing provider is Apple's National Early Warning Center. Those requests
+  can disclose the exact coordinates.
+- `QWeatherWeb` fetches and merges a page only when the response's alert
+  `detailsUrl` is a supported QWeather severe-weather URL; other URLs remain
+  unchanged and cause no page request.
 
 ## Settings
 
@@ -185,21 +213,34 @@ published argument names. Dotted keys reach the bundle as a decoded Loon-style
 | `Storage` | select, `$argument` | Pins the bundle to the manifest settings branch. The bundle also accepts the upstream spelling `Argument`; the existing value is retained to avoid needless installed-state churn. |
 | `DataSets` | text, `airQuality,currentWeather,forecastDaily,forecastHourly,forecastNextHour,weatherAlerts` | Carries the official release input exactly. It currently has no effect because the release module does not attach its request bundle to `/api/v2/weather/`, the only branch that reads this key. |
 | `Weather.Provider` | select, `WeatherKit` | Selects `WeatherKit`, `ColorfulClouds`, or `QWeather` for weather replacement. |
-| `WeatherAlerts.Provider` | select, `WeatherKit` | Selects `WeatherKit`, `QWeatherWeb`, `QWeather`, or `ColorfulClouds` for alert completion and matched alert-detail requests. |
+| `WeatherAlerts.Provider` | select, `WeatherKit` | Selects response-dataset completion and coordinate-form alert handling. Page-token requests always use QWeather Web; matched coordinates return an empty list under `WeatherKit`. |
 | `NextHour.Provider` | select, `WeatherKit` | Selects the next-hour precipitation source. |
+| `AirQuality.Current.Pollutants.Provider` | select, `ColorfulClouds` | Selects ColorfulClouds or QWeather when Apple's current air-quality response has no pollutant list. |
 | `AirQuality.Calculate.Algorithm` | select, `None` | Selects one of the twelve reviewed algorithm values, including the six new AQHI choices. |
-| `API.ColorfulClouds.Token` | text, empty | ColorfulClouds API token. |
+| `API.ColorfulClouds.Token` | text, unset | Optionally overrides the upstream database's built-in ColorfulClouds service token. |
 | `API.QWeather.Host` | text, `devapi.qweather.com` | QWeather API host. A blank declared value is not neutral because `$argument` overrides the bundle database default. |
-| `API.QWeather.Token` | text, empty | QWeather API token. |
-| `API.WAQI.Token` | text, empty | WAQI API token; selects the premium API when set. |
+| `API.QWeather.Token` | text, unset | Optionally overrides the upstream database's built-in QWeather service token. |
+| `API.WAQI.Token` | text, unset | WAQI API token; selects the premium API when set. |
 | `LogLevel` | select, `WARN` | Bundle log verbosity. |
 
-The provider and algorithm defaults intentionally differ from upstream. The
-published release defaults weather and next-hour data to `ColorfulClouds`,
-alerts to `QWeatherWeb`, and the algorithm to `EU_EAQI`. This manifest defaults
-all three providers to `WeatherKit` and the algorithm to `None`, so a new enable
-does not opt into a replacement provider merely because the extension was
-installed.
+The official Loon argument block renders all three token inputs with empty-string
+defaults. This port deliberately declares no manifest default for them. On a
+fresh install the ColorfulClouds and QWeather keys therefore remain absent and
+the stable bundle's database tokens survive; an explicitly persisted `""`
+overwrites those values instead. To restore the built-in token, remove or unset
+the saved value rather than saving a blank string. WAQI remains unset unless the
+operator supplies a token.
+
+The provider and algorithm defaults intentionally differ from upstream where a
+neutral choice exists. The published release defaults weather and next-hour
+data to `ColorfulClouds`, alerts to `QWeatherWeb`, and the algorithm to
+`EU_EAQI`; this manifest uses `WeatherKit`, `WeatherKit`, and `None`. The new
+pollutant selector has no `WeatherKit` or `None` option upstream, so this port
+uses upstream's `ColorfulClouds` default to preserve the behavior previously
+hidden in the database. A fresh enable can therefore still contact
+ColorfulClouds when Apple's air-quality response has no pollutant list, and a
+matched page-token alert request can contact QWeather regardless of the alert
+provider setting.
 
 `Storage` is load-bearing. Without the `Argument` or `$argument` branch, the
 upstream storage loader can ignore every typed manifest setting and read its
@@ -211,28 +252,31 @@ of those configuration sources.
 - `permissions.network: true` is required. It is one boolean grant and names no
   destination. Any bundle action can send any request, response, setting, or
   storage data visible to it to any public host it can reach.
-- The manifest omits `requirements.egressGroup`; normalization therefore
-  reports `egressRequired=false` as review metadata only. Every installation
-  still has one explicit operator binding, and a fresh installation starts at
-  `DIRECT`.
+- `egressRequired=false` is review metadata only. Every installation still has
+  one explicit operator binding, and a fresh installation starts at `DIRECT`.
 - `permissions.persistentStorage: true` is retained. The bundle stores provider
   caches in the extension-scoped store. This release adds no new persistent
   schema and remains compatible with the existing cache bucket.
 - Weather, next-hour, coordinate-alert, and air-quality provider requests can
   disclose the exact coordinates. Provider URLs commonly include latitude and
   longitude directly in the path.
-- An empty provider token does not always disable a call. Upstream substitutes
-  built-in ColorfulClouds and QWeather tokens in several branches.
-- Even with the visible provider defaults set to `WeatherKit`, the hidden
-  full-config air-quality defaults can fetch ColorfulClouds pollutants when an
-  Apple air-quality response has no pollutant list. No published release
-  argument offers a non-network replacement for that hidden provider setting.
-- `QWeatherWeb` discloses the page identifier and selected browser headers to
-  `www.qweather.com`. It does not forward Apple's end-to-end authorization or
-  cookie headers to that site.
-- `QWeather` and `ColorfulClouds` alert modes disclose the exact coordinate pair
-  and language to the selected API. A successful matched request is answered by
-  the bundle, so Apple does not receive that alert-detail request.
+- When custom provider-token settings are omitted, stable `v3.3.0` uses the
+  built-in ColorfulClouds and QWeather service tokens stored in its database.
+  An explicitly saved empty string overrides that database value and can make
+  the corresponding provider lookup fail.
+- `AirQuality.Current.Pollutants.Provider` can fetch ColorfulClouds or QWeather
+  pollutant data when Apple's air-quality response has no pollutant list. The
+  official release offers no `WeatherKit` or `None` choice for that fallback.
+- If Apple's `previousDayComparison` is unknown, hidden full-config comparison
+  defaults can independently fetch QWeather and ColorfulClouds data. Those
+  requests are not selected by `AirQuality.Current.Pollutants.Provider`.
+- Every matched page-token request discloses the identifier and selected browser
+  headers to `www.qweather.com`, even when `WeatherAlerts.Provider=WeatherKit`.
+  It does not forward Apple's end-to-end authorization or cookie headers.
+- `QWeather`, `QWeatherWeb`, and `ColorfulClouds` coordinate-alert handling
+  discloses the exact coordinate pair and language to the selected API. With
+  `WeatherKit`, the bundle makes no provider request but returns a local empty
+  list instead of allowing Apple to answer.
 - Cloud mode sends the complete captured request to the selected endpoint. The
   rewritten request retains its method, decoded body, and end-to-end headers,
   potentially including Apple's `Authorization` header, plus exact coordinates
@@ -253,9 +297,8 @@ of those configuration sources.
   by any official release action. The dev module attaches a request action to
   `/api/v2/weather/`; the release module does not. This port does not add that
   dev-only action merely to make the setting active.
-- The full argument file contains eleven settings not exported by the official
+- The full argument file contains ten settings not exported by the official
   release module: `Weather.Replace`,
-  `AirQuality.Current.Pollutants.Provider`,
   `AirQuality.Current.Pollutants.Units.Replace`,
   `AirQuality.Current.Pollutants.Units.Mode`,
   `AirQuality.Current.Index.Replace`,
@@ -268,13 +311,17 @@ of those configuration sources.
 - The full `DataSets` editor additionally offers `locationInfo`, `news`,
   `historicalComparisons`, and `weatherChanges`. The release variant does not,
   so they are not added to this manifest's default.
+- The QWeather previous-day comparison path can fetch its cacheable location
+  grid from `NSRingo/QWeather-Location-Grid`'s mutable `main` branch, and
+  provider-logo values can point at mutable `NSRingo/WeatherKit` `main` assets.
+  Neither live resource is bound by the reviewed release tag.
 - The dev-only `/api/v2/weather/` request action and
   `weather-map2.apple.com` action are excluded. The sole capture host remains
   `weatherkit.apple.com`.
 - BoxJS, `PersistentStore`, and `database` storage modes are excluded. The
   manifest's typed settings are the only supported configuration source.
 - Upstream's third cloud endpoint, `weather.nanocat.cloud`, remains excluded.
-  It returned no A record and no HTTPS connection during the `2026-08-16`
+  It returned no A record and no HTTPS connection during the `2026-08-17`
   review. `weatherkit.pages.dev` and `dev.weatherkit.pages.dev` remain the two
   reviewed selectable hosts.
 - Upstream's ASN-plus-QUIC rule is excluded. The manifest cannot faithfully
@@ -283,8 +330,8 @@ of those configuration sources.
 - Cloud mode has no `airQualityScale` rewrite because upstream's rewrite module
   has none. This can make the new custom scale behavior incomplete in Cloud
   mode.
-- `CA_AQHI` is experimental in this beta. Source review found an upstream unit
-  inconsistency: its NO2 and O3 configuration targets ppb while the AQHI
+- `CA_AQHI` retains an upstream unit inconsistency in stable `v3.3.0`. Source
+  review found that its NO2 and O3 configuration targets ppb while the AQHI
   calculation path consumes µg/m³. Depending on the incoming unit, a value can
   be used without the intended conversion or skipped. Keep the default `None`
   unless that upstream behavior has been independently validated for the input
@@ -334,15 +381,24 @@ receive.
 
 Authorized device smoke testing should confirm:
 
-1. Script mode compiles five actions and Cloud mode compiles four rewrites.
+1. The fourteen settings compile, Script mode compiles five actions, and Cloud
+   mode compiles four rewrites.
 2. `HK.AQHI.1` and `CN.AQHI.1` scale requests are normalized and answered
    locally in Script mode, while a standard Apple scale continues upstream.
-3. With `WeatherAlerts.Provider=WeatherKit`, both alert identifier forms remain
-   with Apple and the response dataset is preserved.
-4. With `QWeatherWeb`, a page-token request reaches `www.qweather.com` and is
-   answered locally; with `QWeather` or `ColorfulClouds`, a coordinate request
-   reaches the selected API with the exact coordinates.
-5. Cloud mode rewrites availability, weather, and both alert rules to the
+3. With `WeatherAlerts.Provider=WeatherKit`, a page-token request still reaches
+   `www.qweather.com`, a matched coordinate request returns local `200 []`, and
+   the alert dataset inside the weather response remains unchanged.
+4. With `QWeatherWeb` or `QWeather`, a coordinate request reaches the QWeather
+   API; with `ColorfulClouds`, it reaches that provider with the exact
+   coordinates.
+5. With Apple's pollutant list absent and `previousDayComparison` already
+   resolved, verify that pollutant injection uses the selected
+   `AirQuality.Current.Pollutants.Provider`. Test omitted, non-empty override,
+   and explicit-empty token states: only the omitted state uses the built-in
+   token.
+6. With `previousDayComparison` unknown, account separately for the hidden
+   comparison providers and their additional network requests.
+7. Cloud mode rewrites availability, weather, and both alert rules to the
    selected endpoint, but leaves `/api/v1/airQualityScale/` with Apple.
 
 ## Updating
@@ -352,7 +408,7 @@ Authorized device smoke testing should confirm:
 2. Read the Loon release asset. It is authoritative for the proxy-compat
    argument encoding and every `http-request` and `http-response` line.
 3. Read the commit-pinned cloud rewrite module separately. Do not infer that it
-   carries every release action; `v3.3.0-beta2` does not carry
+   carries every release action; `v3.3.0` does not carry
    `airQualityScale` there.
 4. Diff the request process, response process, database defaults, URL parser,
    AQHI implementation, and scale implementation. Classify provider hosts,
@@ -373,47 +429,52 @@ poll releases automatically.
 | Surface | Contract |
 | --- | --- |
 | Identity | Keep `io.5gpn.weatherkit`; bump `metadata.version` whenever manifest bytes, bundle URLs, or reviewed release assets change. |
-| Current manifest | `version=9.0.0`; `persistentStorage=true`; `settings=13`; `captureHosts=1`; `actions=9`; `routingRules=3`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
+| Current manifest | `version=10.0.0`; `persistentStorage=true`; `settings=14`; `captureHosts=1`; `actions=9`; `routingRules=3`; `network=true`; `upstreamMappings=0`; `egressRequired=false`. |
 | Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateful. `persistentStorage` remains true and provider caches stay in the same extension-scoped bucket. |
-| Settings | Retain every existing key and type. `DataSets` and `WeatherAlerts.Provider` are additive; their candidate defaults apply to an older installation. |
+| Settings | Retain every existing key and type. `AirQuality.Current.Pollutants.Provider` is additive and defaults to the previous hidden `ColorfulClouds` behavior. |
 | Script contract | Five Script actions run the two reviewed bundles through `entry: proxy-compat`; four Cloud actions are declarative rewrites and run no gateway code. |
 | Permission review gate | Network access and persistent storage remain reviewed capabilities. Removing either is still a separately reviewed change. |
-| Operator state | Preserve valid settings, egress binding, capture-DNS choice, execution order, and prior enabled authorization. Review the new alert provider before apply. |
+| Operator state | Preserve valid settings, egress binding, capture-DNS choice, execution order, and prior enabled authorization. Review the new pollutant selector, changed alert-request behavior, and any explicitly empty provider-token value before apply. |
 | Rollback | Use a verified publisher-managed revert-forward Marketplace entry with the same ID and a version higher than the failed candidate. |
 
-The selected `v3.3.0-beta2` migration record is:
+The extension-specific `v3.3.0` migration summary is:
 
-| Surface | Baseline `8.1.0` | Candidate `9.0.0` | Decision |
+| Surface | Baseline `9.0.0` | Candidate `10.0.0` | Decision |
 | --- | --- | --- | --- |
-| Upstream | `v3.2.0`, commit `c66350d91457f9a1b8a6c5e6aba46370fa6da254` | `v3.3.0-beta2`, commit `4ec00d076959defcda72bbe24ba83ae7a4d9c405` | Replace both release bundles and every source reference together. |
-| Settings | 11 | 13 | Add `DataSets` and `WeatherAlerts.Provider`; retain every existing key and type. |
-| Actions | 6 | 9 | Add the Script scale rule, Script page-token alert rule, and Cloud page-token alert rewrite. |
+| Upstream | `v3.3.0-beta2`, commit `4ec00d076959defcda72bbe24ba83ae7a4d9c405` | `v3.3.0`, commit `d9e89db7783d23f8bcb1a967af85394ac24b30e3` | Replace both release bundles and every source reference together. |
+| Settings | 13 | 14 | Add `AirQuality.Current.Pollutants.Provider`; default it to the previous hidden `ColorfulClouds` value. |
+| Actions | 9 | unchanged | Preserve five Script actions and four Cloud rewrites. |
 | Capture and routing | 1 host, 3 rejects | unchanged | Preserve the one-host boundary and core-owned UDP/443 guard. |
 | Permissions | network and persistent storage | unchanged | No grant reduction or new storage schema. |
-| Alert default | hidden upstream `QWeather` behavior | explicit `WeatherKit` | Fail toward Apple data and require an explicit provider choice before third-party alert replacement. |
+| Alert request behavior | Provider-gated page and coordinate handling; `WeatherKit` could fall through | Page tokens always use QWeather Web; `QWeatherWeb` coordinates use the QWeather API; `WeatherKit` coordinates return `200 []` | Treat the request behavior change as a major-version review boundary. |
+| Provider tokens | Empty or missing values activate inline built-in fallbacks | Missing values inherit database tokens; a non-empty value overrides; an explicit empty string suppresses the database token | Preserve missing and non-empty states. An operator expecting the built-in token must remove an old empty value rather than save `""`. |
 | State | extension-scoped provider caches | schema-compatible | Keep the same extension ID and storage permission; old caches remain disposable and readable. |
-| Cloud mode | 3 rewrites | 4 rewrites | Add the page-token rule; continue excluding `airQualityScale`. |
+| Cloud mode | 4 rewrites | unchanged | Continue excluding `airQualityScale`. |
 
 ### Repeatable migration
 
 1. Complete the shared migration record with the tag object, source commit,
-   mutable asset record, thirteen settings, nine actions, permissions, routing,
+   mutable asset record, fourteen settings, nine actions, permissions, routing,
    exclusions, and rollback candidate.
 2. Run the repository and Marketplace gates, then the installer-pinned mihomo
    full-review corpus against both live bundles.
-3. Exercise the five Script actions with authorized traffic. Test
-   `WeatherAlerts.Provider=WeatherKit` first, then each intended provider and
-   identifier pairing.
-4. Exercise Cloud mode separately and confirm its four rewrites while
+3. Exercise the five Script actions with authorized traffic. Test the stable
+   page-token and coordinate-alert matrix under every alert-provider value.
+4. Exercise both pollutant-provider values with an Apple response whose
+   pollutant list is absent and whose previous-day comparison is already
+   resolved. Test absent, non-empty, and explicit-empty token states separately;
+   do not treat an empty string as equivalent to unset. Exercise the hidden
+   comparison-provider path separately when that comparison is unknown.
+5. Exercise Cloud mode separately and confirm its four rewrites while
    `/api/v1/airQualityScale/` remains with Apple.
-5. Apply the reviewed Marketplace candidate without a disable-first step and
+6. Apply the reviewed Marketplace candidate without a disable-first step and
    verify retained operator state plus the new setting defaults.
 
 ### Rollback
 
 If smoke testing fails, disable the extension while retaining its storage
 bucket. Publish and review a same-ID publisher-managed revert-forward candidate
-with a version higher than `9.0.0`, then apply it through the normal Marketplace
+with a version higher than `10.0.0`, then apply it through the normal Marketplace
 replacement flow. An emergency uninstall and reinstall loses settings, egress
 binding, capture-DNS choice, execution position, and installed source identity.

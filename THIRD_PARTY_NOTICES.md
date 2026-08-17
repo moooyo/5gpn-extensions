@@ -102,12 +102,12 @@ boundary before enable.
 
 ## WeatherKit release bundles
 
-`weatherkit` does not vendor upstream source. Revision `9.0.0` loads the two
-Apache-2.0 `NSRingo/WeatherKit` `v3.3.0-beta2` release assets,
+`weatherkit` does not vendor upstream source. Revision `10.0.0` loads the two
+Apache-2.0 `NSRingo/WeatherKit` `v3.3.0` release assets,
 `response.bundle.js` and `request.bundle.js`, at runtime and executes them under
 the `5gpn.io/v1` proxy-compat script contract. The unsigned annotated tag object
-`6d2440cbab1de0d1499348201cf7351bbc84a47e` resolves to source commit
-`4ec00d076959defcda72bbe24ba83ae7a4d9c405`. The upstream tree contains no
+`305032889bc471e13a81ee0fa53ed5b9aa3acca6` resolves to source commit
+`d9e89db7783d23f8bcb1a967af85394ac24b30e3`. The upstream tree contains no
 `NOTICE` file.
 
 Because the bundles are fetched rather than copied, this repository distributes
@@ -115,6 +115,10 @@ none of their bytes and adds no derived work of them. `weatherkit/extension.yaml
 and `weatherkit/README.md` are original and Apache-2.0. The upstream package
 metadata credits VirgilClyne, WordlessEcho, 001ProMax, and hhh2210; those are
 retained creator attributions, not copyright assertions by this repository.
+The reviewed lockfile pins Apache-2.0 `@nsnanocat/util` `2.7.4`; its published
+npm metadata reports git head `720261e4e7c0e4c27d32d10238880e991b1e74ec`,
+whose commit-pinned `getStorage.mjs` source is recorded in the extension README
+because it defines the database-versus-argument merge used by the bundles.
 
 Both runtime bundles are mutable release assets: GitHub reports
 `immutable: false`, and upstream publishes no commit-pinned URLs for the
@@ -124,18 +128,25 @@ review-to-apply fence does not prove that a later publisher replacement still
 corresponds to the recorded tag object and source commit. The extension README
 records the review date and the commit-pinned source files used for comparison.
 
-The manifest exposes thirteen typed settings and nine actions. Script mode runs
+The manifest exposes fourteen typed settings and nine actions. Script mode runs
 five bundle actions over four pathnames, including local AQHI scale handling and
-two distinct weather-alert identifier forms. The new page-token form can use
-`QWeatherWeb`: it sends the page identifier and selected browser headers to
-`www.qweather.com`, parses the returned HTML, and answers locally without
-forwarding Apple's `Authorization` or `Cookie` header. Coordinate-based provider
-requests can disclose exact coordinates and API tokens. `WeatherAlerts.Provider`
-defaults to `WeatherKit` in this port, rather than upstream's `QWeatherWeb`
-default, and the published `DataSets` setting is retained even though no
-official release action currently reads it. The extension therefore declares
-the network capability and persistent storage, and its README states these
-boundaries before enable.
+two distinct weather-alert identifier forms. Stable `v3.3.0` always sends a
+matched page token and selected browser headers to `www.qweather.com`, regardless
+of `WeatherAlerts.Provider`, parses the returned HTML, and answers locally
+without forwarding Apple's `Authorization` or `Cookie` header. Coordinate
+requests use ColorfulClouds for `ColorfulClouds`, the QWeather API for both
+`QWeather` and `QWeatherWeb`, and a local `200 []` response for `WeatherKit`.
+Provider requests can disclose exact coordinates and use built-in upstream
+service tokens when no override is supplied; an explicitly saved empty string
+suppresses that database default. The newly published
+`AirQuality.Current.Pollutants.Provider` setting exposes the previous hidden
+ColorfulClouds fallback and also offers QWeather; neither option is neutral. The
+separate hidden previous-day comparison defaults can still make additional
+QWeather or ColorfulClouds requests when Apple's comparison value is unknown. The
+published `DataSets` setting remains present even though no official release
+action currently reads it. The extension therefore declares the network
+capability and persistent storage, and its README states these boundaries before
+enable.
 
 The same extension also ports upstream's cloud rewrite module,
 `modules/iRingo.WeatherKit.Rewrite.lpx` at the same commit. Its four rewrite
@@ -147,10 +158,10 @@ here. Cloud mode is off by default; enabling it sends the complete captured
 request, potentially including Apple's authorization header, decoded body, and
 exact coordinates or page token, to the selected third party.
 
-Known beta limitations include an experimental `CA_AQHI` path with an upstream
-unit inconsistency, provider failures that can become a successful `200` with an
-empty alert list, and no cloud rewrite for `airQualityScale`. The README records
-the fuller behavior, exclusions, and smoke-test expectations.
+Known limitations include a `CA_AQHI` path with an upstream unit inconsistency,
+provider failures that can become a successful `200` with an empty alert list,
+and no cloud rewrite for `airQualityScale`. The README records the fuller
+behavior, exclusions, and smoke-test expectations.
 
 ## Apple WLOC response transformer
 
