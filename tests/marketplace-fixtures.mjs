@@ -55,11 +55,11 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   assert.equal(bilibili.version, '4.2.0')
   assert.equal(bilibili.capabilities.actionCount, 24)
   const weatherkit = catalog.entries.find(entry => entry.id === 'io.5gpn.weatherkit')
-  assert.equal(weatherkit.version, '9.0.0')
+  assert.equal(weatherkit.version, '10.0.0')
   assert.deepEqual(weatherkit.capabilities, {
     captureHostCount: 1,
     actionCount: 9,
-    settingCount: 13,
+    settingCount: 14,
     network: true,
     persistentStorage: true,
     upstreamMappingCount: 0,

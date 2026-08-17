@@ -11,7 +11,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const manifest = parse(await readFile(path.join(root, 'weatherkit', 'extension.yaml'), 'utf8'))
 
 assert.equal(manifest.metadata.id, 'io.5gpn.weatherkit')
-assert.equal(manifest.metadata.version, '9.0.0')
+assert.equal(manifest.metadata.version, '10.0.0')
 assert.deepEqual(manifest.traffic.captureHosts, ['weatherkit.apple.com'])
 assert.deepEqual(manifest.traffic.routingRules, [
   { action: 'reject', domain: 'weather-analytics-events.apple.com' },
@@ -22,7 +22,7 @@ assert.equal(manifest.permissions.persistentStorage, true)
 assert.equal(manifest.permissions.network, true)
 assert.equal(manifest.requirements, undefined, 'no operator egress binding is required')
 
-const RELEASE = 'https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0-beta2'
+const RELEASE = 'https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0'
 const RESPONSE_BUNDLE = `${RELEASE}/response.bundle.js`
 const REQUEST_BUNDLE = `${RELEASE}/request.bundle.js`
 const ENDPOINT = 'https://{{settings.Endpoint}}'
@@ -177,6 +177,7 @@ assert.deepEqual(manifest.settings.map((setting) => setting.key), [
   'Weather.Provider',
   'WeatherAlerts.Provider',
   'NextHour.Provider',
+  'AirQuality.Current.Pollutants.Provider',
   'AirQuality.Calculate.Algorithm',
   'API.ColorfulClouds.Token',
   'API.QWeather.Host',
@@ -205,6 +206,13 @@ const nextHourProvider = manifest.settings.find((setting) => setting.key === 'Ne
 assert.equal(nextHourProvider.default, 'WeatherKit')
 assert.deepEqual(nextHourProvider.options, ['WeatherKit', 'ColorfulClouds', 'QWeather'])
 
+const pollutantsProvider = manifest.settings.find((setting) => setting.key === 'AirQuality.Current.Pollutants.Provider')
+assert.equal(pollutantsProvider.type, 'select')
+assert.equal(pollutantsProvider.required, true)
+assert.equal(pollutantsProvider.default, 'ColorfulClouds')
+assert.deepEqual(pollutantsProvider.options, ['ColorfulClouds', 'QWeather'])
+assert.match(pollutantsProvider.description, /exact coordinates/i)
+
 const algorithm = manifest.settings.find((setting) => setting.key === 'AirQuality.Calculate.Algorithm')
 assert.equal(algorithm.default, 'None')
 assert.deepEqual(algorithm.options, [
@@ -230,6 +238,9 @@ for (const key of ['API.ColorfulClouds.Token', 'API.QWeather.Host', 'API.QWeathe
 for (const key of ['API.ColorfulClouds.Token', 'API.QWeather.Token', 'API.WAQI.Token']) {
   assert.equal(manifest.settings.find((entry) => entry.key === key).default, undefined, `${key} must not ship a token`)
 }
+for (const key of ['API.ColorfulClouds.Token', 'API.QWeather.Token']) {
+  assert.match(manifest.settings.find((entry) => entry.key === key).description, /built-in/i)
+}
 assert.equal(manifest.settings.find((entry) => entry.key === 'API.QWeather.Host').default, 'devapi.qweather.com')
 
 const readme = await readFile(path.join(root, 'weatherkit', 'README.md'), 'utf8')
@@ -239,13 +250,23 @@ assert(/exact coordinates/i.test(readme), 'README must state what an enabled pro
 assert(/authorization/i.test(readme), 'README must state which headers cloud mode discloses')
 assert(/immutable: false/.test(readme), 'README must disclose mutable release assets')
 assert(/DataSets/.test(readme) && /no effect|ineffective|not read/i.test(readme), 'README must record the current DataSets limitation')
-assert(/CA_AQHI/.test(readme) && /unit/i.test(readme), 'README must record the reviewed CA_AQHI beta limitation')
+assert(/CA_AQHI/.test(readme) && /unit/i.test(readme), 'README must record the reviewed CA_AQHI limitation')
+assert(/page-token[\s\S]*always[\s\S]*QWeather/i.test(readme), 'README must record provider-independent QWeather page handling')
+assert(/WeatherAlerts\.Provider=WeatherKit[\s\S]*200 \[\]/i.test(readme), 'README must record the stable WeatherKit coordinate response')
+assert(/built-in ColorfulClouds and QWeather service tokens/i.test(readme), 'README must record the stable provider-token defaults')
+assert(/explicitly saved empty string[\s\S]*built-in/i.test(readme), 'README must record the stable empty-token behavior')
+assert(/official Loon argument block[\s\S]*empty-string\s+defaults/i.test(readme), 'README must record the deliberate token-default deviation')
 
-const SOURCE_COMMIT = '4ec00d076959defcda72bbe24ba83ae7a4d9c405'
+const SOURCE_COMMIT = 'd9e89db7783d23f8bcb1a967af85394ac24b30e3'
 const REWRITE_MODULE = `https://raw.githubusercontent.com/NSRingo/WeatherKit/${SOURCE_COMMIT}/modules/iRingo.WeatherKit.Rewrite.lpx`
 const RELEASE_ARGUMENTS = `https://raw.githubusercontent.com/NSRingo/WeatherKit/${SOURCE_COMMIT}/arguments-builder.release.config.ts`
 const AIR_QUALITY_SCALE_SOURCE = `https://raw.githubusercontent.com/NSRingo/WeatherKit/${SOURCE_COMMIT}/src/class/AirQualityScale.mjs`
-for (const source of [REWRITE_MODULE, RELEASE_ARGUMENTS, AIR_QUALITY_SCALE_SOURCE]) {
+const QWEATHER_SOURCE = `https://raw.githubusercontent.com/NSRingo/WeatherKit/${SOURCE_COMMIT}/src/class/QWeather.mjs`
+const CHANGELOG_SOURCE = `https://raw.githubusercontent.com/NSRingo/WeatherKit/${SOURCE_COMMIT}/CHANGELOG.md`
+const LOCKFILE_SOURCE = `https://raw.githubusercontent.com/NSRingo/WeatherKit/${SOURCE_COMMIT}/package-lock.json`
+const SET_ENV_SOURCE = `https://raw.githubusercontent.com/NSRingo/WeatherKit/${SOURCE_COMMIT}/src/function/setENV.mjs`
+const STORAGE_MERGE_SOURCE = 'https://raw.githubusercontent.com/NSNanoCat/util/720261e4e7c0e4c27d32d10238880e991b1e74ec/getStorage.mjs'
+for (const source of [REWRITE_MODULE, RELEASE_ARGUMENTS, AIR_QUALITY_SCALE_SOURCE, QWEATHER_SOURCE, CHANGELOG_SOURCE, LOCKFILE_SOURCE, SET_ENV_SOURCE, STORAGE_MERGE_SOURCE]) {
   assert(readme.includes(source), `README must record ${source}`)
 }
 for (const option of endpoint.options) {

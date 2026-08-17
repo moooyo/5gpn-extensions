@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Enhancer
-  version: 9.0.0
+  version: 10.0.0
   description: Runs the reviewed NSRingo WeatherKit release bundles on the gateway, or applies the reviewed upstream cloud rewrites.
 
 permissions:
@@ -81,7 +81,7 @@ settings:
   - key: WeatherAlerts.Provider
     type: select
     label: Weather-alert source
-    description: Selects how weather alerts are completed and how matched alert-detail requests are answered. WeatherKit preserves Apple's data and forwards requests unchanged.
+    description: Selects response-dataset completion and coordinate-form alert handling. Page-token requests always use QWeather Web; WeatherKit returns an empty local list for matched coordinate requests.
     required: true
     options:
       - WeatherKit
@@ -99,6 +99,15 @@ settings:
       - ColorfulClouds
       - QWeather
     default: WeatherKit
+  - key: AirQuality.Current.Pollutants.Provider
+    type: select
+    label: Missing-pollutant source
+    description: Selects the provider used when Apple's current air-quality response has no pollutant list. Both options can receive the exact coordinates.
+    required: true
+    options:
+      - ColorfulClouds
+      - QWeather
+    default: ColorfulClouds
   - key: AirQuality.Calculate.Algorithm
     type: select
     label: Local air-quality algorithm
@@ -121,7 +130,7 @@ settings:
   - key: API.ColorfulClouds.Token
     type: text
     label: ColorfulClouds token
-    description: ColorfulClouds API token. Required only when a ColorfulClouds source is selected.
+    description: Optional override for upstream's built-in ColorfulClouds service token.
     required: false
   # $argument is merged over the bundle's database defaults. An empty declared
   # value would overwrite devapi.qweather.com and build every QWeather URL
@@ -135,7 +144,7 @@ settings:
   - key: API.QWeather.Token
     type: text
     label: QWeather token
-    description: QWeather API token. Required only when a QWeather source is selected.
+    description: Optional override for upstream's built-in QWeather service token.
     required: false
   - key: API.WAQI.Token
     type: text
@@ -157,7 +166,7 @@ settings:
     default: WARN
 
 actions:
-  # Gateway script mode transcribes the five script lines in the v3.3.0-beta2
+  # Gateway script mode transcribes the five script lines in the v3.3.0
   # Loon release asset. The two response actions share response.bundle.js; the
   # three request actions share request.bundle.js.
   - id: weather-availability
@@ -175,7 +184,7 @@ actions:
       statusCodes:
         - 200
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0-beta2/response.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/response.bundle.js
       bodyMode: text
       entry: proxy-compat
       timeoutMs: 10000
@@ -196,14 +205,14 @@ actions:
         - https
       pathRegex: '^/api/v1/airQualityScale/'
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0-beta2/request.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/request.bundle.js
       bodyMode: none
       entry: proxy-compat
       timeoutMs: 10000
       maxBodyBytes: 1048576
   # QWeather page identifiers end in a hyphen followed by a nine-digit location
-  # code. Upstream added this matcher separately from the coordinate-form API
-  # identifier, so the two forms remain separate actions here.
+  # code. Stable v3.3.0 always fetches the corresponding QWeather page for this
+  # form, regardless of WeatherAlerts.Provider.
   - id: weather-alerts-page
     phase: request
     enabledWhen:
@@ -217,14 +226,14 @@ actions:
         - https
       pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=[^&#]*-[0-9]{9}(?:&|$)'
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0-beta2/request.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/request.bundle.js
       bodyMode: none
       entry: proxy-compat
       timeoutMs: 10000
       maxBodyBytes: 1048576
   # This stable action ID retains the coordinate-form matcher carried by 8.1.0.
-  # QWeather and ColorfulClouds providers can answer it locally, while
-  # WeatherKit leaves the original request to Apple.
+  # ColorfulClouds uses its API, QWeather and QWeatherWeb use the QWeather API,
+  # and WeatherKit returns a local empty array instead of forwarding to Apple.
   - id: weather-alerts
     phase: request
     enabledWhen:
@@ -238,7 +247,7 @@ actions:
         - https
       pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=-?[0-9]+(?:\.[0-9]+)?,-?[0-9]+(?:\.[0-9]+)?(?:&|$)'
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0-beta2/request.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/request.bundle.js
       bodyMode: none
       entry: proxy-compat
       timeoutMs: 10000
@@ -260,7 +269,7 @@ actions:
       statusCodes:
         - 200
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0-beta2/response.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/response.bundle.js
       bodyMode: binary
       entry: proxy-compat
       timeoutMs: 25000

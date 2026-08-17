@@ -37,7 +37,7 @@ const expectedExtensions = new Map([
   ['apple-wloc', { license: 'MIT', pin: '782e9c5cadf215263d9d168314113e47baaa302c' }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '110029696d66a3f3aef8f6546de9d494513c2901' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
-  ['weatherkit', { license: 'Apache-2.0', pin: '4ec00d076959defcda72bbe24ba83ae7a4d9c405' }],
+  ['weatherkit', { license: 'Apache-2.0', pin: 'd9e89db7783d23f8bcb1a967af85394ac24b30e3' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525' }],
   ['zhihu-cleaner', { license: 'CC-BY-NC-SA-4.0', pin: '8d0e2791f531d4a02e1bd00d0f64427984bc999a' }],
 ])
@@ -577,7 +577,7 @@ for (const entry of entries) {
   }
   if (entry.name === 'weatherkit') {
     assert(
-      actions.length === 9 && manifest.settings?.length === 13 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 3,
+      actions.length === 9 && manifest.settings?.length === 14 && manifest.permissions.persistentStorage && manifest.permissions.network === true && routingRules.length === 3,
       'weatherkit: reviewed two-mode capability set is incomplete',
     )
     // Upstream publishes a five-action release module and a four-rule cloud
@@ -631,6 +631,20 @@ for (const entry of entries) {
     assert(dataSets?.type === 'text' && dataSets.required === true, 'weatherkit: DataSets must carry the published input shape')
     assert(dataSets.default === 'airQuality,currentWeather,forecastDaily,forecastHourly,forecastNextHour,weatherAlerts', 'weatherkit: DataSets must carry the release default')
     assert(/no effect|not read|ineffective/i.test(`${dataSets.description} ${readme}`), 'weatherkit: the current DataSets no-op must be disclosed')
+    // Stable v3.3.0 promotes the previously hidden pollutant provider to the
+    // release argument list. It has no neutral option, so the explicit default
+    // preserves the old database behavior and the review must disclose that
+    // either choice can receive exact coordinates.
+    const pollutantsProvider = manifest.settings.find((setting) => setting.key === 'AirQuality.Current.Pollutants.Provider')
+    assert(
+      pollutantsProvider?.type === 'select' && pollutantsProvider.required === true && pollutantsProvider.default === 'ColorfulClouds' && pollutantsProvider.options?.join(',') === 'ColorfulClouds,QWeather',
+      'weatherkit: the stable pollutant-provider argument is incomplete',
+    )
+    assert(/exact coordinates/i.test(`${pollutantsProvider.description} ${readme}`), 'weatherkit: pollutant-provider coordinate disclosure is missing')
+    assert(/page-token[\s\S]*always[\s\S]*QWeather/i.test(readme), 'weatherkit: stable page-token routing is not disclosed')
+    assert(/WeatherAlerts\.Provider=WeatherKit[\s\S]*200 \[\]/i.test(readme), 'weatherkit: stable WeatherKit coordinate handling is not disclosed')
+    assert(/explicitly saved empty string[\s\S]*built-in/i.test(readme), 'weatherkit: stable empty-token behavior is not disclosed')
+    assert(/official Loon argument block[\s\S]*empty-string\s+defaults/i.test(readme), 'weatherkit: deliberate token-default deviation is not disclosed')
     // $argument is merged last, over the bundle's own database defaults, so a
     // declared-but-empty host would overwrite upstream's devapi.qweather.com
     // with "" and every QWeather URL would be built against a hostless https://.
