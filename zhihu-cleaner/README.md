@@ -169,9 +169,11 @@ before adding a new destructive response filter.
   a different status or response schema may behave differently after an API
   change.
 - The extension requests no storage, network access, upstream mapping, setting,
-  operator egress binding, or routing rule. The core-wide UDP/443 guard cannot
-  acquire a direct connection to a hard-coded HTTPDNS address that never
-  carries a domain association.
+  or routing rule and omits `requirements.egressGroup`; normalization therefore
+  reports `egressRequired=false` as review metadata. Every installation still
+  has one explicit operator egress binding, initialized to `DIRECT`. The
+  core-wide UDP/443 guard cannot acquire a direct connection to a hard-coded
+  HTTPDNS address that never carries a domain association.
 - Interception still requires the global MITM master and an authorized test
   device that trusts the interception root. Certificate pinning, encrypted
   application payloads, protocol changes, or traffic outside ports 80 and 443
@@ -215,8 +217,8 @@ decision.
 | Enablement | A fresh install starts disabled. An installed Marketplace replacement preserves the prior enabled authorization and does not require a disable-first step. |
 | State class | Stateless. `persistentStorage` is false. |
 | Settings | None. A same-ID update has no extension setting values to migrate. |
-| Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, no extension routing rules, no JavaScript, and no network permission, mappings, settings, or egress requirement. The core seed independently owns the global UDP/443 guard. |
-| Operator state | A normal update retains `capture_dns`, execution position, and the prior enabled authorization; all still require review before apply. |
+| Reviewed capability baseline | Five exact capture hosts, five request actions declaring `mock`, thirteen response actions carrying a `jq` expression, no extension routing rules, no JavaScript, no network permission, mappings, or settings, plus normalized `egressRequired=false` review metadata because the manifest omits `requirements.egressGroup`. The core seed independently owns the global UDP/443 guard. |
+| Operator state | A normal update retains the explicit egress binding, `capture_dns`, execution position, and the prior enabled authorization; all still require review before apply. A fresh installation starts at `DIRECT`. |
 | Ordering | Review every other extension that captures a listed Zhihu host. Request and response actions execute in configured extension order. |
 | Authorization gate | Confirm the retained upstream permission covers the candidate revision and documented public redistribution terms before implementation or publication. |
 | Rollback | Prefer a verified publisher-managed revert-forward Marketplace entry with a higher version. No extension data conversion is required. |
@@ -257,7 +259,9 @@ For each update:
 2. Select the candidate's commit-addressed Marketplace entry and confirm the
    reviewed manifest URL and complete snapshot digest before apply.
 3. Confirm exactly five capture hosts, 18 actions, zero routing rules, zero
-   settings, no network permission, zero mappings, and no egress requirement.
+   settings, no network permission, zero mappings, normalized
+   `egressRequired=false` review metadata, and an explicit egress binding
+   (`DIRECT` on a fresh install).
 4. Exercise all 11 upstream synthetic-response directives, the additional
    `/root/window` response, and all 15 upstream JSON directives, including
    unversioned root tabs, multi-digit versions, reordered queries, overlapping

@@ -12,10 +12,10 @@ jobs:
   extensions:
     runs-on: ubuntu-latest
     env:
-      # Source commit behind install.sh's v1.19.28-monolith.29 pin. Keep this
+      # Source commit behind install.sh's v1.19.28-monolith.31 pin. Keep this
       # exact commit synchronized with the installer; a mutable tag or branch
       # would let CI validate a runtime other than the one operators receive.
-      MIHOMO_SOURCE_COMMIT: 5798f177fbe0ef209d50e39204c16b21e53194ee
+      MIHOMO_SOURCE_COMMIT: c747b8b553712d928a52a8c51506a50eaa6f6375
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
       - name: Validate REUSE licensing metadata

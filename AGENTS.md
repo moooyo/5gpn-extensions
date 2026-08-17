@@ -18,15 +18,27 @@
   or the reviewed upstream release record is the provenance binding, while the
   marketplace derives transport-integrity fields during publication. Nothing
   re-downloads an artifact to compare it against a manually recorded digest.
-- Keep action hosts inside the extension's declared capture hosts. Declare
-  storage, the network permission, and required operator egress explicitly and
-  only when the implementation needs them. `permissions.network` is one boolean
-  and names no host: taking it means the extension may reach anywhere and may
-  rewrite a captured request there, and every review says exactly that.
+- Keep action hosts inside the extension's declared capture hosts. Native
+  interception covers plain HTTP and TLS/H1/H2 only; never document HTTP/3
+  capture. Declare storage and the network permission only when the
+  implementation needs them. `requirements.egressGroup.required` is review
+  metadata only: every installed extension has one explicit operator egress
+  binding, a new import starts at `DIRECT`, and neither the manifest nor script
+  can name or change it. `permissions.network` is one boolean and names no host:
+  taking it means the extension may reach anywhere and may rewrite a captured
+  request there. A cross-origin rewrite forwards the complete method, decoded
+  body, and end-to-end headers, potentially including `Cookie` or
+  `Authorization`; a same-origin rewrite inside the capture-host boundary needs
+  no grant. Every review states the unbounded grant exactly.
+- Document `traffic.upstreamMappings` with the engine's current split: an
+  address or alias changes the intercepted upstream while preserving Host and
+  SNI, while a `server:` target selects parser-validated resolver upstreams and
+  is never dialed as the origin. Neither form selects egress.
 - Prefer a declarative action -- `reject`, `mock`, or `jq` -- over a script.
   This repository ships no local JavaScript. A native script, if one is ever
-  added, exposes only `transform(context)` and receives no ambient `fetch`,
-  filesystem, process, timer, or module-loader API. When declarative behavior
+  added, exposes only `transform(context)`, receives bounded action-scoped
+  timers, and receives no ambient `fetch`, filesystem, process, raw-socket, or
+  module-loader API. When declarative behavior
   cannot faithfully replace a published proxy-client bundle, `proxy-compat`
   may run that reviewed bundle with the core's documented Loon persona. Pin its
   source, document every matcher, setting, permission, disclosure, exclusion,

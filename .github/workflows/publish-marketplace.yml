@@ -49,7 +49,7 @@ jobs:
     permissions:
       contents: read
     env:
-      MIHOMO_SOURCE_COMMIT: 5798f177fbe0ef209d50e39204c16b21e53194ee
+      MIHOMO_SOURCE_COMMIT: c747b8b553712d928a52a8c51506a50eaa6f6375
     steps:
       # workflow_run checks out the default branch's tip by default, not the
       # commit that was validated, and GITHUB_SHA follows it. Both are pinned to
