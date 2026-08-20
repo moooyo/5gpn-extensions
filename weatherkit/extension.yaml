@@ -4,7 +4,7 @@ kind: Extension
 metadata:
   id: io.5gpn.weatherkit
   name: WeatherKit Enhancer
-  version: 10.0.0
+  version: 11.0.0
   description: Runs the reviewed NSRingo WeatherKit release bundles on the gateway, or applies the reviewed upstream cloud rewrites.
 
 permissions:
@@ -58,14 +58,21 @@ settings:
     options:
       - $argument
     default: $argument
-  # The official release asset exposes this comma-separated input even though
-  # none of its five script lines attaches request.bundle.js to /api/v2/weather,
-  # which is the only branch that reads it. It is carried for exact argument
-  # parity and documented as currently ineffective rather than silently omitted.
+  # v3.3.1 makes this load-bearing where v3.3.0 ignored it. The response bundle
+  # used to decode whatever the device's own URL asked for; it now decodes only
+  # the datasets named here and runs its injection switch over the same list. A
+  # dataset left out is therefore neither decoded nor enhanced -- its bytes pass
+  # through untouched and no provider call is made for it.
+  #
+  # It stays a comma-separated `text` because upstream's argument is still a
+  # free-text `input`, not a select, and upstream's reader splits on commas.
+  # Names are matched exactly against upstream's own map and an unrecognized one
+  # is dropped silently rather than rejected, so the accepted set is spelled out
+  # in the description.
   - key: DataSets
     type: text
-    label: Requested datasets
-    description: Comma-separated WeatherKit datasets from upstream's release module. The current official action wiring does not read this value, so changing it has no effect.
+    label: Processed datasets
+    description: "Comma-separated datasets the response bundle decodes. The six defaults are also the ones it can enhance; news, locationInfo, weatherChange, and trendComparison affect decoding only. Anything omitted passes through unmodified, and an unrecognized name is ignored."
     required: true
     default: airQuality,currentWeather,forecastDaily,forecastHourly,forecastNextHour,weatherAlerts
   - key: Weather.Provider
@@ -127,10 +134,16 @@ settings:
       - CN_DEATH_AQHI
       - CN_DEATH_HK_AQHI
     default: None
+  # v3.3.1 reads this and the QWeather token as
+  # `Settings?.API?.<provider>?.Token || "<built-in>"`, where v3.3.0 read them
+  # plainly. A blank value is falsy, so it now falls back to upstream's shared
+  # built-in token instead of suppressing it: blank is once again equivalent to
+  # unset. The way to make no third-party call is to leave the matching
+  # *.Provider on WeatherKit, or to drop the dataset from DataSets entirely.
   - key: API.ColorfulClouds.Token
     type: text
     label: ColorfulClouds token
-    description: Optional override for upstream's built-in ColorfulClouds service token.
+    description: Optional override for upstream's built-in ColorfulClouds service token. Leaving it empty uses the built-in token rather than suppressing it.
     required: false
   # $argument is merged over the bundle's database defaults. An empty declared
   # value would overwrite devapi.qweather.com and build every QWeather URL
@@ -144,8 +157,11 @@ settings:
   - key: API.QWeather.Token
     type: text
     label: QWeather token
-    description: Optional override for upstream's built-in QWeather service token.
+    description: Optional override for upstream's built-in QWeather service token. Leaving it empty uses the built-in token rather than suppressing it.
     required: false
+  # The WAQI token has no inline fallback in either release and its database
+  # default is null, so blank genuinely means unset here and selects the free
+  # API. This is the one token whose blank behavior did not change in v3.3.1.
   - key: API.WAQI.Token
     type: text
     label: WAQI token
@@ -166,9 +182,11 @@ settings:
     default: WARN
 
 actions:
-  # Gateway script mode transcribes the five script lines in the v3.3.0
+  # Gateway script mode transcribes the five script lines in the v3.3.1
   # Loon release asset. The two response actions share response.bundle.js; the
-  # three request actions share request.bundle.js.
+  # three request actions share request.bundle.js. v3.3.1 changed only the five
+  # script-path URLs and the DataSets argument's tag/desc; every matcher, the
+  # [Rule] block, and the [MITM] host list are byte-identical to v3.3.0.
   - id: weather-availability
     phase: response
     enabledWhen:
@@ -184,7 +202,7 @@ actions:
       statusCodes:
         - 200
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/response.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.1/response.bundle.js
       bodyMode: text
       entry: proxy-compat
       timeoutMs: 10000
@@ -205,13 +223,13 @@ actions:
         - https
       pathRegex: '^/api/v1/airQualityScale/'
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/request.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.1/request.bundle.js
       bodyMode: none
       entry: proxy-compat
       timeoutMs: 10000
       maxBodyBytes: 1048576
   # QWeather page identifiers end in a hyphen followed by a nine-digit location
-  # code. Stable v3.3.0 always fetches the corresponding QWeather page for this
+  # code. Stable v3.3.1 always fetches the corresponding QWeather page for this
   # form, regardless of WeatherAlerts.Provider.
   - id: weather-alerts-page
     phase: request
@@ -226,7 +244,7 @@ actions:
         - https
       pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=[^&#]*-[0-9]{9}(?:&|$)'
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/request.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.1/request.bundle.js
       bodyMode: none
       entry: proxy-compat
       timeoutMs: 10000
@@ -247,7 +265,7 @@ actions:
         - https
       pathRegex: '^/api/v1/weatherAlerts\?[^#]*&ids=-?[0-9]+(?:\.[0-9]+)?,-?[0-9]+(?:\.[0-9]+)?(?:&|$)'
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/request.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.1/request.bundle.js
       bodyMode: none
       entry: proxy-compat
       timeoutMs: 10000
@@ -269,7 +287,7 @@ actions:
       statusCodes:
         - 200
     script:
-      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.0/response.bundle.js
+      source: https://github.com/NSRingo/WeatherKit/releases/download/v3.3.1/response.bundle.js
       bodyMode: binary
       entry: proxy-compat
       timeoutMs: 25000

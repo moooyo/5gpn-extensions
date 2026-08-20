@@ -102,13 +102,15 @@ boundary before enable.
 
 ## WeatherKit release bundles
 
-`weatherkit` does not vendor upstream source. Revision `10.0.0` loads the two
-Apache-2.0 `NSRingo/WeatherKit` `v3.3.0` release assets,
+`weatherkit` does not vendor upstream source. Revision `11.0.0` loads the two
+Apache-2.0 `NSRingo/WeatherKit` `v3.3.1` release assets,
 `response.bundle.js` and `request.bundle.js`, at runtime and executes them under
 the `5gpn.io/v1` proxy-compat script contract. The unsigned annotated tag object
-`305032889bc471e13a81ee0fa53ed5b9aa3acca6` resolves to source commit
-`d9e89db7783d23f8bcb1a967af85394ac24b30e3`. The upstream tree contains no
-`NOTICE` file.
+`47fa3f2c1fa4807558f3fb0050286ff4e8a08c5b` resolves to source commit
+`cc5eacbae074ddc232b8ceadc9e031ab82e97598`. The upstream tree contains no
+`NOTICE` file. The previously recorded `v3.3.0` tag has since been moved to a
+different commit; the extension README records that observation and the
+re-resolution it requires.
 
 Because the bundles are fetched rather than copied, this repository distributes
 none of their bytes and adds no derived work of them. `weatherkit/extension.yaml`
@@ -130,21 +132,27 @@ records the review date and the commit-pinned source files used for comparison.
 
 The manifest exposes fourteen typed settings and nine actions. Script mode runs
 five bundle actions over four pathnames, including local AQHI scale handling and
-two distinct weather-alert identifier forms. Stable `v3.3.0` always sends a
+two distinct weather-alert identifier forms. Stable `v3.3.1` always sends a
 matched page token and selected browser headers to `www.qweather.com`, regardless
 of `WeatherAlerts.Provider`, parses the returned HTML, and answers locally
 without forwarding Apple's `Authorization` or `Cookie` header. Coordinate
 requests use ColorfulClouds for `ColorfulClouds`, the QWeather API for both
 `QWeather` and `QWeatherWeb`, and a local `200 []` response for `WeatherKit`.
 Provider requests can disclose exact coordinates and use built-in upstream
-service tokens when no override is supplied; an explicitly saved empty string
-suppresses that database default. The newly published
+service tokens when no override is supplied; `v3.3.1` reverted the refactor that
+made an explicitly saved empty string suppress that built-in token, so blank and
+unset are once again equivalent for the ColorfulClouds and QWeather tokens. The
+newly published
 `AirQuality.Current.Pollutants.Provider` setting exposes the previous hidden
 ColorfulClouds fallback and also offers QWeather; neither option is neutral. The
 separate hidden previous-day comparison defaults can still make additional
 QWeather or ColorfulClouds requests when Apple's comparison value is unknown. The
-published `DataSets` setting remains present even though no official release
-action currently reads it. The extension therefore declares the network
+published `DataSets` setting became load-bearing in `v3.3.1`: it now selects
+which response datasets the bundle decodes and enhances, so it bounds provider
+reach, and because the injection switch runs over that setting rather than the
+device's request, the default list can add an air-quality dataset — and the
+coordinate-disclosing pollutant lookup behind it — to a response that carried
+none. The extension therefore declares the network
 capability and persistent storage, and its README states these boundaries before
 enable.
 

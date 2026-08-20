@@ -37,7 +37,7 @@ const expectedExtensions = new Map([
   ['apple-wloc', { license: 'MIT', pin: 'ea204aedfd36b3d407c3506ac25db506a6c1b419' }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '110029696d66a3f3aef8f6546de9d494513c2901' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
-  ['weatherkit', { license: 'Apache-2.0', pin: 'd9e89db7783d23f8bcb1a967af85394ac24b30e3' }],
+  ['weatherkit', { license: 'Apache-2.0', pin: 'cc5eacbae074ddc232b8ceadc9e031ab82e97598' }],
   ['youtube-cleaner', { license: 'Apache-2.0', pin: '65075cdb388fc5e3094afd7e7314c67b243f3525' }],
   ['zhihu-cleaner', { license: 'CC-BY-NC-SA-4.0', pin: '8d0e2791f531d4a02e1bd00d0f64427984bc999a' }],
 ])
@@ -633,13 +633,18 @@ for (const entry of entries) {
     // $argument, so every other setting on the page silently does nothing.
     const storage = manifest.settings.find((setting) => setting.key === 'Storage')
     assert(storage?.default === '$argument' && storage.options?.length === 1, 'weatherkit: settings must be declared as reaching the bundle through $argument')
-    // The official release publishes DataSets as a comma-separated input even
-    // though its action wiring never invokes the only request branch that reads
-    // it. Carry the argument exactly and disclose that current no-op behavior.
+    // v3.3.1 makes DataSets load-bearing where v3.3.0 ignored it: the response
+    // bundle decodes only the datasets named here and runs its injection switch
+    // over the same list. Upstream still publishes it as a free-text
+    // comma-separated input, so the shape is carried exactly -- but the stale
+    // "this argument does nothing" disclosure must not survive the update.
     const dataSets = manifest.settings.find((setting) => setting.key === 'DataSets')
     assert(dataSets?.type === 'text' && dataSets.required === true, 'weatherkit: DataSets must carry the published input shape')
     assert(dataSets.default === 'airQuality,currentWeather,forecastDaily,forecastHourly,forecastNextHour,weatherAlerts', 'weatherkit: DataSets must carry the release default')
-    assert(/no effect|not read|ineffective/i.test(`${dataSets.description} ${readme}`), 'weatherkit: the current DataSets no-op must be disclosed')
+    assert(!/no effect|not read|ineffective/i.test(dataSets.description), 'weatherkit: the DataSets no-op claim is stale under the reviewed release')
+    assert(/passes through unmodified/i.test(dataSets.description), 'weatherkit: DataSets must disclose that an omitted dataset is untouched')
+    assert(/^### Processed datasets$/m.test(readme), 'weatherkit: the README must explain which datasets the bundle decodes and enhances')
+    assert(/carried no air-quality dataset at all/i.test(readme), 'weatherkit: the added air-quality reach of a setting-driven switch is not disclosed')
     // Stable v3.3.0 promotes the previously hidden pollutant provider to the
     // release argument list. It has no neutral option, so the explicit default
     // preserves the old database behavior and the review must disclose that
@@ -652,7 +657,13 @@ for (const entry of entries) {
     assert(/exact coordinates/i.test(`${pollutantsProvider.description} ${readme}`), 'weatherkit: pollutant-provider coordinate disclosure is missing')
     assert(/page-token[\s\S]*always[\s\S]*QWeather/i.test(readme), 'weatherkit: stable page-token routing is not disclosed')
     assert(/WeatherAlerts\.Provider=WeatherKit[\s\S]*200 \[\]/i.test(readme), 'weatherkit: stable WeatherKit coordinate handling is not disclosed')
-    assert(/explicitly saved empty string[\s\S]*built-in/i.test(readme), 'weatherkit: stable empty-token behavior is not disclosed')
+    // v3.3.1 reverted upstream's own token refactor, so
+    // `Settings?.API?.<provider>?.Token || "<built-in>"` is back and a blank
+    // value is once again equivalent to unset. An operator who saved a blank
+    // token under 10.0.0 to suppress a provider silently loses that suppression,
+    // so both the new semantics and the warning have to stay on the page.
+    assert(/Blank and unset are equivalent; both use the built-in token/.test(readme), 'weatherkit: reverted empty-token behavior is not disclosed')
+    assert(/silently resume using the built-in one/i.test(readme), 'weatherkit: the blank-token reversal warning is missing')
     assert(/official Loon argument block[\s\S]*empty-string\s+defaults/i.test(readme), 'weatherkit: deliberate token-default deviation is not disclosed')
     // $argument is merged last, over the bundle's own database defaults, so a
     // declared-but-empty host would overwrite upstream's devapi.qweather.com
@@ -670,7 +681,7 @@ for (const entry of entries) {
     assert(bundleSources.size === 2, 'weatherkit: actions must pin exactly the two upstream bundles')
     assert(new Set([...bundleSources].map((source) => source.slice(0, source.lastIndexOf('/')))).size === 1, 'weatherkit: both bundles must come from the same reviewed release')
     for (const bundleSource of bundleSources) {
-      assert(/^https:\/\/github\.com\/NSRingo\/WeatherKit\/releases\/download\//.test(bundleSource), 'weatherkit: bundle must come from the reviewed upstream release')
+      assert(bundleSource.startsWith('https://github.com/NSRingo/WeatherKit/releases/download/v3.3.1/'), `weatherkit: ${bundleSource} is not the reviewed upstream release`)
       assert(readme.includes(bundleSource), `weatherkit: README does not record the bundle URL ${bundleSource}`)
     }
     assert(
