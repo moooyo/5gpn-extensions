@@ -167,14 +167,20 @@ behavior, exclusions, and smoke-test expectations.
 
 `apple-wloc` does not vendor upstream source. It loads two scripts from
 `Yu9191/wloc` at runtime under the `5gpn.io/v1` proxy-compat contract, pinned at
-commit `782e9c5cadf215263d9d168314113e47baaa302c`: `dist/wloc.js` and
+commit `ea204aedfd36b3d407c3506ac25db506a6c1b419`: `dist/wloc.js` and
 `dist/wloc-settings.js`. Their commit-pinned raw URLs are recorded in the
-extension README. This revision was reviewed on `2026-08-16`.
+extension README. This revision was reviewed on `2026-08-20`.
+
+The reviewed commit widens the response transformer's hostname list from the two
+`gs-loc` names to five, two of which are AutoNavi rather than Apple endpoints, so
+revision `4.0.0` intercepts more than its predecessor did. Upstream did not widen
+its settings-save request line, and this port does not either. The extension
+README records the full boundary and the reviewed diff before enable.
 
 The selected tree carries upstream's standard
-[`AGPL-3.0`](https://github.com/Yu9191/wloc/blob/782e9c5cadf215263d9d168314113e47baaa302c/LICENSE)
+[`AGPL-3.0`](https://github.com/Yu9191/wloc/blob/ea204aedfd36b3d407c3506ac25db506a6c1b419/LICENSE)
 text. Its
-[`README`](https://github.com/Yu9191/wloc/blob/782e9c5cadf215263d9d168314113e47baaa302c/README.md#L285-L287)
+[`README`](https://github.com/Yu9191/wloc/blob/ea204aedfd36b3d407c3506ac25db506a6c1b419/README.md#L296-L298)
 separately states that, without authorization, the project code may not be used
 in commercial products or published in application stores. This repository
 records both statements without interpreting the licensing ambiguity. The

@@ -34,7 +34,7 @@ for (const [filename, expectedDigest] of expectedLicenseFiles) {
 assert(licenseSummary.includes('multi-licensed repository'), 'root LICENSE does not describe the multi-license boundary')
 assert(packageMetadata.license === 'SEE LICENSE IN LICENSE', 'package.json must point to the multi-license boundary')
 const expectedExtensions = new Map([
-  ['apple-wloc', { license: 'MIT', pin: '782e9c5cadf215263d9d168314113e47baaa302c' }],
+  ['apple-wloc', { license: 'MIT', pin: 'ea204aedfd36b3d407c3506ac25db506a6c1b419' }],
   ['bilibili-cleaner', { license: 'GPL-3.0-only', pin: '110029696d66a3f3aef8f6546de9d494513c2901' }],
   ['testflight-region-unlock', { license: 'CC-BY-NC-SA-4.0', pin: 'ab6c3182fb2b09bcc34456f496282ec0b8e9217b' }],
   ['weatherkit', { license: 'Apache-2.0', pin: 'd9e89db7783d23f8bcb1a967af85394ac24b30e3' }],
@@ -513,7 +513,7 @@ for (const entry of entries) {
     assert(/CC BY-NC-SA 4\.0/.test(readme), `${entry.name}: README has no adapted-material license`)
   }
   if (entry.name === 'apple-wloc') {
-    assert(manifest.metadata.version === '3.0.0', 'apple-wloc: reviewed manifest version changed')
+    assert(manifest.metadata.version === '4.0.0', 'apple-wloc: reviewed manifest version changed')
     assert(manifest.settings?.length === 5, 'apple-wloc: reviewed setting count changed')
     const randomRadius = manifest.settings[4]
     assert(
@@ -525,8 +525,15 @@ for (const entry of entries) {
       && randomRadius.max === 5000,
       'apple-wloc: randomRadius must remain the required fifth number setting bounded to 0..5000 with default 0',
     )
-    assert(captureHosts.join(',') === 'gs-loc.apple.com,gs-loc-cn.apple.com', 'apple-wloc: reviewed capture hosts changed')
+    assert(captureHosts.join(',') === 'gs-loc.apple.com,gs-loc-cn.apple.com,gsp-ssl.ls.apple.com,bluedot.is.autonavi.com,bluedot.is.autonavi.com.gds.alibabadns.com', 'apple-wloc: reviewed capture hosts changed')
     assert(actions.length === 2 && actions.every((action) => action.script.entry === 'proxy-compat'), 'apple-wloc: reviewed proxy-compat action set changed')
+    // Upstream widened only the response matcher and its [MITM] hostname list.
+    // The settings-save request line still names the two gs-loc hosts, so the
+    // two matchers deliberately differ and neither may drift toward the other.
+    const responseAction = actions.find((action) => action.id === 'rewrite-wloc-response')
+    const settingsAction = actions.find((action) => action.id === 'save-wloc-settings')
+    assert(responseAction?.match.hosts.join(',') === captureHosts.join(','), 'apple-wloc: the response matcher must cover every reviewed capture host')
+    assert(settingsAction?.match.hosts.join(',') === 'gs-loc.apple.com,gs-loc-cn.apple.com', 'apple-wloc: the settings-save matcher must stay on the two upstream gs-loc hosts')
     const reviewedSources = [
       `https://raw.githubusercontent.com/Yu9191/wloc/${expected.pin}/dist/wloc.js`,
       `https://raw.githubusercontent.com/Yu9191/wloc/${expected.pin}/dist/wloc-settings.js`,
@@ -542,6 +549,8 @@ for (const entry of entries) {
     assert(/previous persisted radius is retained/i.test(readme), 'apple-wloc: sticky randomRadius behavior is not recorded')
     assert(/take precedence over\s+the manifest arguments/i.test(readme), 'apple-wloc: persistent settings precedence is not recorded')
     assert(/enforces no upper bound/i.test(readme), 'apple-wloc: upstream randomRadius limit gap is not recorded')
+    assert(/AutoNavi endpoints/i.test(readme), 'apple-wloc: the widened non-Apple capture boundary is not recorded')
+    assert(/coordinate-less save therefore reports success/i.test(readme), 'apple-wloc: the coordinate-less save outcome is not recorded')
   }
   if (entry.name === 'bilibili-cleaner') {
     assert(migrationSection.includes('| License review gate |'), 'bilibili-cleaner: migration contract has no aggregate-license review gate')
@@ -683,7 +692,7 @@ for (const entry of entries) {
 extensionNames.sort()
 assert(extensionNames.length === expectedExtensions.size, 'extension catalog and license policy differ')
 assert(thirdPartyNotices.includes('Copyright (c) 2026 WLOC ProxyPin Contributors'), 'Apple upstream MIT notice is missing')
-const appleUpstreamPin = '782e9c5cadf215263d9d168314113e47baaa302c'
+const appleUpstreamPin = 'ea204aedfd36b3d407c3506ac25db506a6c1b419'
 const appleUpstreamLicenseUrl = `https://github.com/Yu9191/wloc/blob/${appleUpstreamPin}/LICENSE`
 for (const [document, label] of [
   [licenseSummary, 'root license summary'],

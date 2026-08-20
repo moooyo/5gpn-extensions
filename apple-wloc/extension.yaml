@@ -4,16 +4,26 @@ kind: Extension
 metadata:
   id: io.5gpn.apple-wloc
   name: Apple WLOC Location Override
-  version: 3.0.0
+  version: 4.0.0
   description: Runs the reviewed Yu9191/wloc scripts against Apple Wi-Fi and cellular location responses.
 
 permissions:
   persistentStorage: true
 
 traffic:
+  # Upstream widened its response matcher and [MITM] hostname list from the two
+  # gs-loc names to the five WLOC endpoints it has observed. The two Apple names
+  # serve the global and mainland paths; gsp-ssl.ls.apple.com serves the same
+  # /clls/wloc protobuf; the two bluedot names are the AutoNavi endpoint Apple
+  # uses inside mainland China and its Alibaba-DNS suffixed alias. The settings
+  # -save request line was NOT widened upstream, so it stays on the two gs-loc
+  # names below rather than inheriting this list.
   captureHosts:
     - gs-loc.apple.com
     - gs-loc-cn.apple.com
+    - gsp-ssl.ls.apple.com
+    - bluedot.is.autonavi.com
+    - bluedot.is.autonavi.com.gds.alibabadns.com
 
 settings:
   # Typed `number`, not `text`, for two reasons beyond the obvious one.
@@ -28,6 +38,8 @@ settings:
   #
   # `number` also carries min/max, which the console and the daemon both
   # enforce; a `text` coordinate accepts any non-empty string on both sides.
+  # The reviewed settings-save bundle now validates the same +-180/+-90 range on
+  # the picker path, so the two boundaries agree instead of only this one.
   #
   # No default: the extension stays not-ready until an operator sets a point,
   # which is the honest state for a location override nobody has aimed yet.
@@ -91,16 +103,22 @@ actions:
       hosts:
         - gs-loc.apple.com
         - gs-loc-cn.apple.com
+        - gsp-ssl.ls.apple.com
+        - bluedot.is.autonavi.com
+        - bluedot.is.autonavi.com.gds.alibabadns.com
       schemes:
         - https
       pathRegex: '^/clls/wloc(?:\?.*)?$'
     script:
-      source: https://raw.githubusercontent.com/Yu9191/wloc/782e9c5cadf215263d9d168314113e47baaa302c/dist/wloc.js
+      source: https://raw.githubusercontent.com/Yu9191/wloc/ea204aedfd36b3d407c3506ac25db506a6c1b419/dist/wloc.js
       entry: proxy-compat
       bodyMode: binary
       timeoutMs: 30000
       maxBodyBytes: 8388608
 
+  # Upstream's `WLOC Settings` line still matches only gs-loc(-cn).apple.com. The
+  # host expansion above applies to the response matcher alone, so widening this
+  # action would exceed the reviewed upstream module rather than track it.
   - id: save-wloc-settings
     phase: request
     match:
@@ -111,7 +129,7 @@ actions:
         - https
       pathRegex: '^/wloc-settings/save(?:\?.*)?$'
     script:
-      source: https://raw.githubusercontent.com/Yu9191/wloc/782e9c5cadf215263d9d168314113e47baaa302c/dist/wloc-settings.js
+      source: https://raw.githubusercontent.com/Yu9191/wloc/ea204aedfd36b3d407c3506ac25db506a6c1b419/dist/wloc-settings.js
       entry: proxy-compat
       bodyMode: none
       timeoutMs: 10000

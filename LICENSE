@@ -8,7 +8,7 @@ owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.
 - Repository scaffolding, validation tooling, and `apple-wloc` use the MIT
   License. This covers the local `apple-wloc` manifest and documentation, not
   its remote scripts. Those scripts are fetched from `Yu9191/wloc` commit
-  `782e9c5cadf215263d9d168314113e47baaa302c`, whose tree carries the standard
+  `ea204aedfd36b3d407c3506ac25db506a6c1b419`, whose tree carries the standard
   AGPL-3.0 text and whose README separately requires authorization for
   commercial-product or application-store use. The selected candidate records
   non-commercial use. This repository distributes none of the script bytes,

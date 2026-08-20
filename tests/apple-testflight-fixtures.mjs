@@ -19,13 +19,22 @@ async function readManifest(relativePath) {
 
 const appleManifest = await readManifest('apple-wloc/extension.yaml')
 assert.equal(appleManifest.metadata.id, 'io.5gpn.apple-wloc')
-assert.equal(appleManifest.metadata.version, '3.0.0')
+assert.equal(appleManifest.metadata.version, '4.0.0')
 // The picker page saves a coordinate into extension-scoped storage, which is
 // why this revision declares storage where the previous one declared none.
 assert.deepEqual(appleManifest.permissions, { persistentStorage: true })
 assert.equal(appleManifest.requirements, undefined)
+// Upstream widened its response matcher and [MITM] hostname list from the two
+// gs-loc names to the five WLOC endpoints it has observed, two of which are
+// AutoNavi rather than Apple. The order is upstream's own.
 assert.deepEqual(appleManifest.traffic, {
-  captureHosts: ['gs-loc.apple.com', 'gs-loc-cn.apple.com'],
+  captureHosts: [
+    'gs-loc.apple.com',
+    'gs-loc-cn.apple.com',
+    'gsp-ssl.ls.apple.com',
+    'bluedot.is.autonavi.com',
+    'bluedot.is.autonavi.com.gds.alibabadns.com',
+  ],
 })
 // Four deliberate deviations from upstream's [Argument] block. The coordinate
 // and log-level deviations keep the existing behavior honest; the random
@@ -103,7 +112,7 @@ const [wlocAction, settingsAction] = appleManifest.actions
 assert.equal(wlocAction.id, 'rewrite-wloc-response')
 assert.equal(wlocAction.phase, 'response')
 assert.deepEqual(wlocAction.script, {
-  source: 'https://raw.githubusercontent.com/Yu9191/wloc/782e9c5cadf215263d9d168314113e47baaa302c/dist/wloc.js',
+  source: 'https://raw.githubusercontent.com/Yu9191/wloc/ea204aedfd36b3d407c3506ac25db506a6c1b419/dist/wloc.js',
   entry: 'proxy-compat',
   bodyMode: 'binary',
   timeoutMs: 30000,
@@ -112,15 +121,24 @@ assert.deepEqual(wlocAction.script, {
 assert.equal(settingsAction.id, 'save-wloc-settings')
 assert.equal(settingsAction.phase, 'request')
 assert.deepEqual(settingsAction.script, {
-  source: 'https://raw.githubusercontent.com/Yu9191/wloc/782e9c5cadf215263d9d168314113e47baaa302c/dist/wloc-settings.js',
+  source: 'https://raw.githubusercontent.com/Yu9191/wloc/ea204aedfd36b3d407c3506ac25db506a6c1b419/dist/wloc-settings.js',
   entry: 'proxy-compat',
   bodyMode: 'none',
   timeoutMs: 10000,
   maxBodyBytes: 1024,
 })
+// The two matchers deliberately differ. Upstream widened only the response
+// script's hostname list; its `WLOC Settings` request line still names the two
+// gs-loc hosts, so the save action stays there rather than inheriting the
+// capture list. Collapsing them either way would exceed the reviewed module.
+assert.deepEqual(wlocAction.match.hosts, appleManifest.traffic.captureHosts)
+assert.deepEqual(settingsAction.match.hosts, ['gs-loc.apple.com', 'gs-loc-cn.apple.com'])
 for (const action of appleManifest.actions) {
-  assert.deepEqual(action.match.hosts, appleManifest.traffic.captureHosts)
   assert.deepEqual(action.match.schemes, ['https'])
+  assert(
+    action.match.hosts.every((host) => appleManifest.traffic.captureHosts.includes(host)),
+    'an action may only match hosts the extension declares as captured',
+  )
 }
 assert(new RegExp(wlocAction.match.pathRegex).test('/clls/wloc'))
 assert(new RegExp(wlocAction.match.pathRegex).test('/clls/wloc?source=test'))
@@ -170,7 +188,7 @@ const appleReadme = await readFile(path.join(root, 'apple-wloc/README.md'), 'utf
 const testflightReadme = await readFile(path.join(root, 'testflight-region-unlock/README.md'), 'utf8')
 const licenseSummary = await readFile(path.join(root, 'LICENSE'), 'utf8')
 const thirdPartyNotices = await readFile(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8')
-const applePin = '782e9c5cadf215263d9d168314113e47baaa302c'
+const applePin = 'ea204aedfd36b3d407c3506ac25db506a6c1b419'
 const appleLicenseUrl = `https://github.com/Yu9191/wloc/blob/${applePin}/LICENSE`
 assert.match(appleReadme, /License: \[`MIT`\]/)
 assert.match(appleReadme, new RegExp(applePin))
@@ -189,6 +207,8 @@ assert.match(appleReadme, /merges the new coordinate fields/i)
 assert.match(appleReadme, /previous persisted radius is retained/i)
 assert.match(appleReadme, /take precedence over\s+the manifest arguments/i)
 assert.match(appleReadme, /enforces no upper bound/i)
+assert.match(appleReadme, /AutoNavi endpoints/i)
+assert.match(appleReadme, /coordinate-less save therefore reports success/i)
 assert.match(appleReadme, /randomRadius/)
 assert.match(appleReadme, /failClosed/)
 assert.match(testflightReadme, /License: \[`CC-BY-NC-SA-4\.0`\]/)

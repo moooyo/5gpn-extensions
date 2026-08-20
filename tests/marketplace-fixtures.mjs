@@ -39,10 +39,10 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
   assert.equal(catalog.entries.length, 6)
   const apple = catalog.entries.find(entry => entry.id === 'io.5gpn.apple-wloc')
-  assert.equal(apple.version, '3.0.0')
+  assert.equal(apple.version, '4.0.0')
   assert.equal(apple.license.spdx, 'MIT')
   assert.deepEqual(apple.capabilities, {
-    captureHostCount: 2,
+    captureHostCount: 5,
     actionCount: 2,
     settingCount: 5,
     network: false,
