@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -16,7 +15,11 @@ import (
 	"time"
 )
 
-const externalReviewCatalogURL = "https://official-extensions.invalid/index.json"
+// The single marketplace URL is compiled into the core; no operator-configured
+// source exists any more. The stub transport below serves the checked-out index
+// at exactly this key, so it must stay byte-identical to the URL the runtime
+// fetches or the review would silently reach the live published document.
+const externalReviewCatalogURL = "https://moooyo.github.io/5gpn-extensions/marketplace/v2/index.json"
 
 type externalReviewCorpusTransport struct {
 	local     map[string][]byte
@@ -157,14 +160,13 @@ func TestExternalOfficialMarketplaceFullReviewCorpus(t *testing.T) {
 	SetImporter(importer)
 	t.Cleanup(func() { importerRef.Store(previousImporter) })
 
-	document := fmt.Sprintf(`{
-  "version": 6,
+	document := `{
+  "version": 7,
   "execution_order": [],
   "tls_cert": "/etc/5gpn/intercept/tls/fullchain.pem",
   "tls_key": "/etc/5gpn/intercept/tls/privkey.pem",
-  "mitm": {"enabled": false, "http2": true, "http3": false},
-  "catalogs": [{"id": "external-corpus", "name": "External corpus", "url": %q, "enabled": true}]
-}`, externalReviewCatalogURL)
+  "mitm": {"enabled": false, "http2": true, "http3": false}
+}`
 	statePath := filepath.Join(t.TempDir(), "interception.json")
 	if err := os.WriteFile(statePath, []byte(document), 0o600); err != nil {
 		t.Fatal(err)
@@ -188,7 +190,7 @@ func TestExternalOfficialMarketplaceFullReviewCorpus(t *testing.T) {
 			t.Fatalf("Marketplace contains duplicate extension id %q", entry.ID)
 		}
 		seen[entry.ID] = struct{}{}
-		candidate, err := engine.ReviewCatalogEntry(ctx, "external-corpus", entry.ID)
+		candidate, err := engine.ReviewCatalogEntry(ctx, entry.ID)
 		if err != nil {
 			t.Errorf("full review %s: %v", entry.ID, err)
 			continue

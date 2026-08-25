@@ -5,17 +5,8 @@ software license. A file's license is determined by the explicit mapping in
 [`REUSE.toml`](REUSE.toml), with attribution and provenance recorded in the
 owning extension's README and in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-- Repository scaffolding, validation tooling, and `apple-wloc` use the MIT
-  License. This covers the local `apple-wloc` manifest and documentation, not
-  its remote scripts. Those scripts are fetched from `Yu9191/wloc` commit
-  `ea204aedfd36b3d407c3506ac25db506a6c1b419`, whose tree carries the standard
-  AGPL-3.0 text and whose README separately requires authorization for
-  commercial-product or application-store use. The selected candidate records
-  non-commercial use. This repository distributes none of the script bytes,
-  and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) records the boundary.
-  The complete project MIT text is in
-  [`LICENSES/MIT.txt`](LICENSES/MIT.txt); retained upstream MIT notices are in
-  [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+- Repository scaffolding and validation tooling use the MIT License. The
+  complete project MIT text is in [`LICENSES/MIT.txt`](LICENSES/MIT.txt).
 - `bilibili-cleaner` uses `GPL-3.0-only`, matching the `kokoryh/Sparkle` module
   it accompanies. It does not vendor the four generated JavaScript bundles;
   the gateway fetches those pinned scripts at runtime. It distributes adapted

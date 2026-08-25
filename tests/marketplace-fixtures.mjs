@@ -37,20 +37,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   }
 
   assert.equal(catalog.metadata.id, 'io.5gpn.official')
-  assert.equal(catalog.entries.length, 6)
-  const apple = catalog.entries.find(entry => entry.id === 'io.5gpn.apple-wloc')
-  assert.equal(apple.version, '4.0.0')
-  assert.equal(apple.license.spdx, 'MIT')
-  assert.deepEqual(apple.capabilities, {
-    captureHostCount: 5,
-    actionCount: 2,
-    settingCount: 5,
-    network: false,
-    persistentStorage: true,
-    upstreamMappingCount: 0,
-    routingRuleCount: 0,
-    egressGroupRequired: false,
-  })
+  assert.equal(catalog.entries.length, 5)
   const bilibili = catalog.entries.find(entry => entry.id === 'io.5gpn.bilibili-cleaner')
   assert.equal(bilibili.version, '4.2.0')
   assert.equal(bilibili.capabilities.actionCount, 24)
@@ -107,7 +94,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, '..')
   try {
     await execFileAsync(process.execPath, [script, '--revision', revision, '--output', output], { cwd: repositoryRoot })
     const generated = await readFile(output, 'utf8')
-    assert.equal(JSON.parse(generated).entries.length, 6, 'the index must describe every shipped extension')
+    assert.equal(JSON.parse(generated).entries.length, 5, 'the index must describe every shipped extension')
     await execFileAsync(process.execPath, [script, '--revision', revision, '--check', output], { cwd: repositoryRoot })
 
     // --profile is gone with the split it selected. An unknown option is

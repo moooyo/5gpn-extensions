@@ -302,9 +302,11 @@ Prepare rollback before enabling the candidate:
 - confirm that the state strategy remains readable by the baseline; and
 - define the smoke-test failure that triggers rollback.
 
-The preferred rollback is publisher-managed revert-forward. A public-catalog
-operator cannot publish it and must wait for the catalog publisher unless the
-operator installed an operator-controlled fork:
+Publisher-managed revert-forward is the rollback path, and the only one that
+goes through the Marketplace. The marketplace source is compiled into 5gpn:
+an operator cannot publish into it, repoint it, or add a fork of this catalog
+beside it, so a public-catalog operator must wait for the catalog publisher to
+carry out the following:
 
 1. Revert the behavior in a new reviewed repository change while keeping
    `metadata.id` stable and using a `metadata.version` higher than the failing
@@ -323,11 +325,11 @@ binding, `capture_dns`, execution position, and source identity. Do not use that
 fallback for a stateful extension unless state loss is an explicitly reviewed
 and tested part of the migration.
 
-A stateful extension installed from a public or permanently immutable URL has
-no immediate operator-controlled rollback when a publisher-managed candidate is
-unavailable. Disable it, do not uninstall it or remove storage permission, and
-preserve the state bucket while waiting for a reviewed publisher rollback or
-moving through a separately reviewed operator-controlled source transition.
+A stateful extension installed from the Marketplace or from a public or
+permanently immutable URL has no operator-controlled rollback when a
+publisher-managed candidate is unavailable, and no source transition can create
+one. Disable it, do not uninstall it or remove storage permission, and preserve
+the state bucket while waiting for a reviewed publisher rollback.
 
 ## Completion criteria
 

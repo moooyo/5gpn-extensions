@@ -32,7 +32,7 @@ jobs:
     # context, feeding an artifact to a deploy job that holds `pages: write`.
     # Because `pull_request` runs the workflow files from the PR head, the same
     # commit could also make validate trivially green. The published document is
-    # the one the gateway hardcodes as its recommended marketplace, so this is
+    # the one the gateway compiles in as its only marketplace source, so this is
     # the whole catalogue's trust boundary.
     #
     # head_repository pins it to this repository and `event == 'push'` drops the
@@ -49,7 +49,7 @@ jobs:
     permissions:
       contents: read
     env:
-      MIHOMO_SOURCE_COMMIT: c747b8b553712d928a52a8c51506a50eaa6f6375
+      MIHOMO_SOURCE_COMMIT: 4be94ddca0b2484b3fa043b598f32e5a6815fe2e
     steps:
       # workflow_run checks out the default branch's tip by default, not the
       # commit that was validated, and GITHUB_SHA follows it. Both are pinned to

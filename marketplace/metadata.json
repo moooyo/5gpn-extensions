@@ -8,11 +8,6 @@
   },
   "entries": [
     {
-      "directory": "apple-wloc",
-      "licenseSpdx": "MIT",
-      "tags": ["apple", "location", "testing"]
-    },
-    {
       "directory": "bilibili-cleaner",
       "licenseSpdx": "GPL-3.0-only",
       "tags": ["ads", "bilibili", "media"]

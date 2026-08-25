@@ -25,15 +25,6 @@ SPDX-License-Identifier = "MIT"
 
 [[annotations]]
 path = [
-  "apple-wloc/README.md",
-  "apple-wloc/extension.yaml",
-]
-precedence = "override"
-SPDX-FileCopyrightText = "2026 moooyo"
-SPDX-License-Identifier = "MIT"
-
-[[annotations]]
-path = [
   "bilibili-cleaner/README.md",
   "bilibili-cleaner/extension.yaml",
 ]

@@ -9,7 +9,6 @@
 
 | 扩展 | 用途 | 许可证 |
 | --- | --- | --- |
-| `apple-wloc` | 将 Apple WLOC 响应改写为运营者选择的位置 | MIT |
 | `bilibili-cleaner` | 移除部分哔哩哔哩广告和推广内容 | GPL-3.0-only |
 | `testflight-region-unlock` | 使用运营者选择的出口改写 TestFlight 店面 | CC BY-NC-SA 4.0 |
 | `weatherkit` | 在 Script 模式运行经审查的 WeatherKit bundle，或在 Cloud 模式应用经审查的上游改写 | Apache-2.0 |
@@ -23,7 +22,6 @@
 
 | 扩展 | 清单 URL |
 | --- | --- |
-| `apple-wloc` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/apple-wloc/extension.yaml> |
 | `bilibili-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml> |
 | `testflight-region-unlock` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-unlock/extension.yaml> |
 | `weatherkit` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/weatherkit/extension.yaml> |
@@ -40,9 +38,11 @@
 https://moooyo.github.io/5gpn-extensions/marketplace/v2/index.json
 ```
 
-5gpn 不会预置此市场或任何其他市场。请先审查本仓库；只有在你选择信任它时，才将上方 URL 复制到 **插件市场 → 添加市场**。运营者也可以选择添加其他兼容来源。
+该 URL 已编译进 5gpn，是其唯一的 marketplace 来源。不存在由运营者配置的市场：此来源无法更改、替换、重命名、禁用，也无法再添加其他来源；Console 无需先添加任何东西即可浏览它。
 
-显式添加后，Console 即可浏览已审查的扩展。浏览不会安装或启用扩展。选择条目后会进入标准的原生 manifest 解析与快照流程，并审查其捕获主机、权限、设置、路由规则、执行位置和出口绑定。全新安装从禁用状态开始；已安装的 Marketplace 替换保留此前的启用授权。
+Console 可直接浏览其中已审查的扩展。浏览不会安装、启用、更新或执行任何扩展。选择条目后会进入标准的原生 manifest 解析与快照流程，并审查其捕获主机、权限、设置、路由规则、执行位置和出口绑定。全新安装从禁用状态开始；已安装的 Marketplace 替换保留此前的启用授权。
+
+作为内置来源并不等于替你做出了信任决定。从中安装任何内容前，请先审查本仓库以及每个条目的 manifest。对于发布在其他位置的、经审查的 manifest，Install from URL 和 Console 的本地添加流程依然可用。
 
 Marketplace 是发现元数据，不是可执行信任边界。每个条目都指向生成索引的精确 40 位仓库提交中的 manifest、文档和许可证。生成器只记录 manifest 的 SHA-256、字节数，以及网关会在审查时核对的面向人的能力摘要；它不发布与运行时并行的脚本资源或已编译策略契约。脚本和路由规则仍由常规不可变快照流程抓取、解析和编译。审查返回完整快照摘要，应用时重新抓取；快照变化即拒绝。列表中的描述和能力摘要永远不是运行时权威。
 
@@ -277,7 +277,7 @@ traffic:
 
 更新必须保持 `metadata.id`，当运行时来源或经审查的 asset 选择变化时提升 `metadata.version`，并刷新溯源信息和测试样例。全新安装从禁用状态开始；已安装的 Marketplace 替换无需先禁用，并保留此前的启用授权。请勿引入自动更新、未经审查的可变分支获取或扩展自带的兼容性垫片。
 
-上游版本的选择刻意保持为人工流程。每次源码迁移、已安装版本发布和回滚都必须遵循可复用的 [`MIGRATION.md`](MIGRATION.md) 手册。该手册要求记录基线与候选版本、比较能力和许可证、明确状态策略、通过 Marketplace 审查/应用边界完成更新、完成聚焦验证、明确记录外部 monolith 契约证据，并准备由发布者管理、可演练的前滚式回退；同时说明运营者仅有的有限应急选项。该手册不会发现或自动选择上游版本。
+上游版本的选择刻意保持为人工流程。每次源码迁移、已安装版本发布和回滚都必须遵循可复用的 [`MIGRATION.md`](MIGRATION.md) 手册。该手册要求记录基线与候选版本、比较能力和许可证、明确状态策略、通过 Marketplace 审查/应用边界完成更新、完成聚焦验证、明确记录外部 monolith 契约证据，并准备由发布者管理、可演练的前滚式回退。由于 marketplace 来源已编译进 5gpn，没有任何运营者能控制来源；手册说明在发布者回滚可用之前，已安装扩展出现故障的运营者仅有的有限应急选项。该手册不会发现或自动选择上游版本。
 
 ## 许可证
 
@@ -312,4 +312,4 @@ CI 另行检出安装器 pin 背后的精确 mihomo 源码提交，让每个生�
 
 该构建产出一份文档、描述一套 wire contract，发布在 `marketplace/v2/`。monolith 会宽松忽略未知 catalog 字段，但本发布者只输出运行时实际消费的字段：manifest 身份、展示元数据，以及审查时核对的能力摘要。已退役的资源列表和类型化策略投影不会作为装饰性或竞争性契约保留。未来若更改运行时实际消费的字段，必须使用新的发布路径，而不是构建 profile。
 
-当前集成 pin 是 `moooyo/mihomo@5798f177fbe0ef209d50e39204c16b21e53194ee`，即安装器 `v1.19.28-monolith.29` artifact 背后的源码提交。安装器升级时，必须在同一变更中更新此精确提交与 workflow。不得换成分支或可移动 tag，也不得把 `npm test` 或 marketplace 可复现性本身描述为运行时验证。
+当前集成 pin 是 `moooyo/mihomo@4be94ddca0b2484b3fa043b598f32e5a6815fe2e`，即安装器 `v1.19.30-monolith.35` artifact 背后的源码提交。安装器升级时，必须在同一变更中更新此精确提交与 workflow。不得换成分支或可移动 tag，也不得把 `npm test` 或 marketplace 可复现性本身描述为运行时验证。

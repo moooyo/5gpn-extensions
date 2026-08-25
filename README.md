@@ -14,7 +14,6 @@ rules, network permission, execution position, current egress binding, and any
 
 | Extension | Purpose | License |
 | --- | --- | --- |
-| `apple-wloc` | Rewrite Apple WLOC responses to an operator-selected point | MIT |
 | `bilibili-cleaner` | Remove selected Bilibili ads and promotions | GPL-3.0-only |
 | `testflight-region-unlock` | Rewrite TestFlight storefront with operator-selected egress | CC BY-NC-SA 4.0 |
 | `weatherkit` | Run reviewed WeatherKit bundles in Script mode, or apply reviewed upstream rewrites in Cloud mode | Apache-2.0 |
@@ -31,7 +30,6 @@ public HTTPS origin; never embed repository credentials in an extension URL.
 
 | Extension | Manifest URL |
 | --- | --- |
-| `apple-wloc` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/apple-wloc/extension.yaml> |
 | `bilibili-cleaner` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/bilibili-cleaner/extension.yaml> |
 | `testflight-region-unlock` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/testflight-region-unlock/extension.yaml> |
 | `weatherkit` | <https://raw.githubusercontent.com/moooyo/5gpn-extensions/main/weatherkit/extension.yaml> |
@@ -54,16 +52,22 @@ The first-party marketplace is published as strict JSON at:
 https://moooyo.github.io/5gpn-extensions/marketplace/v2/index.json
 ```
 
-5gpn does not preconfigure this or any other marketplace. Review this repository
-first, then copy the URL above into **Marketplace → Add marketplace** only if you
-choose to trust it; operators may add a different compatible source instead.
+This URL is compiled into 5gpn as its single marketplace source. There is no
+operator-configured marketplace: the source cannot be changed, replaced,
+renamed, disabled, or supplemented with another one, and nothing has to be
+added before the Console can browse it.
 
-After it is explicitly added, the Console can browse the reviewed
-extensions. Browsing never installs or enables an extension. Choosing an entry
+The Console can browse the reviewed extensions from it directly. Browsing never
+installs, enables, updates, or executes an extension. Choosing an entry
 starts the normal native manifest parser and snapshot pipeline, and the
 review covers its capture hosts, permissions, settings, routing rules, execution
 position, and egress binding. A fresh install starts disabled; an installed
 Marketplace replacement preserves the prior enabled authorization.
+
+Being the built-in source is not a trust decision made on your behalf. Review
+this repository, and each entry's manifest, before installing anything from it.
+Install-from-URL and the Console's local-add flow remain available for a
+reviewed manifest published anywhere else.
 
 The marketplace is discovery metadata, not an executable trust boundary. Each
 entry points to a manifest, documentation, and license at the exact 40-character
@@ -426,9 +430,10 @@ rollout, and rollback must follow the reusable
 record, a capability and license diff, an explicit state strategy, the
 Marketplace review/apply boundary, focused verification, explicit monolith
 contract evidence, and a rehearsable publisher-managed revert-forward rollback.
-It also documents the limited emergency options available to operators who do
-not control a compatible Marketplace source. The playbook does not discover or
-automatically select upstream revisions.
+Because the marketplace source is compiled into 5gpn, no operator controls one;
+the playbook documents the limited emergency options that leaves an operator
+whose installed extension fails before a publisher rollback is available. The
+playbook does not discover or automatically select upstream revisions.
 
 ## Licenses
 
@@ -491,8 +496,8 @@ or competing contracts. A future change to fields the runtime consumes must use
 a new published path rather than a build profile.
 
 The current integration pin is
-`moooyo/mihomo@5798f177fbe0ef209d50e39204c16b21e53194ee`, the source commit behind
-the installer's `v1.19.28-monolith.29` artifact. When the installer advances,
+`moooyo/mihomo@4be94ddca0b2484b3fa043b598f32e5a6815fe2e`, the source commit behind
+the installer's `v1.19.30-monolith.35` artifact. When the installer advances,
 update this exact commit and the workflow in the same change. Never replace it
 with a branch or movable tag, and never describe `npm test` or marketplace
 reproducibility alone as runtime validation.
