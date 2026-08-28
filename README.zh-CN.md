@@ -312,4 +312,4 @@ CI 另行检出安装器 pin 背后的精确 mihomo 源码提交，让每个生�
 
 该构建产出一份文档、描述一套 wire contract，发布在 `marketplace/v2/`。monolith 会宽松忽略未知 catalog 字段，但本发布者只输出运行时实际消费的字段：manifest 身份、展示元数据，以及审查时核对的能力摘要。已退役的资源列表和类型化策略投影不会作为装饰性或竞争性契约保留。未来若更改运行时实际消费的字段，必须使用新的发布路径，而不是构建 profile。
 
-当前集成 pin 是 `moooyo/mihomo@4be94ddca0b2484b3fa043b598f32e5a6815fe2e`，即安装器 `v1.19.30-monolith.35` artifact 背后的源码提交。安装器升级时，必须在同一变更中更新此精确提交与 workflow。不得换成分支或可移动 tag，也不得把 `npm test` 或 marketplace 可复现性本身描述为运行时验证。
+当前集成 pin 是 `moooyo/mihomo@60a0a04ff5dc794fcb1a31512cbaf5431dc6b7a3`，即安装器 `v1.19.30-monolith.36` artifact 背后的源码提交。安装器升级时，必须在同一变更中更新此精确提交与 workflow。不得换成分支或可移动 tag，也不得把 `npm test` 或 marketplace 可复现性本身描述为运行时验证。
