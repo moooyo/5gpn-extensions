@@ -202,8 +202,10 @@ actions:
 ```
 
 Metadata IDs are stable lowercase dotted identifiers from 3 to 40 bytes, and
-versions use semantic version syntax. A wildcard capture host matches child
-names only; `*.example.com` does not include the apex `example.com`.
+versions use semantic version syntax. A wildcard capture host matches exactly
+one child label: `*.example.com` includes `api.example.com`, but not the apex
+`example.com` or `v1.api.example.com`. Wildcards directly beneath an ICANN or
+private public suffix, such as `*.co.uk` or `*.github.io`, are rejected.
 
 Every action declares a request or response phase, a non-empty host subset,
 one or both schemes, an anchored RE2 `pathRegex` matched against path plus
@@ -496,8 +498,8 @@ or competing contracts. A future change to fields the runtime consumes must use
 a new published path rather than a build profile.
 
 The current integration pin is
-`moooyo/mihomo@4be94ddca0b2484b3fa043b598f32e5a6815fe2e`, the source commit behind
-the installer's `v1.19.30-monolith.35` artifact. When the installer advances,
+`moooyo/mihomo@60a0a04ff5dc794fcb1a31512cbaf5431dc6b7a3`, the source commit behind
+the installer's `v1.19.30-monolith.36` artifact. When the installer advances,
 update this exact commit and the workflow in the same change. Never replace it
 with a branch or movable tag, and never describe `npm test` or marketplace
 reproducibility alone as runtime validation.
