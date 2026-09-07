@@ -498,8 +498,8 @@ or competing contracts. A future change to fields the runtime consumes must use
 a new published path rather than a build profile.
 
 The current integration pin is
-`moooyo/mihomo@60a0a04ff5dc794fcb1a31512cbaf5431dc6b7a3`, the source commit behind
-the installer's `v1.19.30-monolith.36` artifact. When the installer advances,
+`moooyo/mihomo@3b089142684a6b33215537431dd652564f28f6fb`, the source commit behind
+the installer's `v1.19.30-monolith.37` artifact. When the installer advances,
 update this exact commit and the workflow in the same change. Never replace it
 with a branch or movable tag, and never describe `npm test` or marketplace
 reproducibility alone as runtime validation.
